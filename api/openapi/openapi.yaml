@@ -1,0 +1,1096 @@
+openapi: "3.0.3"
+info:
+  title: CRM API
+  version: "0.1.0"
+  description: Self-hosted agent-first CRM REST API
+servers:
+  - url: http://localhost:8080
+    description: Development server
+tags:
+  - name: companies
+  - name: contacts
+  - name: leads
+  - name: deals
+  - name: tasks
+  - name: projects
+  - name: pipelines
+  - name: system
+paths:
+  /health:
+    get:
+      tags: [system]
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {type: string}
+                  version: {type: string}
+                  build: {type: string}
+  /ready:
+    get:
+      tags: [system]
+      summary: Readiness check
+      responses:
+        '200':
+          description: Ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {type: string}
+        '503':
+          description: Not ready
+  /api/v1/status:
+    get:
+      tags: [system]
+      summary: System status
+      responses:
+        '200':
+          description: System status
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/v1/companies:
+    get:
+      tags: [companies]
+      summary: List companies
+      parameters:
+        - $ref: '#/components/parameters/Query'
+        - $ref: '#/components/parameters/IsClient'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Order'
+      responses:
+        '200':
+          description: Company page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyPage'
+    post:
+      tags: [companies]
+      summary: Create company
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+  /api/v1/companies/{id}:
+    get:
+      tags: [companies]
+      summary: Get company
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Company
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+        '404':
+          description: Not found
+    patch:
+      tags: [companies]
+      summary: Update company
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+        '404':
+          description: Not found
+    delete:
+      tags: [companies]
+      summary: Archive company
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Archived
+        '404':
+          description: Not found
+  /api/v1/contacts:
+    get:
+      tags: [contacts]
+      summary: List contacts
+      parameters:
+        - $ref: '#/components/parameters/Query'
+        - $ref: '#/components/parameters/CompanyId'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Order'
+      responses:
+        '200':
+          description: Contact page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactPage'
+    post:
+      tags: [contacts]
+      summary: Create contact
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+  /api/v1/contacts/{id}:
+    get:
+      tags: [contacts]
+      summary: Get contact
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Contact
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '404':
+          description: Not found
+    patch:
+      tags: [contacts]
+      summary: Update contact
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '404':
+          description: Not found
+    delete:
+      tags: [contacts]
+      summary: Archive contact
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Archived
+        '404':
+          description: Not found
+  /api/v1/leads:
+    get:
+      tags: [leads]
+      summary: List leads
+      parameters:
+        - $ref: '#/components/parameters/Query'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/Source'
+        - $ref: '#/components/parameters/OwnerId'
+        - $ref: '#/components/parameters/Priority'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Order'
+      responses:
+        '200':
+          description: Lead page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadPage'
+    post:
+      tags: [leads]
+      summary: Create lead
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeadCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lead'
+  /api/v1/leads/{id}:
+    get:
+      tags: [leads]
+      summary: Get lead
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Lead
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lead'
+        '404':
+          description: Not found
+    patch:
+      tags: [leads]
+      summary: Update lead
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeadUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lead'
+        '404':
+          description: Not found
+    delete:
+      tags: [leads]
+      summary: Archive lead
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Archived
+        '404':
+          description: Not found
+  /api/v1/pipelines:
+    get:
+      tags: [pipelines]
+      summary: List workspace pipelines and stage choices
+      description: Requires an authenticated session and deals:read scope. Returns only pipelines in the authenticated workspace.
+      responses:
+        '200':
+          description: Pipelines with their stages ordered by position
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total]
+                properties:
+                  total: {type: integer}
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: {type: string}
+                        workspace_id: {type: string}
+                        name: {type: string}
+                        is_default: {type: boolean}
+                        created_at: {type: string, format: date-time}
+                        updated_at: {type: string, format: date-time}
+                        stages:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id: {type: string}
+                              pipeline_id: {type: string}
+                              name: {type: string}
+                              position: {type: integer}
+                              probability: {type: integer}
+                              category: {type: string, enum: [open, won, lost]}
+                              created_at: {type: string, format: date-time}
+        '401':
+          description: Authentication required
+        '403':
+          description: Deal read access required
+        '500':
+          description: Pipeline choices unavailable
+  /api/v1/deals:
+    get:
+      tags: [deals]
+      summary: List deals
+      parameters:
+        - $ref: '#/components/parameters/Query'
+        - $ref: '#/components/parameters/PipelineId'
+        - $ref: '#/components/parameters/StageId'
+        - $ref: '#/components/parameters/OwnerId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Order'
+      responses:
+        '200':
+          description: Deal page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DealPage'
+    post:
+      tags: [deals]
+      summary: Create deal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DealCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deal'
+  /api/v1/deals/{id}:
+    get:
+      tags: [deals]
+      summary: Get deal
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Deal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deal'
+        '404':
+          description: Not found
+    patch:
+      tags: [deals]
+      summary: Update deal
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DealUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deal'
+        '404':
+          description: Not found
+    delete:
+      tags: [deals]
+      summary: Archive deal
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Archived
+        '404':
+          description: Not found
+  /api/v1/tasks:
+    get:
+      tags: [tasks]
+      summary: List tasks
+      parameters:
+        - $ref: '#/components/parameters/Query'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/Priority'
+        - $ref: '#/components/parameters/AssigneeId'
+        - $ref: '#/components/parameters/RelatedType'
+        - $ref: '#/components/parameters/RelatedId'
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Order'
+      responses:
+        '200':
+          description: Task page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskPage'
+    post:
+      tags: [tasks]
+      summary: Create task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+  /api/v1/tasks/{id}:
+    get:
+      tags: [tasks]
+      summary: Get task
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          description: Not found
+    patch:
+      tags: [tasks]
+      summary: Update task
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          description: Not found
+    delete:
+      tags: [tasks]
+      summary: Archive task
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Archived
+        '404':
+          description: Not found
+  /api/v1/projects:
+    get:
+      tags: [projects]
+      summary: List projects
+      parameters:
+        - $ref: '#/components/parameters/Query'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/OwnerId'
+        - $ref: '#/components/parameters/CompanyId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Order'
+      responses:
+        '200':
+          description: Project page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectPage'
+    post:
+      tags: [projects]
+      summary: Create project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+  /api/v1/projects/{id}:
+    get:
+      tags: [projects]
+      summary: Get project
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '404':
+          description: Not found
+    patch:
+      tags: [projects]
+      summary: Update project
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '404':
+          description: Not found
+    delete:
+      tags: [projects]
+      summary: Archive project
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Archived
+        '404':
+          description: Not found
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Query:
+      name: q
+      in: query
+      schema:
+        type: string
+    IsClient:
+      name: is_client
+      in: query
+      schema:
+        type: boolean
+    Status:
+      name: status
+      in: query
+      schema:
+        type: string
+    CompanyId:
+      name: company_id
+      in: query
+      schema:
+        type: string
+    PipelineId:
+      name: pipeline_id
+      in: query
+      schema:
+        type: string
+    StageId:
+      name: stage_id
+      in: query
+      schema:
+        type: string
+    OwnerId:
+      name: owner_id
+      in: query
+      schema:
+        type: string
+    Source:
+      name: source
+      in: query
+      schema:
+        type: string
+    Priority:
+      name: priority
+      in: query
+      schema:
+        type: string
+    AssigneeId:
+      name: assignee_id
+      in: query
+      schema:
+        type: string
+    RelatedType:
+      name: related_type
+      in: query
+      schema:
+        type: string
+    RelatedId:
+      name: related_id
+      in: query
+      schema:
+        type: string
+    ProjectId:
+      name: project_id
+      in: query
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 25
+    Offset:
+      name: offset
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    Sort:
+      name: sort
+      in: query
+      schema:
+        type: string
+    Order:
+      name: order
+      in: query
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: desc
+  schemas:
+    Company:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        workspace_id: {type: string, format: uuid}
+        name: {type: string}
+        domain: {type: string}
+        industry: {type: string}
+        size_band: {type: string}
+        website: {type: string}
+        phone: {type: string}
+        email: {type: string}
+        address: {type: string}
+        is_client: {type: boolean}
+        status: {type: string}
+        owner_id: {type: string}
+        tags: {type: array, items: {type: string}}
+        custom_fields: {type: object}
+        notes: {type: string}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+        archived_at: {type: string, format: date-time, nullable: true}
+    CompanyCreate:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        domain: {type: string}
+        industry: {type: string}
+        size_band: {type: string}
+        website: {type: string}
+        phone: {type: string}
+        email: {type: string}
+        address: {type: string}
+        is_client: {type: boolean}
+        status: {type: string}
+        owner_id: {type: string}
+        tags: {type: array, items: {type: string}}
+        custom_fields: {type: object}
+        notes: {type: string}
+    CompanyUpdate:
+      type: object
+      properties:
+        name: {type: string}
+        domain: {type: string}
+        industry: {type: string}
+        size_band: {type: string}
+        website: {type: string}
+        phone: {type: string}
+        email: {type: string}
+        address: {type: string}
+        is_client: {type: boolean}
+        status: {type: string}
+        owner_id: {type: string}
+        tags: {type: array, items: {type: string}}
+        custom_fields: {type: object}
+        notes: {type: string}
+    CompanyPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Company'
+        total: {type: integer}
+        limit: {type: integer}
+        offset: {type: integer}
+    Contact:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        workspace_id: {type: string, format: uuid}
+        first_name: {type: string}
+        last_name: {type: string}
+        email: {type: string}
+        phone: {type: string}
+        job_title: {type: string}
+        company_id: {type: string}
+        owner_id: {type: string}
+        status: {type: string}
+        tags: {type: array, items: {type: string}}
+        custom_fields: {type: object}
+        notes: {type: string}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+        archived_at: {type: string, format: date-time, nullable: true}
+    ContactCreate:
+      type: object
+      required: [first_name]
+      properties:
+        first_name: {type: string}
+        last_name: {type: string}
+        email: {type: string}
+        phone: {type: string}
+        job_title: {type: string}
+        company_id: {type: string}
+        owner_id: {type: string}
+        status: {type: string}
+        tags: {type: array, items: {type: string}}
+        custom_fields: {type: object}
+        notes: {type: string}
+    ContactUpdate:
+      type: object
+      properties:
+        first_name: {type: string}
+        last_name: {type: string}
+        email: {type: string}
+        phone: {type: string}
+        job_title: {type: string}
+        company_id: {type: string}
+        owner_id: {type: string}
+        status: {type: string}
+        tags: {type: array, items: {type: string}}
+        custom_fields: {type: object}
+        notes: {type: string}
+    ContactPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Contact'
+        total: {type: integer}
+        limit: {type: integer}
+        offset: {type: integer}
+    Lead:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        workspace_id: {type: string, format: uuid}
+        display_name: {type: string}
+        first_name: {type: string}
+        last_name: {type: string}
+        email: {type: string}
+        phone: {type: string}
+        company_name: {type: string}
+        company_id: {type: string}
+        job_title: {type: string}
+        status: {type: string}
+        source: {type: string}
+        owner_id: {type: string}
+        priority: {type: string}
+        estimated_value: {type: integer, nullable: true}
+        currency: {type: string}
+        lead_score: {type: integer, nullable: true}
+        expected_close: {type: string}
+        follow_up_date: {type: string}
+        tags: {type: array, items: {type: string}}
+        custom_fields: {type: object}
+        description: {type: string}
+        qualification: {type: string}
+        created_by: {type: string}
+        updated_by: {type: string}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+        archived_at: {type: string, format: date-time, nullable: true}
+        converted_at: {type: string, format: date-time, nullable: true}
+    LeadCreate:
+      type: object
+      required: [display_name]
+      properties:
+        display_name: {type: string}
+        first_name: {type: string}
+        last_name: {type: string}
+        email: {type: string}
+        phone: {type: string}
+        company_name: {type: string}
+        company_id: {type: string}
+        job_title: {type: string}
+        status: {type: string}
+        source: {type: string}
+        owner_id: {type: string}
+        priority: {type: string}
+        estimated_value: {type: integer}
+        currency: {type: string}
+        lead_score: {type: integer}
+        expected_close: {type: string}
+        follow_up_date: {type: string}
+        tags: {type: array, items: {type: string}}
+        custom_fields: {type: object}
+        description: {type: string}
+        qualification: {type: string}
+    LeadUpdate:
+      type: object
+      properties:
+        display_name: {type: string}
+        first_name: {type: string}
+        last_name: {type: string}
+        email: {type: string}
+        phone: {type: string}
+        company_name: {type: string}
+        company_id: {type: string}
+        job_title: {type: string}
+        status: {type: string}
+        source: {type: string}
+        owner_id: {type: string}
+        priority: {type: string}
+        estimated_value: {type: integer}
+        currency: {type: string}
+        lead_score: {type: integer}
+        expected_close: {type: string}
+        follow_up_date: {type: string}
+        tags: {type: array, items: {type: string}}
+        custom_fields: {type: object}
+        description: {type: string}
+        qualification: {type: string}
+    LeadPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Lead'
+        total: {type: integer}
+        limit: {type: integer}
+        offset: {type: integer}
+    Deal:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        workspace_id: {type: string, format: uuid}
+        name: {type: string}
+        pipeline_id: {type: string, format: uuid}
+        stage_id: {type: string, format: uuid}
+        amount: {type: integer, nullable: true}
+        currency: {type: string}
+        probability: {type: integer}
+        expected_close: {type: string}
+        company_id: {type: string}
+        primary_contact_id: {type: string}
+        lead_id: {type: string}
+        owner_id: {type: string}
+        source: {type: string}
+        description: {type: string}
+        lost_reason: {type: string}
+        won_at: {type: string, format: date-time, nullable: true}
+        lost_at: {type: string, format: date-time, nullable: true}
+        custom_fields: {type: object}
+        created_by: {type: string}
+        updated_by: {type: string}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+        archived_at: {type: string, format: date-time, nullable: true}
+    DealCreate:
+      type: object
+      required: [name, pipeline_id, stage_id, currency]
+      properties:
+        name: {type: string}
+        pipeline_id: {type: string, format: uuid}
+        stage_id: {type: string, format: uuid}
+        amount: {type: integer}
+        currency: {type: string}
+        probability: {type: integer}
+        expected_close: {type: string}
+        company_id: {type: string}
+        primary_contact_id: {type: string}
+        lead_id: {type: string}
+        owner_id: {type: string}
+        source: {type: string}
+        description: {type: string}
+        lost_reason: {type: string}
+        custom_fields: {type: object}
+    DealUpdate:
+      type: object
+      properties:
+        name: {type: string}
+        pipeline_id: {type: string, format: uuid}
+        stage_id: {type: string, format: uuid}
+        amount: {type: integer}
+        currency: {type: string}
+        probability: {type: integer}
+        expected_close: {type: string}
+        company_id: {type: string}
+        primary_contact_id: {type: string}
+        lead_id: {type: string}
+        owner_id: {type: string}
+        source: {type: string}
+        description: {type: string}
+        lost_reason: {type: string}
+        custom_fields: {type: object}
+    DealPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Deal'
+        total: {type: integer}
+        limit: {type: integer}
+        offset: {type: integer}
+    Task:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        workspace_id: {type: string, format: uuid}
+        title: {type: string}
+        description: {type: string}
+        status: {type: string}
+        priority: {type: string}
+        due_date: {type: string}
+        assignee_id: {type: string}
+        related_type: {type: string}
+        related_id: {type: string}
+        project_id: {type: string}
+        created_by: {type: string}
+        completed_at: {type: string, format: date-time, nullable: true}
+        custom_fields: {type: object}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+        archived_at: {type: string, format: date-time, nullable: true}
+    TaskCreate:
+      type: object
+      required: [title]
+      properties:
+        title: {type: string}
+        description: {type: string}
+        status: {type: string}
+        priority: {type: string}
+        due_date: {type: string}
+        assignee_id: {type: string}
+        related_type: {type: string}
+        related_id: {type: string}
+        project_id: {type: string}
+        created_by: {type: string}
+        custom_fields: {type: object}
+    TaskUpdate:
+      type: object
+      properties:
+        title: {type: string}
+        description: {type: string}
+        status: {type: string}
+        priority: {type: string}
+        due_date: {type: string}
+        assignee_id: {type: string}
+        related_type: {type: string}
+        related_id: {type: string}
+        project_id: {type: string}
+        custom_fields: {type: object}
+    TaskPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+        total: {type: integer}
+        limit: {type: integer}
+        offset: {type: integer}
+    Project:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        workspace_id: {type: string, format: uuid}
+        name: {type: string}
+        description: {type: string}
+        status: {type: string}
+        priority: {type: string}
+        owner_id: {type: string}
+        company_id: {type: string}
+        start_date: {type: string}
+        end_date: {type: string}
+        progress: {type: integer}
+        custom_fields: {type: object}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+        archived_at: {type: string, format: date-time, nullable: true}
+    ProjectCreate:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        status: {type: string}
+        priority: {type: string}
+        owner_id: {type: string}
+        company_id: {type: string}
+        start_date: {type: string}
+        end_date: {type: string}
+        progress: {type: integer}
+        custom_fields: {type: object}
+    ProjectUpdate:
+      type: object
+      properties:
+        name: {type: string}
+        description: {type: string}
+        status: {type: string}
+        priority: {type: string}
+        owner_id: {type: string}
+        company_id: {type: string}
+        start_date: {type: string}
+        end_date: {type: string}
+        progress: {type: integer}
+        custom_fields: {type: object}
+    ProjectPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Project'
+        total: {type: integer}
+        limit: {type: integer}
+        offset: {type: integer}

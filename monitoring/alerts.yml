@@ -1,0 +1,378 @@
+# Prometheus Alerting Rules for CRM
+
+groups:
+  - name: crm.application
+    interval: 30s
+    rules:
+      # Application availability
+      - alert: CRMApplicationDown
+        expr: up{job="crm", namespace="crm"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: application
+        annotations:
+          summary: "CRM application is down"
+          description: "CRM pod {{ $labels.kubernetes_pod_name }} in namespace {{ $labels.kubernetes_namespace }} has been down for more than 1 minute"
+          runbook_url: "https://docs.yourdomain.com/runbooks/crm-down"
+
+      - alert: CRMApplicationNotReady
+        expr: kube_pod_container_status_ready{job="crm", namespace="crm", container="crm"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          component: application
+        annotations:
+          summary: "CRM application not ready"
+          description: "CRM pod {{ $labels.kubernetes_pod_name }} has not been ready for more than 2 minutes"
+
+      # HTTP error rates
+      - alert: CRMHighErrorRate
+        expr: |
+          sum(rate(crm_http_requests_total{status=~"5.."}[5m])) by (namespace, pod)
+          /
+          sum(rate(crm_http_requests_total[5m])) by (namespace, pod)
+          > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          component: application
+        annotations:
+          summary: "CRM high HTTP 5xx error rate"
+          description: "CRM pod {{ $labels.pod }} has >5% HTTP 5xx error rate over 5 minutes"
+
+      - alert: CRMHighClientErrorRate
+        expr: |
+          sum(rate(crm_http_requests_total{status=~"4.."}[5m])) by (namespace, pod)
+          /
+          sum(rate(crm_http_requests_total[5m])) by (namespace, pod)
+          > 0.20
+        for: 10m
+        labels:
+          severity: warning
+          component: application
+        annotations:
+          summary: "CRM high HTTP 4xx error rate"
+          description: "CRM pod {{ $labels.pod }} has >20% HTTP 4xx error rate over 10 minutes"
+
+      # Latency
+      - alert: CRMHighLatency
+        expr: |
+          histogram_quantile(0.99, sum(rate(crm_http_request_duration_seconds_bucket[5m])) by (le, pod, namespace))
+          > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          component: application
+        annotations:
+          summary: "CRM high P99 latency"
+          description: "CRM pod {{ $labels.pod }} P99 latency is {{ $value | humanizeDuration }} over 5 minutes"
+
+      - alert: CRMVeryHighLatency
+        expr: |
+          histogram_quantile(0.99, sum(rate(crm_http_request_duration_seconds_bucket[5m])) by (le, pod, namespace))
+          > 5.0
+        for: 2m
+        labels:
+          severity: critical
+          component: application
+        annotations:
+          summary: "CRM very high P99 latency"
+          description: "CRM pod {{ $labels.pod }} P99 latency is {{ $value | humanizeDuration }} over 2 minutes"
+
+      # Request rate
+      - alert: CRMLowRequestRate
+        expr: |
+          sum(rate(crm_http_requests_total[5m])) by (namespace, pod) < 0.1
+        for: 15m
+        labels:
+          severity: info
+          component: application
+        annotations:
+          summary: "CRM low request rate"
+          description: "CRM pod {{ $labels.pod }} receiving <0.1 requests/sec for 15 minutes"
+
+  - name: crm.memory
+    interval: 30s
+    rules:
+      # Memory budget alerts
+      - alert: CRMMemoryBudgetExceeded
+        expr: |
+          crm_memory_rss_bytes{namespace="crm"} > 400000000
+        for: 5m
+        labels:
+          severity: critical
+          component: memory
+        annotations:
+          summary: "CRM memory budget exceeded"
+          description: "CRM pod {{ $labels.kubernetes_pod_name }} RSS is {{ $value | humanizeBytes }} (budget: 400 MiB)"
+
+      - alert: CRMMemoryBudgetHeavy
+        expr: |
+          crm_memory_rss_bytes{namespace="crm"} > 300000000
+        for: 10m
+        labels:
+          severity: warning
+          component: memory
+        annotations:
+          summary: "CRM memory in heavy zone"
+          description: "CRM pod {{ $labels.kubernetes_pod_name }} RSS is {{ $value | humanizeBytes }} (heavy budget: 300 MiB)"
+
+      - alert: CRMMemoryBudgetCritical
+        expr: |
+          crm_memory_rss_bytes{namespace="crm"} > 500000000
+        for: 2m
+        labels:
+          severity: critical
+          component: memory
+        annotations:
+          summary: "CRM memory critical - ceiling exceeded"
+          description: "CRM pod {{ $labels.kubernetes_pod_name }} RSS is {{ $value | humanizeBytes }} (ceiling: 500 MiB). OOM kill imminent!"
+
+      # Goroutine leaks
+      - alert: CRMGoroutineLeak
+        expr: |
+          increase(crm_goroutines_total{namespace="crm"}[1h]) > 1000
+        for: 15m
+        labels:
+          severity: warning
+          component: memory
+        annotations:
+          summary: "CRM potential goroutine leak"
+          description: "CRM pod {{ $labels.kubernetes_pod_name }} goroutine count increased by {{ $value | humanize }} over 1 hour"
+
+      - alert: CRMGoroutineCountHigh
+        expr: |
+          crm_goroutines_total{namespace="crm"} > 10000
+        for: 5m
+        labels:
+          severity: warning
+          component: memory
+        annotations:
+          summary: "CRM high goroutine count"
+          description: "CRM pod {{ $labels.kubernetes_pod_name }} has {{ $value | humanize }} goroutines"
+
+      # GC pressure
+      - alert: CRMHighGCPressure
+        expr: |
+          rate(crm_gc_pause_total_seconds{namespace="crm"}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: memory
+        annotations:
+          summary: "CRM high GC pressure"
+          description: "CRM pod {{ $labels.kubernetes_pod_name }} spending >10% of wall clock in GC pauses"
+
+  - name: crm.database
+    interval: 30s
+    rules:
+      # Database connectivity
+      - alert: CRMDatabaseDown
+        expr: crm_database_up{namespace="crm"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "CRM database connection failed"
+          description: "CRM pod {{ $labels.kubernetes_pod_name }} cannot connect to database"
+
+      # Database connections
+      - alert: CRMHighDatabaseConnections
+        expr: |
+          crm_database_open_connections{namespace="crm"} > 8
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "CRM high database connections"
+          description: "CRM pod {{ $labels.kubernetes_pod_name }} has {{ $value }} open connections (max: 10)"
+
+      # Database lock contention
+      - alert: CRMHighDatabaseWaitCount
+        expr: |
+          increase(crm_database_wait_count_total{namespace="crm"}[5m]) > 100
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "CRM high database lock contention"
+          description: "CRM pod {{ $labels.kubernetes_pod_name }} had {{ $value | humanize }} wait events in 5 minutes"
+
+  - name: crm.jobs
+    interval: 30s
+    rules:
+      # Job queue backlog
+      - alert: CRMJobQueueBacklog
+        expr: |
+          crm_jobs_pending{namespace="crm"} > 100
+        for: 10m
+        labels:
+          severity: warning
+          component: jobs
+        annotations:
+          summary: "CRM job queue backlog"
+          description: "CRM pod {{ $labels.kubernetes_pod_name }} has {{ $value | humanize }} pending jobs for 10 minutes"
+
+      - alert: CRMJobQueueCritical
+        expr: |
+          crm_jobs_pending{namespace="crm"} > 200
+        for: 5m
+        labels:
+          severity: critical
+          component: jobs
+        annotations:
+          summary: "CRM job queue critical"
+          description: "CRM pod {{ $labels.kubernetes_pod_name }} has {{ $value | humanize }} pending jobs (queue size: 256)"
+
+      # Job failure rate
+      - alert: CRMHighJobFailureRate
+        expr: |
+          sum(rate(crm_jobs_failed_total{namespace="crm"}[15m])) by (namespace, pod)
+          /
+          sum(rate(crm_jobs_completed_total{namespace="crm"}[15m])) by (namespace, pod)
+          > 0.1
+        for: 15m
+        labels:
+          severity: warning
+          component: jobs
+        annotations:
+          summary: "CRM high job failure rate"
+          description: "CRM pod {{ $labels.pod }} has >10% job failure rate over 15 minutes"
+
+  - name: crm.infrastructure
+    interval: 30s
+    rules:
+      # Disk space
+      - alert: CRMDiskSpaceLow
+        expr: |
+          (kubelet_volume_stats_available_bytes{namespace="crm", persistentvolumeclaim="crm-data-pvc"}
+           / kubelet_volume_stats_capacity_bytes{namespace="crm", persistentvolumeclaim="crm-data-pvc"}) < 0.15
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "CRM disk space low"
+          description: "CRM PVC has less than 15% free space"
+
+      - alert: CRMDiskSpaceCritical
+        expr: |
+          (kubelet_volume_stats_available_bytes{namespace="crm", persistentvolumeclaim="crm-data-pvc"}
+           / kubelet_volume_stats_capacity_bytes{namespace="crm", persistentvolumeclaim="crm-data-pvc"}) < 0.05
+        for: 2m
+        labels:
+          severity: critical
+          component: infrastructure
+        annotations:
+          summary: "CRM disk space critical"
+          description: "CRM PVC has less than 5% free space - database may fail"
+
+      # CPU throttling
+      - alert: CRMCPUThrottling
+        expr: |
+          sum(rate(container_cpu_cfs_throttled_periods_total{namespace="crm", container="crm"}[5m]))
+          /
+          sum(rate(container_cpu_cfs_periods_total{namespace="crm", container="crm"}[5m]))
+          > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "CRM CPU throttling detected"
+          description: "CRM pod {{ $labels.pod }} is being throttled >10% of the time"
+
+      # Memory limit near OOM
+      - alert: CRMNearMemoryLimit
+        expr: |
+          (container_memory_working_set_bytes{namespace="crm", container="crm"}
+           / container_spec_memory_limit_bytes{namespace="crm", container="crm"}) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "CRM near memory limit"
+          description: "CRM pod {{ $labels.pod }} using >90% of memory limit"
+
+  - name: crm.security
+    interval: 60s
+    rules:
+      # Rate limit hits
+      - alert: CRMHighRateLimitHits
+        expr: |
+          sum(rate(crm_rate_limit_exceeded_total{namespace="crm"}[5m])) by (namespace, pod) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "CRM high rate limit hits"
+          description: "CRM pod {{ $labels.pod }} has {{ $value | humanize }} rate limit hits/sec"
+
+      # SSRF blocks
+      - alert: CRMSsrfBlocks
+        expr: |
+          sum(rate(crm_ssrf_blocked_total{namespace="crm"}[5m])) by (namespace, pod) > 0
+        for: 1m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "CRM SSRF blocks detected"
+          description: "CRM pod {{ $labels.pod }} blocked {{ $value | humanize }} SSRF attempts"
+
+      # Failed logins
+      - alert: CRMHighFailedLogins
+        expr: |
+          sum(rate(crm_auth_failed_total{namespace="crm"}[5m])) by (namespace, pod) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "CRM high failed login rate"
+          description: "CRM pod {{ $labels.pod }} has {{ $value | humanize }} failed logins/sec"
+
+  - name: crm.backup
+    interval: 5m
+    rules:
+      # Backup freshness
+      - alert: CRMBackupMissing
+        expr: |
+          time() - crm_backup_timestamp_seconds{namespace="crm"} > 7200
+        for: 5m
+        labels:
+          severity: critical
+          component: backup
+        annotations:
+          summary: "CRM backup missing"
+          description: "No CRM backup completed in the last 2 hours"
+
+      - alert: CRMBackupIntegrityFailed
+        expr: |
+          crm_backup_integrity_ok{namespace="crm"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: backup
+        annotations:
+          summary: "CRM backup integrity check failed"
+          description: "Latest CRM backup failed integrity verification"
+
+      - alert: CRMBackupSizeAnomaly
+        expr: |
+          crm_backup_size_bytes{namespace="crm"} > 500000000
+          or
+          crm_backup_size_bytes{namespace="crm"} < 1000000
+        for: 5m
+        labels:
+          severity: warning
+          component: backup
+        annotations:
+          summary: "CRM backup size anomaly"
+          description: "CRM backup size is {{ $value | humanizeBytes }} (expected: 1MB-500MB)"

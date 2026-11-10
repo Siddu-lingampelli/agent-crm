@@ -1,0 +1,167 @@
+:root {
+  /* ========================================
+     HALLMARK TOKENS - Black/White/Orange Palette
+     ======================================== */
+  color-scheme: light;
+
+  /* Spacing */
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
+
+  /* Typography */
+  --text-xs: 0.8125rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.25rem; --text-xl: 1.5625rem; --text-2xl: 1.953rem; --text-3xl: 2.441rem;
+  --text-display-s: clamp(2.25rem, 4vw + 0.5rem, 3.75rem); --text-display: clamp(2.75rem, 5vw + 1rem, 5.25rem);
+  --text-section: clamp(2rem, 2.5vw + 1rem, 3.5rem); --text-title: clamp(1.25rem, 0.75vw + 0.875rem, 1.625rem); --text-lead: clamp(1.125rem, 0.35vw + 1rem, 1.375rem);
+
+  /* Easing & Duration */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --ease-in: cubic-bezier(0.7, 0, 0.84, 0); --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms; --dur-short: 220ms; --dur-long: 420ms;
+
+  /* ========================================
+     COLOR PALETTE - Black, White, Orange
+     ======================================== */
+  /* Surface Colors - Light theme */
+  --color-paper: #FFFFFF;           /* Main background */
+  --color-paper-2: #F9FAFB;         /* Secondary background */
+  --color-paper-3: #F3F4F6;         /* Tertiary background / hover */
+
+  /* Text Colors */
+  --color-ink: #000000;             /* Primary text - pure black */
+  --color-ink-2: #374151;           /* Secondary text - gray-700 */
+  --color-muted: #6B7280;           /* Muted text - gray-500 */
+  --color-muted-2: #9CA3AF;         /* Very muted - gray-400 */
+
+  /* Borders & Rules */
+  --color-rule: #E5E7EB;            /* Primary border - gray-200 */
+  --color-rule-2: #D1D5DB;          /* Stronger border - gray-300 */
+
+  /* Accent Colors - Orange */
+  --color-accent: #FF5A1F;          /* Primary orange */
+  --color-accent-hover: #E64D1A;    /* Orange hover */
+  --color-accent-light: #FFF3F0;    /* Light orange background */
+  --color-accent-ink: #FFFFFF;      /* Text on orange */
+  --color-accent-2: #2563EB;        /* Secondary accent (blue) */
+  --color-focus: #FF5A1F;           /* Focus ring */
+
+  /* Semantic Colors */
+  --color-success: #059669;         /* Green */
+  --color-success-bg: #ECFDF5;
+  --color-success-border: #A7F3D0;
+  --color-warning: #D97706;         /* Amber */
+  --color-warning-bg: #FFFBEB;
+  --color-warning-border: #FDE68A;
+  --color-error: #DC2626;           /* Red */
+  --color-error-bg: #FEF2F2;
+  --color-error-border: #FECACA;
+  --color-info: #2563EB;            /* Blue */
+  --color-info-bg: #EFF6FF;
+  --color-info-border: #BFDBFE;
+
+  /* Text Colors */
+  --color-ink: #000000;              /* Primary text */
+  --color-ink-2: #374151;            /* Secondary text */
+  --color-muted: #6B7280;            /* Muted text */
+  --color-muted-2: #9CA3AF;          /* Very muted */
+
+  /* Borders */
+  --color-rule: #E5E7EB;             /* Light border */
+  --color-rule-2: #D1D5DB;           /* Stronger border */
+
+  /* Accent */
+  --color-accent: #FF5A1F;           /* Primary orange */
+  --color-accent-hover: #E64D1A;
+  --color-accent-light: #FFF3F0;
+  --color-accent-ink: #FFFFFF;       /* Text on accent */
+  --color-accent-2: #2563EB;
+  --color-focus: #FF5A1F;
+
+  /* Semantic */
+  --color-success: #059669;
+  --color-success-bg: #ECFDF5;
+  --color-warning: #D97706;
+  --color-warning-bg: #FFFBEB;
+  --color-error: #DC2626;
+  --color-error-bg: #FEF2F2;
+
+  /* Text aliases */
+  --color-ink: #000000;
+  --color-ink-2: #374151;
+  --color-muted: #6B7280;
+  --color-muted-2: #9CA3AF;
+
+  --color-rule: #E5E7EB;
+  --color-rule-2: #D1D5DB;
+
+  --color-accent: #FF5A1F;
+  --color-accent-ink: #FFFFFF;
+  --color-accent-2: #2563EB;
+  --color-focus: #FF5A1F;
+
+  /* Typography */
+  --font-display: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-outlier: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+
+  /* Spacing */
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
+
+  /* Text Sizes */
+  --text-xs: 0.75rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.125rem; --text-xl: 1.25rem; --text-2xl: 1.5rem; --text-3xl: 1.875rem;
+  --text-display-s: clamp(2.25rem, 4vw + 0.5rem, 3.75rem); --text-display: clamp(2.75rem, 5vw + 1rem, 5.25rem);
+  --text-section: clamp(2rem, 2.5vw + 1rem, 3.5rem); --text-title: clamp(1.25rem, 0.75vw + 0.875rem, 1.625rem); --text-lead: clamp(1.125rem, 0.35vw + 1rem, 1.375rem);
+
+  /* Easing & Duration */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --ease-in: cubic-bezier(0.7, 0, 0.84, 0); --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms; --dur-short: 220ms; --dur-long: 420ms;
+
+  /* Layout */
+  --container: 1280px; --gutter: 24px; --gap-columns: 24px; --section-gap-s: 48px; --section-gap: 64px; --section-gap-l: 96px;
+  --z-base: 1; --z-raised: 10; --z-dropdown: 100; --z-sticky: 200; --z-sticky-nav: 300; --z-modal: 400; --z-toast: 500; --z-tooltip: 600;
+
+  /* Radius & Shadows */
+  --radius-card: 12px; --radius-pill: 9999px; --rule-hair: 1px; --shadow-card: 0 1px 3px rgba(0,0,0,0.1);
+  --shadow-card-hover: 0 4px 12px rgba(0,0,0,0.1);
+  --tracking-display: -0.02em; --display-weight: 600;
+
+  /* Fonts */
+  --font-display: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-outlier: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+
+  /* Radius */
+  --radius-card: 12px; --radius-pill: 9999px; --rule-hair: 1px; --shadow-card: 0 1px 3px rgba(0,0,0,0.1);
+
+  /* Tracking */
+  --tracking-display: -0.02em; --display-weight: 600;
+
+  /* Layout */
+  --container: 1280px; --gutter: 24px; --gap-columns: 24px; --section-gap-s: 48px; --section-gap: 64px; --section-gap-l: 96px;
+
+  /* Z-index */
+  --z-base: 1; --z-raised: 10; --z-dropdown: 100; --z-sticky: 200; --z-sticky-nav: 300; --z-modal: 400; --z-toast: 500; --z-tooltip: 600;
+
+  /* Easing */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --ease-in: cubic-bezier(0.7, 0, 0.84, 0); --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms; --dur-short: 220ms; --dur-long: 420ms;
+
+  /* Color aliases for semantic use */
+  --color-paper: #FFFFFF;
+  --color-paper-2: #F9FAFB;
+  --color-paper-3: #F3F4F6;
+  --color-ink: #000000;
+  --color-ink-2: #374151;
+  --color-muted: #6B7280;
+  --color-muted-2: #9CA3AF;
+  --color-rule: #E5E7EB;
+  --color-rule-2: #D1D5DB;
+  --color-accent: #FF5A1F;
+  --color-accent-ink: #FFFFFF;
+  --color-accent-2: #2563EB;
+  --color-focus: #FF5A1F;
+  --font-display: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-outlier: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+  --radius-card: 12px; --radius-pill: 9999px; --rule-hair: 1px; --shadow-card: 0 1px 3px rgba(0,0,0,0.1);
+  --tracking-display: -0.02em; --display-weight: 600;
+}

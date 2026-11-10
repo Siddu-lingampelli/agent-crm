@@ -1,0 +1,52 @@
+﻿.torq-login { --tl-orange:#ff4f00; --tl-black:#000; --tl-white:#fff; min-height:100dvh; background:var(--tl-white); color:var(--tl-black); font-family:Arial,Helvetica,sans-serif; -webkit-font-smoothing:antialiased; }
+.torq-login * { box-sizing:border-box; }
+.torq-login :is(h1,h2,p) { margin:0; color:inherit; }
+.torq-login a { color:inherit; text-decoration:none; }
+.torq-login button { color:inherit; font:inherit; cursor:pointer; }
+.torq-login :is(a,button,input,[tabindex]):focus-visible { outline:2px solid var(--tl-orange); outline-offset:4px; box-shadow:none; border-radius:0; }
+.torq-login ::selection { background:var(--tl-orange); color:var(--tl-black); }
+.tl-header { height:88px; display:flex; align-items:center; justify-content:space-between; padding-inline:clamp(28px,5.5vw,80px); border-bottom:1px solid var(--tl-black); }
+.tl-brand { display:inline-flex; align-items:center; gap:7px; font-size:42px; font-weight:750; line-height:1; letter-spacing:-.075em; }
+.tl-brand svg { width:30px; height:31px; color:var(--tl-orange); }
+.tl-brand > span > span { color:var(--tl-orange); }
+.tl-back { display:flex; align-items:center; gap:10px; min-height:44px; font-size:12px; }
+.tl-back:hover { text-decoration:underline; text-underline-offset:5px; }
+.tl-layout { display:grid; grid-template-columns:1fr 1fr; min-height:calc(100dvh - 88px); }
+.tl-editorial { display:flex; flex-direction:column; justify-content:center; border-right:1px solid var(--tl-black); padding:52px clamp(28px,5.5vw,80px) 25px; }
+.tl-eyebrow { font:10px/1.5 'Courier New',monospace; letter-spacing:.1em; }
+.tl-editorial-copy h2 { font:500 clamp(48px,5.5vw,78px)/1.01 Arial,Helvetica,sans-serif; letter-spacing:-.065em; margin-top:24px; }
+.tl-editorial-copy h2 > span { color:var(--tl-orange); }
+.tl-editorial-copy > p { max-width:290px; font-size:14px; line-height:1.8; margin-top:24px; }
+.tl-drawing { width:min(100%,460px); height:auto; margin:24px 0 20px; display:block; }
+.tl-drawing-row { animation:tl-row-in .7s both cubic-bezier(.22,1,.36,1); }
+.tl-drawing-row-1 { animation-delay:.15s; }.tl-drawing-row-2 { animation-delay:.3s; }.tl-drawing-row-3 { animation-delay:.45s; }
+@keyframes tl-row-in { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:translateX(0); } }
+.tl-editorial-footer { display:flex; justify-content:space-between; align-items:center; gap:20px; border-top:1px solid var(--tl-black); padding-top:17px; margin-top:auto; font:9px/1.6 'Courier New',monospace; }
+.tl-main { display:flex; flex-direction:column; padding:55px clamp(28px,5.5vw,80px) 25px; min-width:0; }
+.tl-form-wrap { width:min(100%,365px); margin:auto; padding-block:40px 65px; animation:tl-form-in .5s both; }
+@keyframes tl-form-in { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+.tl-form-wrap h1 { font:500 54px/1.1 Arial,Helvetica,sans-serif; letter-spacing:-.06em; margin-top:19px; }
+.tl-description { font-size:13px; line-height:1.8; margin-top:15px !important; margin-bottom:34px !important; }
+.tl-form { display:flex; flex-direction:column; gap:23px; }
+.tl-field label { display:block; font-size:12px; line-height:1.6; margin-bottom:9px; }
+.tl-field input { display:block; width:100%; height:52px; border:1px solid var(--tl-black); border-radius:0; background:var(--tl-white); color:var(--tl-black); padding:13px 14px; font:14px/1.4 Arial,Helvetica,sans-serif; transition:border-color .18s; box-shadow:none; }
+.tl-field input::placeholder { color:var(--tl-black); opacity:.55; }
+.tl-field input:focus { outline:2px solid var(--tl-orange); outline-offset:2px; }
+.tl-field input:disabled { opacity:.6; }
+.tl-password { position:relative; }.tl-password input { padding-right:54px; }
+.tl-password-toggle { position:absolute; right:3px; top:4px; display:grid; place-items:center; height:44px; width:44px; background:var(--tl-white); border:0; }
+.tl-password-toggle:hover { color:var(--tl-orange); }
+.tl-form .tl-submit { display:flex; align-items:center; justify-content:space-between; gap:20px; min-height:52px; padding:13px 17px; margin-top:4px; border:1px solid var(--tl-black); border-radius:0; background:var(--tl-orange); color:var(--tl-black); font-size:14px; font-weight:600; transition:background .18s,color .18s; }
+.tl-form .tl-submit:hover:not(:disabled) { background:var(--tl-black); color:var(--tl-white); }
+.tl-submit:disabled { cursor:wait; }.tl-password-toggle:disabled { cursor:default; }
+.tl-spinner { animation:tl-spin 1s linear infinite; }@keyframes tl-spin { to { transform:rotate(360deg); } }
+.tl-error { display:flex; align-items:flex-start; gap:10px; padding:13px; border:1px solid var(--tl-orange); border-left-width:3px; margin-bottom:22px; font-size:12px; line-height:1.7; }
+.tl-error svg { flex-shrink:0; margin-top:2px; }
+.tl-help { font-size:11px; line-height:1.8; margin-top:24px !important; }
+.tl-footer { display:flex; align-items:center; justify-content:space-between; gap:20px; border-top:1px solid var(--tl-black); padding-top:17px; font:9px/1.6 'Courier New',monospace; }
+.tl-footer a { display:flex; align-items:center; gap:10px; min-height:24px; }
+.tl-skip { position:fixed; top:-90px; left:20px; z-index:10; background:var(--tl-black); color:var(--tl-white) !important; padding:12px 18px; }.tl-skip:focus { top:15px; }
+@media (max-width:1050px) { .tl-editorial,.tl-main { padding-inline:36px; }.tl-editorial-copy h2 { font-size:61px; }.tl-editorial-copy > p { font-size:13px; } }
+@media (max-width:720px) { .tl-header { height:76px; padding-inline:24px; }.tl-brand { font-size:37px; }.tl-brand svg { width:27px; height:28px; }.tl-layout { display:block; min-height:calc(100dvh - 76px); }.tl-editorial { display:none; }.tl-main { min-height:calc(100dvh - 76px); padding:30px 25px 22px; }.tl-form-wrap { padding-block:35px 60px; }.tl-form-wrap h1 { font-size:49px; }.tl-footer a { min-height:35px; } }
+@media (max-width:380px) { .tl-header { padding-inline:20px; }.tl-main { padding-inline:22px; }.tl-back { font-size:11px; }.tl-form-wrap h1 { font-size:46px; }.tl-description { font-size:12px; }.tl-help { font-size:10px; } }
+@media (prefers-reduced-motion:reduce) { .torq-login *, .torq-login *::before, .torq-login *::after { animation:none !important; transition:none !important; } }

@@ -1,0 +1,291 @@
+# Kubernetes Deployment Manifests for TORQ
+
+---
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: crm
+  labels:
+    name: crm
+    environment: production
+
+---
+# ConfigMap for application configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crm-config
+  namespace: crm
+data:
+  CRM_DATABASE_PATH: "/app/data/crm.db"
+  CRM_DATABASE_MAX_OPEN_CONNS: "10"
+  CRM_DATABASE_MAX_IDLE_CONNS: "5"
+  CRM_DATABASE_BUSY_TIMEOUT: "5s"
+  CRM_HTTP_HOST: "0.0.0.0"
+  CRM_HTTP_PORT: "8080"
+  CRM_HTTP_READ_TIMEOUT: "15s"
+  CRM_HTTP_WRITE_TIMEOUT: "30s"
+  CRM_HTTP_IDLE_TIMEOUT: "60s"
+  CRM_HTTP_SHUTDOWN_TIMEOUT: "10s"
+  CRM_LOG_FORMAT: "json"
+  CRM_LOG_LEVEL: "info"
+  CRM_SERVER_VERSION: "${VERSION}"
+  CRM_BUILD_ID: "${BUILD_ID}"
+  CRM_GIT_SHA: "${GIT_SHA}"
+  CRM_ENV: "production"
+  CRM_JOBS_WORKERS: "8"
+  CRM_JOBS_QUEUE_SIZE: "256"
+  CRM_SECURITY_RATE_LIMIT_ENABLED: "true"
+  CRM_SECURITY_RATE_LIMIT_RPS: "100"
+  CRM_SECURITY_RATE_LIMIT_BURST: "200"
+  CRM_SECURITY_MAX_REQUEST_BODY: "10485760"
+  CRM_SECURITY_MAX_UPLOAD_SIZE: "52428800"
+  CRM_SECURITY_CORS_ORIGINS: "https://yourdomain.com,https://www.yourdomain.com"
+  CRM_SECURITY_CORS_CREDENTIALS: "true"
+  CRM_SECURITY_SSRF_BLOCK_PRIVATE: "true"
+  CRM_SECURITY_REQUEST_TIMEOUT: "30s"
+  CRM_SECURITY_HTTP_CLIENT_TIMEOUT: "30s"
+  CRM_SECURITY_HTTP_CLIENT_MAX_RESPONSE: "10485760"
+  CRM_SECURITY_IDEMPOTENCY_TTL: "24h"
+  CRM_SECURITY_AUDIT_MAX_SIZE: "1048576"
+  CRM_SECURITY_AUDIT_MAX_ENTRIES: "10000"
+  CRM_SECURITY_SESSION_COOKIE_NAME: "crm_session"
+  CRM_SECURITY_SESSION_COOKIE_SECURE: "true"
+  CRM_SECURITY_SESSION_COOKIE_SAMESITE: "Lax"
+  CRM_SECURITY_SESSION_MAX_AGE: "24h"
+  CRM_SECURITY_CSRF_ENABLED: "true"
+  CRM_SECURITY_CSRF_HEADER: "X-CSRF-Token"
+  CRM_SECURITY_CSRF_COOKIE: "csrf_token"
+  CRM_SECURITY_CSRF_TOKEN_LENGTH: "32"
+  GOMEMLIMIT: "400MiB"
+
+---
+# Secret for sensitive configuration
+apiVersion: v1
+kind: Secret
+metadata:
+  name: crm-secrets
+  namespace: crm
+type: Opaque
+stringData:
+  CRM_OWNER_EMAIL: "admin@yourdomain.com"
+  CRM_OWNER_PASSWORD: "CHANGE_ME_ON_FIRST_DEPLOY"
+  CRM_ENCRYPTION_KEY: "GENERATE_WITH_OPENSSL_RAND_HEX_32"
+  GRAFANA_PASSWORD: "CHANGE_ME"
+
+---
+# PersistentVolumeClaim for database
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: crm-data-pvc
+  namespace: crm
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: fast-ssd
+
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crm
+  namespace: crm
+  labels:
+    app: crm
+    version: "${VERSION}"
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: crm
+  template:
+    metadata:
+      labels:
+        app: crm
+        version: "${VERSION}"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: crm
+      automountServiceAccountToken: false
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        runAsNonRoot: true
+      containers:
+        - name: crm
+          image: crm:${VERSION}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: crm-config
+            - secretRef:
+                name: crm-secrets
+          env:
+            - name: VERSION
+              value: "${VERSION}"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30
+          volumeMounts:
+            - name: crm-data
+              mountPath: /app/data
+            - name: crm-logs
+              mountPath: /app/logs
+      volumes:
+        - name: crm-data
+          persistentVolumeClaim:
+            claimName: crm-data-pvc
+        - name: crm-logs
+          emptyDir: {}
+
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: crm
+  namespace: crm
+  labels:
+    app: crm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: crm
+
+---
+# Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: crm
+  namespace: crm
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1s"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - crm.yourdomain.com
+      secretName: crm-tls
+  rules:
+    - host: crm.yourdomain.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: crm
+                port:
+                  number: 8080
+
+---
+# ServiceAccount and RBAC
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: crm
+  namespace: crm
+
+---
+# PodDisruptionBudget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: crm
+  namespace: crm
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: crm
+
+---
+# NetworkPolicy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: crm
+  namespace: crm
+spec:
+  podSelector:
+    matchLabels:
+      app: crm
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9090

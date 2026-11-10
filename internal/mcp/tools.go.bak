@@ -1,0 +1,493 @@
+// Package mcp — all CRM tool registrations using typed handlers.
+package mcp
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"crm.local/internal/service/companies"
+	"crm.local/internal/service/contacts"
+	"crm.local/internal/service/deals"
+	"crm.local/internal/service/leads"
+	"crm.local/internal/service/projects"
+	"crm.local/internal/service/tasks"
+	"crm.local/internal/service/search"
+	"crm.local/internal/permissions"
+)
+
+// Company tools
+func registerCompanyTools(s *mcp.Server, t *CRMTools) {
+	mcp.AddTool(s, &mcp.Tool{Name: "companies.list", Description: "List companies with pagination and filters"}, t.listCompanies)
+	mcp.AddTool(s, &mcp.Tool{Name: "companies.get", Description: "Get a company by ID"}, t.getCompany)
+	mcp.AddTool(s, &mcp.Tool{Name: "companies.create", Description: "Create a new company"}, t.createCompany)
+	mcp.AddTool(s, &mcp.Tool{Name: "companies.update", Description: "Update a company"}, t.updateCompany)
+	mcp.AddTool(s, &mcp.Tool{Name: "companies.archive", Description: "Archive a company"}, t.archiveCompany)
+}
+
+// Contact tools
+func registerContactTools(s *mcp.Server, t *CRMTools) {
+	mcp.AddTool(s, &mcp.Tool{Name: "contacts.list", Description: "List contacts with pagination and filters"}, t.listContacts)
+	mcp.AddTool(s, &mcp.Tool{Name: "contacts.get", Description: "Get a contact by ID"}, t.getContact)
+	mcp.AddTool(s, &mcp.Tool{Name: "contacts.create", Description: "Create a new contact"}, t.createContact)
+	mcp.AddTool(s, &mcp.Tool{Name: "contacts.update", Description: "Update a contact"}, t.updateContact)
+	mcp.AddTool(s, &mcp.Tool{Name: "contacts.archive", Description: "Archive a contact"}, t.archiveContact)
+}
+
+// Lead tools
+func registerLeadTools(s *mcp.Server, t *CRMTools) {
+	mcp.AddTool(s, &mcp.Tool{Name: "leads.list", Description: "List leads with pagination and filters"}, t.listLeads)
+	mcp.AddTool(s, &mcp.Tool{Name: "leads.get", Description: "Get a lead by ID"}, t.getLead)
+	mcp.AddTool(s, &mcp.Tool{Name: "leads.create", Description: "Create a new lead"}, t.createLead)
+	mcp.AddTool(s, &mcp.Tool{Name: "leads.update", Description: "Update a lead"}, t.updateLead)
+	mcp.AddTool(s, &mcp.Tool{Name: "leads.archive", Description: "Archive a lead"}, t.archiveLead)
+	mcp.AddTool(s, &mcp.Tool{Name: "leads.convert", Description: "Convert a lead to contact/company/deal"}, t.convertLead)
+}
+
+// Deal tools
+func registerDealTools(s *mcp.Server, t *CRMTools) {
+	mcp.AddTool(s, &mcp.Tool{Name: "deals.list", Description: "List deals with pagination and filters"}, t.listDeals)
+	mcp.AddTool(s, &mcp.Tool{Name: "deals.get", Description: "Get a deal by ID"}, t.getDeal)
+	mcp.AddTool(s, &mcp.Tool{Name: "deals.create", Description: "Create a new deal"}, t.createDeal)
+	mcp.AddTool(s, &mcp.Tool{Name: "deals.update", Description: "Update a deal"}, t.updateDeal)
+	mcp.AddTool(s, &mcp.Tool{Name: "deals.archive", Description: "Archive a deal"}, t.archiveDeal)
+}
+
+// Task tools
+func registerTaskTools(s *mcp.Server, t *CRMTools) {
+	mcp.AddTool(s, &mcp.Tool{Name: "tasks.list", Description: "List tasks with pagination and filters"}, t.listTasks)
+	mcp.AddTool(s, &mcp.Tool{Name: "tasks.get", Description: "Get a task by ID"}, t.getTask)
+	mcp.AddTool(s, &mcp.Tool{Name: "tasks.create", Description: "Create a new task"}, t.createTask)
+	mcp.AddTool(s, &mcp.Tool{Name: "tasks.update", Description: "Update a task"}, t.updateTask)
+	mcp.AddTool(s, &mcp.Tool{Name: "tasks.archive", Description: "Archive a task"}, t.archiveTask)
+	mcp.AddTool(s, &mcp.Tool{Name: "tasks.complete", Description: "Complete a task"}, t.completeTask)
+}
+
+// Project tools
+func registerProjectTools(s *mcp.Server, t *CRMTools) {
+	mcp.AddTool(s, &mcp.Tool{Name: "projects.list", Description: "List projects with pagination and filters"}, t.listProjects)
+	mcp.AddTool(s, &mcp.Tool{Name: "projects.get", Description: "Get a project by ID"}, t.getProject)
+	mcp.AddTool(s, &mcp.Tool{Name: "projects.create", Description: "Create a new project"}, t.createProject)
+	mcp.AddTool(s, &mcp.Tool{Name: "projects.update", Description: "Update a project"}, t.updateProject)
+	mcp.AddTool(s, &mcp.Tool{Name: "projects.archive", Description: "Archive a project"}, t.archiveProject)
+}
+
+// Search tools
+func registerSearchTools(s *mcp.Server, t *CRMTools) {
+	mcp.AddTool(s, &mcp.Tool{Name: "search.global", Description: "Global full-text search across all entities"}, t.searchGlobal)
+}
+
+// Company implementations
+func (t *CRMTools) listCompanies(ctx context.Context, req *mcp.CallToolRequest, args listCompaniesArgs) (result *mcp.CallToolResult, output map[string]any, err error) {
+	actor := mcpAuthContext()
+	in := companies.ListInput{
+		Query:  args.Query,
+		Status: args.Status,
+		Limit:  args.Limit,
+		Offset: args.Offset,
+		Sort:   args.Sort,
+		Order:  args.Order,
+	}
+	page, err := t.companySvc.List(ctx, actor, in)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return return &mcp.CallToolResult{StructuredContent: map[string]any{"companies": page.Items, "total": page.Total}}, nilmcp.CallToolResult{StructuredContent: map[string]any{"companies": page.Items, "total": page.Total}}, map[string]any{"companies": page.Items, "total": page.Total}, nil
+}
+
+func (t *CRMTools) getCompany(ctx context.Context, req *mcp.CallToolRequest, args getEntityArgs) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	company, err := t.companySvc.Get(ctx, actor, args.ID)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"company": company}}, nil
+}
+
+func (t *CRMTools) createCompany(ctx context.Context, req *mcp.CallToolRequest, args companies.CreateInput) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	company, err := t.companySvc.Create(ctx, actor, args)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"company": company}}, nil
+}
+
+func (t *CRMTools) updateCompany(ctx context.Context, req *mcp.CallToolRequest, args companies.UpdateInput) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	company, err := t.companySvc.Update(ctx, actor, args.ID, args)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"company": company}}, nil
+}
+
+func (t *CRMTools) archiveCompany(ctx context.Context, req *mcp.CallToolRequest, args getEntityArgs) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	if err := t.companySvc.Archive(ctx, actor, args.ID); err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: "Company archived"}}}, nil
+}
+
+// Contact implementations
+func (t *CRMTools) listContacts(ctx context.Context, req *mcp.CallToolRequest, args listContactsArgs) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	in := contacts.ListInput{
+		Query:   args.Query,
+		Status:  args.Status,
+		Limit:   args.Limit,
+		Offset:  args.Offset,
+	}
+	page, err := t.contactSvc.List(ctx, actor, in)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"contacts": page.Items, "total": page.Total}}, nil
+}
+
+func (t *CRMTools) getContact(ctx context.Context, req *mcp.CallToolRequest, args getEntityArgs) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	contact, err := t.contactSvc.Get(ctx, actor, args.ID)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"contact": contact}}, nil
+}
+
+func (t *CRMTools) createContact(ctx context.Context, req *mcp.CallToolRequest, args contacts.CreateInput) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	contact, err := t.contactSvc.Create(ctx, actor, args)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"contact": contact}}, nil
+}
+
+func (t *CRMTools) updateContact(ctx context.Context, req *mcp.CallToolRequest, args contacts.UpdateInput) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	contact, err := t.contactSvc.Update(ctx, actor, args.ID, args)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"contact": contact}}, nil
+}
+
+func (t *CRMTools) archiveContact(ctx context.Context, req *mcp.CallToolRequest, args getEntityArgs) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	if err := t.contactSvc.Archive(ctx, actor, args.ID); err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: "Contact archived"}}}, nil
+}
+
+// Lead implementations
+func (t *CRMTools) listLeads(ctx context.Context, req *mcp.CallToolRequest, args listLeadsArgs) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	in := leads.ListInput{
+		Query:   args.Query,
+		Status:  args.Status,
+		Limit:   args.Limit,
+		Offset:  args.Offset,
+	}
+	page, err := t.leadSvc.List(ctx, actor, in)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"leads": page.Items, "total": page.Total}}, nil
+}
+
+func (t *CRMTools) getLead(ctx context.Context, req *mcp.CallToolRequest, args getEntityArgs) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	lead, err := t.leadSvc.Get(ctx, actor, args.ID)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"lead": lead}}, nil
+}
+
+func (t *CRMTools) createLead(ctx context.Context, req *mcp.CallToolRequest, args leads.CreateInput) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	lead, err := t.leadSvc.Create(ctx, actor, args)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"lead": lead}}, nil
+}
+
+func (t *CRMTools) updateLead(ctx context.Context, req *mcp.CallToolRequest, args leads.UpdateInput) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	lead, err := t.leadSvc.Update(ctx, actor, args.ID, args)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"lead": lead}}, nil
+}
+
+func (t *CRMTools) archiveLead(ctx context.Context, req *mcp.CallToolRequest, args getEntityArgs) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	if err := t.leadSvc.Archive(ctx, actor, args.ID); err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: "Lead archived"}}}, nil
+}
+
+func (t *CRMTools) convertLead(ctx context.Context, req *mcp.CallToolRequest, args leads.ConvertInput) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	lead, err := t.leadSvc.Convert(ctx, actor, args.ID, args)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"lead": lead}}, nil
+}
+
+// Deal implementations
+func (t *CRMTools) listDeals(ctx context.Context, req *mcp.CallToolRequest, args listDealsArgs) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	in := deals.ListInput{
+		Query:   args.Query,
+		Limit:   args.Limit,
+		Offset:  args.Offset,
+	}
+	page, err := t.dealSvc.List(ctx, actor, in)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"deals": page.Items, "total": page.Total}}, nil
+}
+
+func (t *CRMTools) getDeal(ctx context.Context, req *mcp.CallToolRequest, args getEntityArgs) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	deal, err := t.dealSvc.Get(ctx, actor, args.ID)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"deal": deal}}, nil
+}
+
+func (t *CRMTools) createDeal(ctx context.Context, req *mcp.CallToolRequest, args deals.CreateInput) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	deal, err := t.dealSvc.Create(ctx, actor, args)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"deal": deal}}, nil
+}
+
+func (t *CRMTools) updateDeal(ctx context.Context, req *mcp.CallToolRequest, args deals.UpdateInput) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	deal, err := t.dealSvc.Update(ctx, actor, args.ID, args)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"deal": deal}}, nil
+}
+
+func (t *CRMTools) archiveDeal(ctx context.Context, req *mcp.CallToolRequest, args getEntityArgs) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	if err := t.dealSvc.Archive(ctx, actor, args.ID); err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: "Deal archived"}}}, nil
+}
+
+// Task implementations
+func (t *CRMTools) listTasks(ctx context.Context, req *mcp.CallToolRequest, args listTasksArgs) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	in := tasks.ListInput{
+		Query:   args.Query,
+		Status:  args.Status,
+		Limit:   args.Limit,
+		Offset:  args.Offset,
+	}
+	page, err := t.taskSvc.List(ctx, actor, in)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"tasks": page.Items, "total": page.Total}}, nil
+}
+
+func (t *CRMTools) getTask(ctx context.Context, req *mcp.CallToolRequest, args getEntityArgs) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	task, err := t.taskSvc.Get(ctx, actor, args.ID)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"task": task}}, nil
+}
+
+func (t *CRMTools) createTask(ctx context.Context, req *mcp.CallToolRequest, args tasks.CreateInput) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	task, err := t.taskSvc.Create(ctx, actor, args)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"task": task}}, nil
+}
+
+func (t *CRMTools) updateTask(ctx context.Context, req *mcp.CallToolRequest, args tasks.UpdateInput) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	task, err := t.taskSvc.Update(ctx, actor, args.ID, args)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"task": task}}, nil
+}
+
+func (t *CRMTools) archiveTask(ctx context.Context, req *mcp.CallToolRequest, args getEntityArgs) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	if err := t.taskSvc.Archive(ctx, actor, args.ID); err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: "Task archived"}}}, nil
+}
+
+func (t *CRMTools) completeTask(ctx context.Context, req *mcp.CallToolRequest, args getEntityArgs) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	if err := t.taskSvc.Complete(ctx, actor, args.ID); err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: "Task completed"}}}, nil
+}
+
+// Project implementations
+func (t *CRMTools) listProjects(ctx context.Context, req *mcp.CallToolRequest, args listProjectsArgs) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	in := projects.ListInput{
+		Query:   args.Query,
+		Status:  args.Status,
+		Limit:   args.Limit,
+		Offset:  args.Offset,
+	}
+	page, err := t.projectSvc.List(ctx, actor, in)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"projects": page.Items, "total": page.Total}}, nil
+}
+
+func (t *CRMTools) getProject(ctx context.Context, req *mcp.CallToolRequest, args getEntityArgs) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	project, err := t.projectSvc.Get(ctx, actor, args.ID)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"project": project}}, nil
+}
+
+func (t *CRMTools) createProject(ctx context.Context, req *mcp.CallToolRequest, args projects.CreateInput) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	project, err := t.projectSvc.Create(ctx, actor, args)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"project": project}}, nil
+}
+
+func (t *CRMTools) updateProject(ctx context.Context, req *mcp.CallToolRequest, args projects.UpdateInput) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	project, err := t.projectSvc.Update(ctx, actor, args.ID, args)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"project": project}}, nil
+}
+
+func (t *CRMTools) archiveProject(ctx context.Context, req *mcp.CallToolRequest, args getEntityArgs) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	if err := t.projectSvc.Archive(ctx, actor, args.ID); err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: "Project archived"}}}, nil
+}
+
+// Search implementation
+func (t *CRMTools) searchGlobal(ctx context.Context, req *mcp.CallToolRequest, args searchArgs) (*mcp.CallToolResult, error) {
+	actor := mcpAuthContext()
+	opts := search.SearchOptions{
+		Query:     args.Query,
+		Limit:     args.Limit,
+		Workspace: actor.WorkspaceID,
+	}
+	resp, err := t.searchSvc.Search(ctx, opts)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"results": resp.Results}}, nil
+}
+
+// Argument structs for typed handlers
+type listCompaniesArgs struct {
+	Query  string `json:"query,omitempty"`
+	Status string `json:"status,omitempty"`
+	Limit  int    `json:"limit,omitempty"`
+	Offset int    `json:"offset,omitempty"`
+	Sort   string `json:"sort,omitempty"`
+	Order  string `json:"order,omitempty"`
+}
+
+type listContactsArgs struct {
+	Query  string `json:"query,omitempty"`
+	Status string `json:"status,omitempty"`
+	Limit  int    `json:"limit,omitempty"`
+	Offset int    `json:"offset,omitempty"`
+}
+
+type listLeadsArgs struct {
+	Query  string `json:"query,omitempty"`
+	Status string `json:"status,omitempty"`
+	Limit  int    `json:"limit,omitempty"`
+	Offset int    `json:"offset,omitempty"`
+}
+
+type listDealsArgs struct {
+	Query  string `json:"query,omitempty"`
+	Limit  int    `json:"limit,omitempty"`
+	Offset int    `json:"offset,omitempty"`
+}
+
+type listTasksArgs struct {
+	Query   string `json:"query,omitempty"`
+	Status  string `json:"status,omitempty"`
+	Limit   int    `json:"limit,omitempty"`
+	Offset  int    `json:"offset,omitempty"`
+}
+
+type listProjectsArgs struct {
+	Query  string `json:"query,omitempty"`
+	Status string `json:"status,omitempty"`
+	Limit  int    `json:"limit,omitempty"`
+	Offset int    `json:"offset,omitempty"`
+}
+
+type listDealsArgs struct {
+	Query  string `json:"query,omitempty"`
+	Limit  int    `json:"limit,omitempty"`
+	Offset int    `json:"offset,omitempty"`
+}
+
+type getEntityArgs struct {
+	ID string `json:"id"`
+}
+
+type searchArgs struct {
+	Query  string `json:"query"`
+	Limit  int    `json:"limit,omitempty"`
+}
+
+// Helpers
+func mcpAuthContext() permissions.AuthContext {
+	return permissions.AuthContext{
+		ActorType:   "agent",
+		ActorID:     "mcp-agent",
+		WorkspaceID: "ws_default",
+		Scopes:      []string{"companies:read", "companies:write", "contacts:read", "contacts:write", "leads:read", "leads:write", "deals:read", "deals:write", "tasks:read", "tasks:write", "projects:read", "projects:write", "emails:read", "emails:send", "audit:read"},
+	}
+}
+
+func handleError(err error) *mcp.CallToolResult {
+	if err == nil {
+		return &mcp.CallToolResult{}
+	}
+	return &mcp.CallToolResult{IsError: true, Content: []mcp.Content{&mcp.TextContent{Text: err.Error()}}}
+}
