@@ -17,7 +17,7 @@ func DefaultSecurityConfig() SecurityConfig {
 		MaxUploadSize:             50 * 1024 * 1024, // 50 MB
 		CORSAllowedOrigins:        []string{"http://localhost:5173", "http://localhost:5174", "http://localhost:5175"},
 		CORSAllowedMethods:        []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
-		CORSAllowedHeaders:        []string{"Content-Type", "Authorization", "X-Requested-With", "Idempotency-Key"},
+		CORSAllowedHeaders:        []string{"Content-Type", "Authorization", "X-Requested-With", "X-CSRF-Token", "Idempotency-Key"},
 		CORSAllowCredentials:      true,
 		SSRFBlockPrivateIPs:       true,
 		RequestTimeout:            30 * time.Second,
@@ -36,6 +36,7 @@ func DefaultSecurityConfig() SecurityConfig {
 		CSRFHeaderName:            "X-CSRF-Token",
 		CSRFCookieName:            "csrf_token",
 		CSRFTokenLength:           32,
+		OAuthEnabled:              true,
 	}
 }
 
@@ -53,7 +54,7 @@ type SecurityConfig struct {
 	// CORS
 	CORSAllowedOrigins   []string `env:"CRM_SECURITY_CORS_ORIGINS" envDefault:"http://localhost:5173,http://localhost:5174,http://localhost:5175"`
 	CORSAllowedMethods   []string `env:"CRM_SECURITY_CORS_METHODS" envDefault:"GET,POST,PATCH,DELETE,OPTIONS"`
-	CORSAllowedHeaders   []string `env:"CRM_SECURITY_CORS_HEADERS" envDefault:"Content-Type,Authorization,X-Requested-With,Idempotency-Key"`
+	CORSAllowedHeaders   []string `env:"CRM_SECURITY_CORS_HEADERS" envDefault:"Content-Type,Authorization,X-Requested-With,X-CSRF-Token,Idempotency-Key"`
 	CORSAllowCredentials bool     `env:"CRM_SECURITY_CORS_CREDENTIALS" envDefault:"true"`
 
 	// SSRF protection
@@ -88,6 +89,11 @@ type SecurityConfig struct {
 	CSRFHeaderName  string `env:"CRM_SECURITY_CSRF_HEADER" envDefault:"X-CSRF-Token"`
 	CSRFCookieName  string `env:"CRM_SECURITY_CSRF_COOKIE" envDefault:"csrf_token"`
 	CSRFTokenLength int    `env:"CRM_SECURITY_CSRF_TOKEN_LENGTH" envDefault:"32"`
+
+	// OAuth 2.1 for the MCP endpoint (RFC 8414/9728 metadata + auth code + PKCE)
+	OAuthEnabled bool   `env:"CRM_OAUTH_ENABLED" envDefault:"true"`
+	OAuthIssuer  string `env:"CRM_OAUTH_ISSUER" envDefault:""` // defaults to http(s)://<host>:<port>
+	OAuthSecret  string `env:"CRM_OAUTH_SECRET" envDefault:""` // HMAC key for JWT access tokens; dev default derived from DB path
 }
 
 // ToSecurityConfig converts to internal/security.SecurityConfig

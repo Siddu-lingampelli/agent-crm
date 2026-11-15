@@ -1,0 +1,61 @@
+{
+  "title": "CRM Overview",
+  "uid": "crm-overview",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Uptime (s)",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "targets": [{ "expr": "crm_uptime_seconds", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Goroutines",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "targets": [{ "expr": "crm_go_goroutines", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Requests in flight",
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+      "targets": [{ "expr": "crm_http_requests_in_flight", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Jobs failed",
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+      "targets": [{ "expr": "crm_jobs_failed_total", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP requests by status",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "targets": [{ "expr": "sum by (status) (rate(crm_http_requests_total[5m]))", "legendFormat": "{{status}}", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Request rate",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "targets": [{ "expr": "sum(rate(crm_http_requests_total[5m]))", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Heap allocated",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "targets": [{ "expr": "crm_go_mem_alloc_bytes", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Jobs completed vs failed",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "targets": [
+        { "expr": "rate(crm_jobs_completed_total[5m])", "legendFormat": "completed", "refId": "A" },
+        { "expr": "rate(crm_jobs_failed_total[5m])", "legendFormat": "failed", "refId": "B" }
+      ]
+    }
+  ]
+}

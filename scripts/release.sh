@@ -7,7 +7,7 @@ set -euo pipefail
 VERSION="${VERSION:-$(git describe --tags --always --dirty)}"
 BUILD_ID="${BUILD_ID:-$(date +%Y%m%d%H%M%S)}"
 GIT_SHA="${GIT_SHA:-$(git rev-parse HEAD)}"
-GO_VERSION="${GO_VERSION:-1.23}"
+GO_VERSION="${GO_VERSION:-1.26}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -185,12 +185,12 @@ run_memory_validation() {
 build_go_binary() {
     cd "${REPO_ROOT}"
 
-    # Build flags for reproducible builds
-    LDFLAGS="-X 'crm.local/internal/config.ServerVersion=${VERSION}' \
-             -X 'crm.local/internal/config.ServerBuildID=${BUILD_ID}' \
-             -X 'crm.local/internal/config.ServerGitSHA=${GIT_SHA}' \
-             -X 'crm.local/internal/config.ServerCommit=${GIT_SHA}' \
-             -X 'crm.local/internal/config.ServerEnv=production' \
+    # Build flags for reproducible builds. The version variables live in
+    # package main (cmd/crm); cmd/crm applies them only when the corresponding
+    # CRM_* runtime env vars are unset.
+    LDFLAGS="-X 'main.version=${VERSION}' \
+             -X 'main.buildID=${BUILD_ID}' \
+             -X 'main.gitSHA=${GIT_SHA}' \
              -s -w"
 
     # Build for multiple architectures

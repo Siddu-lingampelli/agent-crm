@@ -222,27 +222,105 @@ func (s *Service) Sync(ctx context.Context, actor permissions.AuthContext, id st
 	}
 
 	// Validate integration config URLs for SSRF protection
-	var config map[string]any
-	if err := json.Unmarshal([]byte(integration.Config), &config); err == nil {
-		if urls, ok := config["urls"].([]any); ok {
-			secConfig := security.SecurityConfig{
-				SSRFBlockPrivateIPs: true,
-				SSRFAllowedCIDRs:    []string{},
-			}
-			for _, u := range urls {
-				if urlStr, ok := u.(string); ok {
-					if err := security.ValidateSSRFURL(urlStr, secConfig); err != nil {
-						s.log.Warn("integration sync URL blocked by SSRF protection", "id", id, "url", urlStr, "error", err)
-						return fmt.Errorf("integration URL blocked by SSRF protection: %w", err)
-					}
-				}
-			}
-		}
+	if err := validateSyncURLs(integration, s.log); err != nil {
+		s.recordLog(ctx, integration.ID, "failed", 0, 0, err.Error())
+		return err
 	}
 
 	// Integration sync logic would go here
 	s.log.Info("integration sync triggered", "id", id, "actor", actor.ActorID)
+	s.recordLog(ctx, integration.ID, "failed", 0, 0, service.ErrNotConfigured.Error())
 	return service.ErrNotConfigured
+}
+
+// Test checks connectivity/credentials for an integration. Like Sync, provider
+// adapters are not configured on this server, so it reports ErrNotConfigured
+// after the same SSRF validation, and records the attempt in the sync log.
+func (s *Service) Test(ctx context.Context, actor permissions.AuthContext, id string) error {
+	if err := permissions.Authorize(actor, "integrations:write"); err != nil {
+		return err
+	}
+	integration, err := s.getOwned(ctx, actor, id)
+	if err != nil {
+		return err
+	}
+	if err := validateSyncURLs(integration, s.log); err != nil {
+		return err
+	}
+	s.recordLog(ctx, integration.ID, "failed", 0, 0, service.ErrNotConfigured.Error())
+	s.log.Info("integration test triggered", "id", id, "actor", actor.ActorID)
+	return service.ErrNotConfigured
+}
+
+// ListSyncLogs returns the sync history for an integration.
+func (s *Service) ListSyncLogs(ctx context.Context, actor permissions.AuthContext, id string, limit int) ([]model.IntegrationSyncLog, error) {
+	if err := permissions.Authorize(actor, "integrations:read"); err != nil {
+		return nil, err
+	}
+	if _, err := s.getOwned(ctx, actor, id); err != nil {
+		return nil, err
+	}
+	return s.repo.ListSyncLogs(ctx, id, limit)
+}
+
+// getOwned loads an integration and verifies it belongs to the actor's workspace.
+func (s *Service) getOwned(ctx context.Context, actor permissions.AuthContext, id string) (*model.Integration, error) {
+	integration, err := s.repo.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if integration == nil || integration.WorkspaceID != actor.WorkspaceID {
+		return nil, fmt.Errorf("not found")
+	}
+	return integration, nil
+}
+
+// validateSyncURLs applies SSRF validation to configured integration URLs.
+func validateSyncURLs(integration *model.Integration, log *slog.Logger) error {
+	var config map[string]any
+	if err := json.Unmarshal([]byte(integration.Config), &config); err != nil {
+		return nil
+	}
+	urls, ok := config["urls"].([]any)
+	if !ok {
+		return nil
+	}
+	secConfig := security.SecurityConfig{
+		SSRFBlockPrivateIPs: true,
+		SSRFAllowedCIDRs:    []string{},
+	}
+	for _, u := range urls {
+		urlStr, ok := u.(string)
+		if !ok {
+			continue
+		}
+		if err := security.ValidateSSRFURL(urlStr, secConfig); err != nil {
+			log.Warn("integration URL blocked by SSRF protection", "id", integration.ID, "url", urlStr, "error", err)
+			return fmt.Errorf("integration URL blocked by SSRF protection: %w", err)
+		}
+	}
+	return nil
+}
+
+// recordLog writes one sync log row; logging failures never mask the result.
+func (s *Service) recordLog(ctx context.Context, integrationID, status string, processed, failed int, errMessage string) {
+	started := time.Now().UTC()
+	completed := started
+	entry := &model.IntegrationSyncLog{
+		ID:               uuid.New(),
+		IntegrationID:    integrationID,
+		Status:           status,
+		RecordsProcessed: processed,
+		RecordsFailed:    failed,
+		StartedAt:        started,
+		CompletedAt:      &completed,
+	}
+	if errMessage != "" {
+		entry.ErrorMessage = &errMessage
+	}
+	if err := s.repo.RecordSyncLog(ctx, entry); err != nil {
+		s.log.Warn("could not record sync log", "integration", integrationID, "error", err)
+	}
 }
 func (s *Service) ListPage(ctx context.Context, actor permissions.AuthContext, in ListInput) (repository.Page[model.Integration], error) {
 	items, err := s.List(ctx, actor, in)

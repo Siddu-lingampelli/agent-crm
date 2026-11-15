@@ -1,0 +1,30 @@
+# Renders deployment.yaml with real values for ${VERSION}, ${BUILD_ID}, ${GIT_SHA}.
+# Usage:
+#   export VERSION=1.2.3 BUILD_ID=ci-42 GIT_SHA=$(git rev-parse HEAD)
+#   kubectl kustomize k8s/ | kubectl apply -f -
+# or: envsubst < k8s/deployment.yaml | kubectl apply -f -
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - deployment.yaml
+
+replacements:
+  - source:
+      kind: ConfigMap
+      name: crm-config
+      fieldPath: data.CRM_SERVER_VERSION
+    targets:
+      - select:
+          kind: ConfigMap
+          name: crm-config
+        fieldPaths:
+          - data.CRM_SERVER_VERSION
+      - select:
+          kind: Deployment
+          name: crm
+        fieldPaths:
+          - metadata.labels.version
+          - spec.template.metadata.labels.version
+          - spec.template.spec.containers.[name=crm].image
+          - spec.template.spec.containers.[name=crm].env.[name=VERSION].value

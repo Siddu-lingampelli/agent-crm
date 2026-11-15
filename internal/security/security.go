@@ -3,6 +3,9 @@ package security
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/subtle"
+	"encoding/base64"
 	"errors"
 	"log/slog"
 	"net"
@@ -50,7 +53,7 @@ func DefaultSecurityConfig() SecurityConfig {
 		MaxUploadSize:        50 * 1024 * 1024, // 50 MB
 		CORSAllowedOrigins:   []string{"http://localhost:5173", "http://localhost:5174", "http://localhost:5175"},
 		CORSAllowedMethods:   []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
-		CORSAllowedHeaders:   []string{"Content-Type", "Authorization", "X-Requested-With", "Idempotency-Key"},
+		CORSAllowedHeaders:   []string{"Content-Type", "Authorization", "X-Requested-With", "X-CSRF-Token", "Idempotency-Key"},
 		CORSAllowCredentials: true,
 		SSRFBlockPrivateIPs:  true,
 		RequestTimeout:       30 * time.Second,
@@ -357,4 +360,104 @@ func CrossOriginMiddleware(origins []string) func(http.Handler) http.Handler {
 		}
 	}
 	return protection.Handler
+}
+
+// CSRFConfig holds double-submit cookie CSRF settings.
+type CSRFConfig struct {
+	Enabled      bool
+	HeaderName   string   // expected request header carrying the token
+	CookieName   string   // cookie holding the token (readable by the SPA)
+	TokenBytes   int      // random bytes behind each token
+	CookieSecure bool
+	// ExemptPaths are exact paths that may issue state-changing requests
+	// before any CSRF cookie exists (e.g. the initial login). They must be
+	// covered by other protections such as cross-origin checks.
+	ExemptPaths []string
+}
+
+func (c CSRFConfig) withDefaults() CSRFConfig {
+	if c.HeaderName == "" {
+		c.HeaderName = "X-CSRF-Token"
+	}
+	if c.CookieName == "" {
+		c.CookieName = "csrf_token"
+	}
+	if c.TokenBytes <= 0 {
+		c.TokenBytes = 32
+	}
+	return c
+}
+
+// CSRFMiddleware implements the double-submit cookie pattern: every response
+// carries a CSRF cookie (readable by JavaScript, not HttpOnly), and every
+// state-changing request must echo it in the configured header. Requests
+// authenticated with a Bearer token instead of cookies (MCP API keys) are
+// exempt because they cannot be forged cross-site.
+func CSRFMiddleware(config CSRFConfig) func(http.Handler) http.Handler {
+	config = config.withDefaults()
+	if !config.Enabled {
+		return func(next http.Handler) http.Handler { return next }
+	}
+	safe := func(method string) bool {
+		switch method {
+		case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace:
+			return true
+		}
+		return false
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			token := ""
+			if existing, err := r.Cookie(config.CookieName); err == nil {
+				token = existing.Value
+			}
+			if token == "" {
+				var err error
+				token, err = newCSRFToken(config.TokenBytes)
+				if err != nil {
+					http.Error(w, "csrf token unavailable", http.StatusInternalServerError)
+					return
+				}
+				http.SetCookie(w, &http.Cookie{
+					Name:     config.CookieName,
+					Value:    token,
+					Path:     "/",
+					SameSite: http.SameSiteLaxMode,
+					Secure:   config.CookieSecure || r.TLS != nil,
+				})
+			}
+			if safe(r.Method) {
+				next.ServeHTTP(w, r)
+				return
+			}
+			// Bearer-authenticated clients (MCP) are not cookie sessions.
+			if strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") {
+				next.ServeHTTP(w, r)
+				return
+			}
+			// Paths that must work before any CSRF cookie exists (initial login).
+			for _, p := range config.ExemptPaths {
+				if r.URL.Path == p {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+			header := r.Header.Get(config.HeaderName)
+			cookie, err := r.Cookie(config.CookieName)
+			if err != nil || cookie.Value == "" || header == "" ||
+				subtle.ConstantTimeCompare([]byte(header), []byte(cookie.Value)) != 1 {
+				http.Error(w, "csrf validation failed", http.StatusForbidden)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func newCSRFToken(n int) (string, error) {
+	buf := make([]byte, n)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(buf), nil
 }

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	"crm.local/internal/model"
 )
@@ -221,4 +222,73 @@ func (r *IntegrationRepository) Count(ctx context.Context, opts IntegrationListO
 	var total int
 	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM integrations"+where, args...).Scan(&total)
 	return total, err
+}
+
+const syncLogColumns = `
+    id, integration_id, status, records_processed, records_failed,
+    started_at, completed_at, error_message
+`
+
+// RecordSyncLog appends a sync log entry for an integration.
+func (r *IntegrationRepository) RecordSyncLog(ctx context.Context, log *model.IntegrationSyncLog) error {
+	_, err := r.db.ExecContext(ctx, `
+        INSERT INTO integration_sync_logs (
+            id, integration_id, status, records_processed, records_failed,
+            started_at, completed_at, error_message
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		log.ID, log.IntegrationID, log.Status, log.RecordsProcessed, log.RecordsFailed,
+		log.StartedAt.Format(time.RFC3339Nano),
+		nullTime(log.CompletedAt),
+		nullString(log.ErrorMessage))
+	if err != nil {
+		return fmt.Errorf("insert sync log: %w", err)
+	}
+	return nil
+}
+
+// ListSyncLogs returns the most recent sync log entries for an integration.
+func (r *IntegrationRepository) ListSyncLogs(ctx context.Context, integrationID string, limit int) ([]model.IntegrationSyncLog, error) {
+	rows, err := r.db.QueryContext(ctx, `
+        SELECT `+syncLogColumns+` FROM integration_sync_logs
+        WHERE integration_id = ?
+        ORDER BY started_at DESC, id DESC LIMIT ?`, integrationID, ClampLimit(limit))
+	if err != nil {
+		return nil, fmt.Errorf("list sync logs: %w", err)
+	}
+	defer rows.Close()
+
+	out := []model.IntegrationSyncLog{}
+	for rows.Next() {
+		var log model.IntegrationSyncLog
+		var startedAt string
+		var completedAt, errorMessage *string
+		if err := rows.Scan(&log.ID, &log.IntegrationID, &log.Status, &log.RecordsProcessed,
+			&log.RecordsFailed, &startedAt, &completedAt, &errorMessage); err != nil {
+			return nil, err
+		}
+		log.StartedAt = parseTime(startedAt)
+		if completedAt != nil {
+			t := parseTime(*completedAt)
+			log.CompletedAt = &t
+		}
+		if errorMessage != nil {
+			log.ErrorMessage = errorMessage
+		}
+		out = append(out, log)
+	}
+	return out, rows.Err()
+}
+
+func nullTime(t *time.Time) any {
+	if t == nil {
+		return nil
+	}
+	return t.Format(time.RFC3339Nano)
+}
+
+func nullString(s *string) any {
+	if s == nil {
+		return nil
+	}
+	return *s
 }

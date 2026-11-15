@@ -8,12 +8,25 @@ export class ApiError extends Error {
   }
 }
 
+function readCookie(name: string): string | undefined {
+  const match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '=([^;]*)'));
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
+
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS', 'TRACE']);
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const relativePath = path.startsWith(API_BASE + '/') ? path.slice(API_BASE.length) : path;
   const headers = new Headers(options.headers);
   if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  const method = (options.method ?? 'GET').toUpperCase();
+  if (!SAFE_METHODS.has(method)) {
+    const csrf = readCookie('csrf_token');
+    if (csrf) headers.set('X-CSRF-Token', csrf);
+  }
   const response = await fetch(API_BASE + relativePath, {
     ...options,
+    method,
     headers,
     credentials: 'include',
   });

@@ -15,15 +15,15 @@ build: frontend
 frontend:
 	cd web && $(NPM) install && $(NPM) run build
 
-test:
-	$(GO) test ./... 2>&1
-	cd web && $(NPM) run test -- --run 2>&1 || true
+test: test-go test-web
 
 test-go:
 	$(GO) test ./...
 
+# The web package has no test runner configured; typecheck + lint + build act
+# as its CI gate (see .github/workflows/ci.yml).
 test-web:
-	cd web && $(NPM) run test -- --run
+	cd web && $(NPM) run typecheck && $(NPM) run lint && $(NPM) run build
 
 lint:
 	$(GO) vet ./...
@@ -43,9 +43,21 @@ run:
 api:
 	cd web && $(NPM) run api:generate
 
-## Fresh database migration and integrity check.
+## Apply migrations to a scratch database and run an integrity check,
+## without leaving a server process running.
 migrate:
-	CRM_DATABASE_PATH=data/check.db $(GO) run ./cmd/crm &
+	mkdir -p data
+	CRM_DATABASE_PATH=data/check.db $(GO) run ./cmd/crm & \
+	SERVER_PID=$$!; \
+	for i in $$(seq 1 30); do \
+		curl -sf http://127.0.0.1:8080/ready >/dev/null 2>&1 && break; \
+		sleep 1; \
+	done; \
+	curl -sf http://127.0.0.1:8080/ready || { echo "server did not become ready"; kill $$SERVER_PID 2>/dev/null; exit 1; }; \
+	sqlite3 data/check.db "PRAGMA integrity_check;" 2>/dev/null || echo "sqlite3 not installed, skipping integrity_check"; \
+	kill $$SERVER_PID 2>/dev/null; \
+	wait $$SERVER_PID 2>/dev/null; \
+	rm -f data/check.db data/check.db-wal data/check.db-shm
 
 clean:
 	rm -rf bin data web/dist web/node_modules

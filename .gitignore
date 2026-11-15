@@ -15,6 +15,10 @@ data/
 *.db
 *.db-wal
 *.db-shm
+# Leftover test databases under internal packages
+internal/**/data/
+# Editor/backup leftovers
+*.bak
 .cache/
 *.log
 *.db&_pragma=*

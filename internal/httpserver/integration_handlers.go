@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"crm.local/internal/jsonutil"
+	"crm.local/internal/model"
 	"crm.local/internal/service/integrations"
 )
 
@@ -176,4 +177,43 @@ func (h *IntegrationHandler) Sync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *IntegrationHandler) Test(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		jsonutil.Error(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+		return
+	}
+	id := r.PathValue("id")
+	if id == "" {
+		jsonutil.Error(w, http.StatusBadRequest, "missing_id", "id required")
+		return
+	}
+	if err := h.svc.Test(r.Context(), getAuth(r), id); err != nil {
+		h.handleError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *IntegrationHandler) ListLogs(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		jsonutil.Error(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+		return
+	}
+	id := r.PathValue("id")
+	if id == "" {
+		jsonutil.Error(w, http.StatusBadRequest, "missing_id", "id required")
+		return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	logs, err := h.svc.ListSyncLogs(r.Context(), getAuth(r), id, limit)
+	if err != nil {
+		h.handleError(w, err)
+		return
+	}
+	if logs == nil {
+		logs = []model.IntegrationSyncLog{}
+	}
+	jsonutil.Write(w, http.StatusOK, map[string]any{"items": logs})
 }

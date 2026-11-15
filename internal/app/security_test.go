@@ -31,6 +31,7 @@ func TestAuthenticatedHTTPAndMCPFlows(t *testing.T) {
 	}
 	defer app.Close()
 	handler := app.Handler()
+	csrfJar := map[string]string{}
 	call := func(method, path, body string, cookie *http.Cookie, headers map[string]string) *httptest.ResponseRecorder {
 		t.Helper()
 		r := httptest.NewRequest(method, "http://example.com"+path, strings.NewReader(body))
@@ -38,11 +39,24 @@ func TestAuthenticatedHTTPAndMCPFlows(t *testing.T) {
 		if cookie != nil {
 			r.AddCookie(cookie)
 		}
+		switch method {
+		case "GET", "HEAD", "OPTIONS":
+		default:
+			if token := csrfJar["csrf_token"]; token != "" {
+				r.AddCookie(&http.Cookie{Name: "csrf_token", Value: token})
+				r.Header.Set("X-CSRF-Token", token)
+			}
+		}
 		for key, value := range headers {
 			r.Header.Set(key, value)
 		}
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, r)
+		for _, c := range w.Result().Cookies() {
+			if c.Name == "csrf_token" {
+				csrfJar[c.Name] = c.Value
+			}
+		}
 		return w
 	}
 	for _, path := range []string{"/mcp", "/api/v1/admin/memory", "/api/v1/status", "/api/v1/companies", "/api/v1/pipelines"} {
@@ -84,6 +98,17 @@ func TestAuthenticatedHTTPAndMCPFlows(t *testing.T) {
 	}
 	if w := call("POST", "/api/v1/companies/create", `{"name":"CSRF"}`, cookie, map[string]string{"Origin": "https://evil.example"}); w.Code != 403 {
 		t.Fatalf("cross-origin write allowed: %d", w.Code)
+	}
+	// State-changing writes without the CSRF header must be rejected even with
+	// a valid session cookie and no hostile Origin. (The server may still mint a
+	// fresh csrf cookie on the 403 response; the write itself must not run.)
+	csrfJar["csrf_token"] = ""
+	if w := call("POST", "/api/v1/companies/create", `{"name":"NoToken"}`, cookie, nil); w.Code != 403 {
+		t.Fatalf("write without CSRF token accepted: %d", w.Code)
+	}
+	// A forged token must also be rejected.
+	if w := call("POST", "/api/v1/companies/create", `{"name":"BadToken"}`, cookie, map[string]string{"X-CSRF-Token": "forged"}); w.Code != 403 {
+		t.Fatalf("write with forged CSRF token accepted: %d", w.Code)
 	}
 	for _, test := range []struct{ path, body string }{
 		{"/api/v1/companies/create", `{"name":"Workspace Company"}`},

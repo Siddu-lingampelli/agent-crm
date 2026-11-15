@@ -27,6 +27,7 @@ type Pool struct {
 	ctx        context.Context
 	cancel     context.CancelFunc
 	processing atomic.Int64
+	enqueued   atomic.Int64
 	completed  atomic.Int64
 	failed     atomic.Int64
 }
@@ -85,6 +86,7 @@ func (p *Pool) Enqueue(ctx context.Context, name string, run func(context.Contex
 	}
 	select {
 	case p.queue <- job{name, run}:
+		p.enqueued.Add(1)
 		return nil
 	default:
 		return errors.New("job queue is full")
@@ -97,7 +99,11 @@ func (p *Pool) Status() map[string]any {
 	p.mu.Lock()
 	closed := p.closed
 	p.mu.Unlock()
-	return map[string]any{"workers": p.cfg.Workers, "queue_size": p.cfg.QueueSize, "closed": closed, "pending": len(p.queue), "processing": p.processing.Load(), "completed": p.completed.Load(), "failed": p.failed.Load()}
+	return map[string]any{"workers": p.cfg.Workers, "queue_size": p.cfg.QueueSize, "closed": closed, "pending": len(p.queue), "enqueued": p.enqueued.Load(), "processing": p.processing.Load(), "completed": p.completed.Load(), "failed": p.failed.Load()}
+}
+// Counters returns the live job counters for metrics scraping.
+func (p *Pool) Counters() (enqueued, completed, failed int64) {
+	return p.enqueued.Load(), p.completed.Load(), p.failed.Load()
 }
 func (p *Pool) Shutdown(ctx context.Context) {
 	p.mu.Lock()

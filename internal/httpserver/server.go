@@ -99,7 +99,8 @@ func (s *Server) ServeStatic(prefix, fsPath string) {
 			http.Error(w, "method not allowed", 405)
 			return
 		}
-		if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/mcp" {
+		if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/mcp" ||
+			strings.HasPrefix(r.URL.Path, "/oauth/") || strings.HasPrefix(r.URL.Path, "/.well-known/") {
 			http.NotFound(w, r)
 			return
 		}
@@ -175,7 +176,8 @@ func (s *Server) Handler() http.Handler {
 			return
 		}
 
-		if _, pattern := s.mux.Handler(r); pattern == "" && s.staticHandler != nil {
+		_, protectedPattern := s.mux.Handler(r)
+		if protectedPattern == "" && s.staticHandler != nil {
 			s.staticHandler.ServeHTTP(w, r)
 			return
 		}

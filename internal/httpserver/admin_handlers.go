@@ -23,6 +23,7 @@ type AdminHandler struct {
 	db         *db.DB
 	jobs       *jobs.Pool
 	memTracker *memtrack.MemoryTracker
+	oauthRepo  *repository.OAuthRepository
 	start      time.Time
 }
 
@@ -34,6 +35,59 @@ func NewAdminHandler(database *db.DB, jobPool *jobs.Pool, memTracker *memtrack.M
 		memTracker: memTracker,
 		start:      time.Now(),
 	}
+}
+
+// SetOAuthRepo wires the OAuth/MCP-observability repository (optional).
+func (h *AdminHandler) SetOAuthRepo(r *repository.OAuthRepository) { h.oauthRepo = r }
+
+// MCPToolStats returns aggregated per-tool MCP call stats for the caller's workspace.
+func (h *AdminHandler) MCPToolStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		jsonutil.Error(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+		return
+	}
+	if h.oauthRepo == nil {
+		jsonutil.Error(w, http.StatusNotImplemented, "not_implemented", "MCP observability not configured")
+		return
+	}
+	actor := getAuth(r)
+	since := time.Now().UTC().Add(-24 * time.Hour)
+	if v := r.URL.Query().Get("since_hours"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 24*365 {
+			since = time.Now().UTC().Add(-time.Duration(n) * time.Hour)
+		}
+	}
+	stats, err := h.oauthRepo.MCPToolCallStats(r.Context(), actor.WorkspaceID, since)
+	if err != nil {
+		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", err.Error())
+		return
+	}
+	jsonutil.Write(w, http.StatusOK, map[string]any{"items": stats, "since": since})
+}
+
+// MCPToolCalls lists recent MCP tool calls for the caller's workspace.
+func (h *AdminHandler) MCPToolCalls(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		jsonutil.Error(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+		return
+	}
+	if h.oauthRepo == nil {
+		jsonutil.Error(w, http.StatusNotImplemented, "not_implemented", "MCP observability not configured")
+		return
+	}
+	actor := getAuth(r)
+	limit := 100
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 500 {
+			limit = n
+		}
+	}
+	calls, err := h.oauthRepo.ListMCPToolCalls(r.Context(), actor.WorkspaceID, limit)
+	if err != nil {
+		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", err.Error())
+		return
+	}
+	jsonutil.Write(w, http.StatusOK, map[string]any{"items": calls})
 }
 
 func (h *AdminHandler) Health(w http.ResponseWriter, r *http.Request) {

@@ -371,6 +371,18 @@ type Integration struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+// IntegrationSyncLog records one sync run of an integration.
+type IntegrationSyncLog struct {
+	ID               string     `json:"id"`
+	IntegrationID    string     `json:"integration_id"`
+	Status           string     `json:"status"` // success, failed, partial
+	RecordsProcessed int        `json:"records_processed"`
+	RecordsFailed    int        `json:"records_failed"`
+	StartedAt        time.Time  `json:"started_at"`
+	CompletedAt      *time.Time `json:"completed_at"`
+	ErrorMessage     *string    `json:"error_message"`
+}
+
 // Webhook represents an outgoing webhook.
 type Webhook struct {
 	ID                string    `json:"id"`

@@ -22,6 +22,7 @@ import (
 	"crm.local/internal/jsonutil"
 	"crm.local/internal/mcp"
 	"crm.local/internal/memtrack"
+	"crm.local/internal/metrics"
 	"crm.local/internal/permissions"
 	"crm.local/internal/repository"
 	"crm.local/internal/security"
@@ -34,6 +35,7 @@ import (
 	"crm.local/internal/service/deals"
 	"crm.local/internal/service/email"
 	"crm.local/internal/service/integrations"
+	"crm.local/internal/service/oauth"
 	"crm.local/internal/service/leads"
 	"crm.local/internal/service/projects"
 	"crm.local/internal/service/search"
@@ -69,7 +71,11 @@ type App struct {
 	webhookHandler     *httpserver.WebhookHandler
 	dashboardHandler   *httpserver.DashboardHandler
 	mcpServer          *mcp.Server
+	oauthSvc           *oauth.Service
+	oauthHandler       *httpserver.OAuthHandler
+	oauthRepo           *repository.OAuthRepository
 	agentService       *agents.Service
+	metrics            *metrics.Registry
 	cancel             context.CancelFunc
 }
 
@@ -139,6 +145,14 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		QueueSize: cfg.Jobs.QueueSize,
 	}, log)
 
+	// Prometheus metrics registry: HTTP counters via middleware, job pool
+	// counters read live on each scrape.
+	metricsReg := metrics.New()
+	metricsReg.SetJobStats(func() (uint64, uint64, uint64) {
+		enqueued, completed, failed := jp.Counters()
+		return uint64(enqueued), uint64(completed), uint64(failed)
+	})
+
 	// Initialize memory tracker
 	memTracker := memtrack.NewMemoryTracker(log, 1000)
 	memTracker.Start(ctx, 5*time.Second)
@@ -150,6 +164,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		srv:        srv,
 		jobs:       jp,
 		memTracker: memTracker,
+		metrics:    metricsReg,
 		cancel:     cancel,
 	}
 
@@ -227,14 +242,38 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	app.webhookHandler = httpserver.NewWebhookHandler(webhookSvc)
 	app.dashboardHandler = httpserver.NewDashboardHandler(dashboardSvc)
 
-	// Initialize MCP server with all services
+	// Initialize MCP server with all services + per-tool observability
+	oauthRepo := repository.NewOAuthRepository(database.SQL())
+	app.adminHandler.SetOAuthRepo(oauthRepo)
+	app.oauthRepo = oauthRepo
 	app.mcpServer = mcp.NewServer(
 		mcp.NewCRMTools(
 			companySvc, contactSvc, leadSvc, dealSvc, taskSvc, projectSvc, searchSvc,
 			emailSvc, calendarSvc, workflowSvc, integrationSvc, webhookSvc, adminSvc, log,
-		))
+		),
+		&mcp.Instrumentation{Metrics: metricsReg, Repo: oauthRepo, Log: log},
+	)
+
+	// OAuth 2.1 service for the MCP endpoint (JWT access tokens, PKCE, DCR)
+	oauthIssuer := cfg.Security.OAuthIssuer
+	if oauthIssuer == "" {
+		scheme := "http"
+		if cfg.Security.SessionCookieSecure {
+			scheme = "https"
+		}
+		oauthIssuer = scheme + "://" + cfg.HTTP.Addr()
+	}
+	oauthSecret := []byte(cfg.Security.OAuthSecret)
+	if len(oauthSecret) == 0 {
+		// dev fallback: derive a stable secret from the database path
+		oauthSecret = []byte("dev-oauth-secret:" + cfg.Database.Path)
+		log.Warn("CRM_OAUTH_SECRET not set; using derived dev secret (set it in production)")
+	}
+	app.oauthSvc = oauth.New(oauthRepo, oauthIssuer, oauthSecret)
+	app.oauthHandler = httpserver.NewOAuthHandler(app.oauthSvc, database)
 
 	// Add security middleware (applies to all routes including public)
+	app.srv.MiddlewareNoAuth(metricsReg.Middleware)
 	app.srv.MiddlewareNoAuth(security.CORSMiddleware(cfg.Security.ToSecurityConfig(), log))
 	app.srv.MiddlewareNoAuth(security.SecurityHeadersMiddleware(log))
 	app.srv.MiddlewareNoAuth(security.RequestSizeMiddleware(cfg.Security.ToSecurityConfig(), log))
@@ -242,6 +281,16 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	app.srv.MiddlewareNoAuth(security.TimeoutMiddleware(cfg.Security.ToSecurityConfig(), log))
 	if cfg.Security.CSRFEnabled {
 		app.srv.MiddlewareNoAuth(security.CrossOriginMiddleware(cfg.Security.CORSAllowedOrigins))
+		app.srv.MiddlewareNoAuth(security.CSRFMiddleware(security.CSRFConfig{
+			Enabled:      cfg.Security.CSRFEnabled,
+			HeaderName:   cfg.Security.CSRFHeaderName,
+			CookieName:   cfg.Security.CSRFCookieName,
+			TokenBytes:   cfg.Security.CSRFTokenLength,
+			CookieSecure: cfg.Security.SessionCookieSecure,
+			// Login must work before any CSRF cookie exists; it is still
+			// protected by the cross-origin middleware and login rate limit.
+			ExemptPaths: []string{"/api/v1/auth/login", "/mcp", "/oauth/token", "/oauth/revoke", "/oauth/authorize"},
+		}))
 	}
 
 	// Add auth middleware to protected routes
@@ -295,6 +344,7 @@ func (a *App) registerRoutes(srv *httpserver.Server) {
 	// Public health/check endpoints
 	srv.HandleFuncNoAuth("/health", a.handleHealth)
 	srv.HandleFuncNoAuth("/ready", a.handleReady)
+	srv.HandleFuncNoAuth("/metrics", a.metrics.Handler)
 	srv.HandleFunc("/api/v1/status", a.handleStatus)
 
 	// Search
@@ -376,6 +426,8 @@ func (a *App) registerRoutes(srv *httpserver.Server) {
 	srv.HandleFunc("/api/v1/integrations/{id}", a.handleIntegration)
 	srv.HandleFunc("/api/v1/integrations/{id}/credentials", a.integrationHandler.UpdateCredentials)
 	srv.HandleFunc("/api/v1/integrations/{id}/sync", a.integrationHandler.Sync)
+	srv.HandleFunc("/api/v1/integrations/{id}/test", a.integrationHandler.Test)
+	srv.HandleFunc("/api/v1/integrations/{id}/logs", a.integrationHandler.ListLogs)
 
 	// Webhooks
 	srv.HandleFunc("/api/v1/webhooks", a.webhookHandler.List)
@@ -383,9 +435,19 @@ func (a *App) registerRoutes(srv *httpserver.Server) {
 	srv.HandleFunc("/api/v1/webhooks/{id}", a.handleWebhook)
 	srv.HandleFunc("/api/v1/webhooks/{id}/test", a.webhookHandler.Test)
 
-	// MCP endpoint (public - handles its own auth via API keys)
+	// MCP endpoint (public - handles its own auth via API keys or OAuth JWT)
 	srv.HandleFuncNoAuth("/mcp", a.handleMCP)
 	srv.HandleFunc("/api/v1/mcp", a.handleMCP)
+
+	// OAuth 2.1 endpoints for MCP clients (RFC 8414/9728 discovery, DCR, auth code + PKCE)
+	if a.cfg.Security.OAuthEnabled {
+		srv.HandleFuncNoAuth("GET /.well-known/oauth-protected-resource", a.oauthHandler.WellKnownProtectedResource)
+		srv.HandleFuncNoAuth("GET /.well-known/oauth-authorization-server", a.oauthHandler.WellKnownAuthorizationServer)
+		srv.HandleFunc("POST /oauth/register", a.oauthHandler.Register)
+		srv.HandleFuncNoAuth("/oauth/authorize", a.oauthHandler.Authorize)
+		srv.HandleFuncNoAuth("POST /oauth/token", a.oauthHandler.Token)
+		srv.HandleFuncNoAuth("POST /oauth/revoke", a.oauthHandler.Revoke)
+	}
 
 	// Admin endpoints (public for monitoring)
 	srv.HandleFunc("/api/v1/admin/health", a.adminHandler.Health)
@@ -399,6 +461,8 @@ func (a *App) registerRoutes(srv *httpserver.Server) {
 	srv.HandleFunc("/api/v1/admin/workflows", a.adminHandler.Workflows)
 	srv.HandleFunc("/api/v1/admin/integrations", a.adminHandler.Integrations)
 	srv.HandleFunc("/api/v1/admin/agents", a.adminHandler.Agents)
+	srv.HandleFunc("/api/v1/admin/mcp/stats", a.adminHandler.MCPToolStats)
+	srv.HandleFunc("/api/v1/admin/mcp/calls", a.adminHandler.MCPToolCalls)
 
 	// Agent endpoints
 	srv.HandleFunc("/api/v1/agents", a.agentHandler.List)
@@ -586,20 +650,35 @@ func (a *App) handleMCP(w http.ResponseWriter, r *http.Request) {
 	if actor.ActorID == "" {
 		parts := strings.Fields(r.Header.Get("Authorization"))
 		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-			jsonutil.Error(w, http.StatusUnauthorized, "unauthorized", "API key required")
+			w.Header().Set("WWW-Authenticate", `Bearer resource_metadata="/.well-known/oauth-protected-resource", error="invalid_token"`)
+			jsonutil.Error(w, http.StatusUnauthorized, "unauthorized", "API key or OAuth token required")
 			return
 		}
-		key, err := a.agentService.ValidateApiKey(r.Context(), uuid.HashAPIKey(parts[1]))
-		if errors.Is(err, agents.ErrRateLimited) {
-			w.Header().Set("Retry-After", "60")
-			jsonutil.Error(w, 429, "rate_limited", err.Error())
-			return
+		token := parts[1]
+		if httpserver.IsJWT(token) && a.oauthSvc != nil {
+			// OAuth 2.1 JWT access token (RFC 9068)
+			actx, err := a.oauthSvc.ValidateAccessToken(r.Context(), token)
+			if err != nil {
+				w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token", error_description="`+err.Error()+`"`)
+				jsonutil.Error(w, http.StatusUnauthorized, "unauthorized", err.Error())
+				return
+			}
+			actor = *actx
+		} else {
+			// Legacy agent API key
+			key, err := a.agentService.ValidateApiKey(r.Context(), uuid.HashAPIKey(token))
+			if errors.Is(err, agents.ErrRateLimited) {
+				w.Header().Set("Retry-After", "60")
+				jsonutil.Error(w, 429, "rate_limited", err.Error())
+				return
+			}
+			if err != nil {
+				w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token"`)
+				jsonutil.Error(w, http.StatusUnauthorized, "unauthorized", "invalid API key")
+				return
+			}
+			actor = permissions.AuthContext{ActorType: "agent", ActorID: key.AgentID, WorkspaceID: key.WorkspaceID, Scopes: key.Scopes}
 		}
-		if err != nil {
-			jsonutil.Error(w, http.StatusUnauthorized, "unauthorized", "invalid API key")
-			return
-		}
-		actor = permissions.AuthContext{ActorType: "agent", ActorID: key.AgentID, WorkspaceID: key.WorkspaceID, Scopes: key.Scopes}
 	}
 	r = r.WithContext(auth.WithAuth(r.Context(), actor))
 	if a.mcpServer != nil {
