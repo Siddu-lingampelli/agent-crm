@@ -120,6 +120,15 @@ func (s *Service) CreateDraft(ctx context.Context, actor permissions.AuthContext
 		return nil, fmt.Errorf("create draft: %w", err)
 	}
 
+	// Engagement tracking: mint the per-email token now (when the HTML body is
+	// present) so the tracking row exists even if the later send fails, and the
+	// UI can show the open/click links immediately.
+	if t := s.trackerSnapshot(); t != nil && strings.TrimSpace(email.BodyHTML) != "" {
+		if _, terr := t.EnsureTracking(ctx, email.WorkspaceID, email.ID); terr != nil {
+			s.log.Warn("tracking setup failed", "email", email.ID, "error", terr)
+		}
+	}
+
 	s.log.Info("email draft created", "id", email.ID, "actor", actor.ActorID)
 	return email, nil
 }
@@ -696,33 +705,38 @@ func parseAddresses(s string) []string {
 
 func buildMessage(from string, to, cc []string, subject, body, bodyHTML string) string {
 	var msg strings.Builder
-	msg.WriteString("From: " + from + "\r\n")
-	msg.WriteString("To: " + strings.Join(to, ", ") + "\r\n")
+	msg.WriteString("From: ")
+	msg.WriteString(from)
+	msg.WriteString("\r\nTo: ")
+	msg.WriteString(strings.Join(to, ", "))
+	msg.WriteString("\r\n")
 	if len(cc) > 0 {
-		msg.WriteString("Cc: " + strings.Join(cc, ", ") + "\r\n")
+		msg.WriteString("Cc: ")
+		msg.WriteString(strings.Join(cc, ", "))
+		msg.WriteString("\r\n")
 	}
-	msg.WriteString("Subject: " + mime.QEncoding.Encode("UTF-8", subject) + "\r\n")
-	msg.WriteString("MIME-Version: 1.0\r\n")
+	msg.WriteString("Subject: ")
+	msg.WriteString(mime.QEncoding.Encode("UTF-8", subject))
+	msg.WriteString("\r\nMIME-Version: 1.0\r\n")
 
 	if bodyHTML != "" {
 		msg.WriteString("Content-Type: multipart/alternative; boundary=\"boundary123\"\r\n\r\n")
-		msg.WriteString("--boundary123\r\n")
-		msg.WriteString("Content-Type: text/plain; charset=UTF-8\r\n\r\n")
-		msg.WriteString(body + "\r\n\r\n")
-		msg.WriteString("--boundary123\r\n")
-		msg.WriteString("Content-Type: text/html; charset=UTF-8\r\n\r\n")
-		msg.WriteString(bodyHTML + "\r\n\r\n")
-		msg.WriteString("--boundary123--\r\n")
+		msg.WriteString("--boundary123\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n")
+		msg.WriteString(body)
+		msg.WriteString("\r\n\r\n--boundary123\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n")
+		msg.WriteString(bodyHTML)
+		msg.WriteString("\r\n\r\n--boundary123--\r\n")
 	} else {
 		msg.WriteString("Content-Type: text/plain; charset=UTF-8\r\n\r\n")
-		msg.WriteString(body + "\r\n")
+		msg.WriteString(body)
+		msg.WriteString("\r\n")
 	}
 
 	return msg.String()
 }
 
 func ptrTime(t time.Time) *time.Time {
-	return &t
+	return new(t)
 }
 func (s *Service) SetJobPool(pool *jobs.Pool) { s.jobPool = pool }
 

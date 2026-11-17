@@ -77,7 +77,7 @@ type EmailTracking struct {
 	ID             string     `json:"id"`
 	WorkspaceID    string     `json:"workspace_id"`
 	EmailID        string     `json:"email_id"`
-	Token          string     `json:"-"`
+	Token          string     `json:"token"` // needed by the SPA to build preview links; the public endpoints stay token-authenticated
 	OpenCount      int        `json:"open_count"`
 	ClickCount     int        `json:"click_count"`
 	FirstOpenedAt  *time.Time `json:"first_opened_at"`
