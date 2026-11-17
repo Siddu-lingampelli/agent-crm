@@ -9,37 +9,27 @@ import { errorMessage, useDebouncedSearch, automationDate } from './automation-d
 import { CommunicationsHeader, CommunicationsEmpty } from './CommunicationsUI';
 
 type EditorState = { connection?: MailConnection } | null;
+type OAuthProvider = { id: string; name: string; configured: boolean };
 
-function OAuthConnectDialog({ onClose }: { onClose: () => void }) {
-  const [providers, setProviders] = useState<{ id: string; name: string; configured: boolean }[] | null>(null);
+// One-click connect (HubSpot/Salesforce style): clicking a provider immediately POSTs
+// /mail/oauth/connect and redirects the whole tab to the provider's consent URL.
+// The provider redirects back to /api/v1/mail/oauth/callback, which lands on /inbox?mail_connected=...
+function useOAuthConnect() {
+  const [providers, setProviders] = useState<OAuthProvider[] | null>(null);
+  const [busyProvider, setBusyProvider] = useState('');
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
   useEffect(() => {
     api.mail.oauthProviders().then(d => setProviders(d.providers)).catch(err => setError(errorMessage(err)));
   }, []);
   async function connect(provider: string) {
-    if (busy) return;
-    setBusy(true); setError('');
+    if (busyProvider) return;
+    setBusyProvider(provider); setError('');
     try {
       const res = await api.mail.oauthConnect(provider);
-      // HubSpot-style flow: open the provider consent screen; it redirects back to the API callback,
-      // which then redirects to /inbox?mail_connected=...
       window.location.href = res.authorization_url;
-    } catch (err) { setError(errorMessage(err)); setBusy(false); }
+    } catch (err) { setError(errorMessage(err)); setBusyProvider(''); }
   }
-  return <Dialog title="Connect your email" description="Choose a provider. You'll approve access on their consent screen — no password is stored by us." onClose={onClose} busy={busy}>
-    <div className="au-dialog-body">{error && <Message message={error} error />}
-      {!providers ? <Loading /> : providers.length === 0 ? <p className="au-dialog-copy">No OAuth providers are configured on this server.</p> : (
-        <div className="cm-oauth-providers">
-          {providers.map(p => <button key={p.id} className="cm-oauth-provider" disabled={!p.configured || busy} onClick={() => connect(p.id)}>
-            <strong>{p.name}</strong>
-            <span>{p.configured ? 'Continue — you will authorize on the provider site' : 'Not configured on this server'}</span>
-          </button>)}
-        </div>
-      )}
-    </div>
-    <div className="au-dialog-footer"><Button disabled={busy} onClick={onClose}>Cancel</Button></div>
-  </Dialog>;
+  return { providers, busyProvider, error, connect, clearError: () => setError('') };
 }
 
 function ConnectionEditor({ editor, onClose, onSaved }: { editor: NonNullable<EditorState>; onClose: () => void; onSaved: () => void }) {
@@ -137,7 +127,7 @@ export function MailInboxPage() {
   const [size, setSize] = useState(12);
   const [selectedId, setSelectedId] = useState('');
   const [editor, setEditor] = useState<EditorState>(null);
-  const [oauthOpen, setOauthOpen] = useState(false);
+  const oauth = useOAuthConnect();
   const [deleting, setDeleting] = useState<MailConnection | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -191,11 +181,17 @@ export function MailInboxPage() {
     <CommunicationsHeader title="Inbox" description="Connected mailboxes, inbound messages, and sender replies linked to your CRM records.">
       <RefreshButton loading={messages.loading || connections.loading} onClick={() => { messages.refresh(); connections.refresh(); }} />
       <Button onClick={syncNow} disabled={busy}><RefreshCw size={15} className={busy ? 'au-spin' : ''} />Sync now</Button>
-      <Button onClick={() => setOauthOpen(true)}><Plug size={16} />Connect with Google/Microsoft</Button>
+      {oauth.providers?.map(p => (
+        <Button key={p.id} onClick={() => oauth.connect(p.id)} disabled={!p.configured || !!oauth.busyProvider}
+          title={p.configured ? `Connect ${p.name} — you'll authorize on their site` : 'Not configured on this server (set CRM_MAIL_OAUTH_*_CLIENT_ID/SECRET)'}
+          className={oauth.busyProvider === p.id ? 'au-spin-wrap' : ''}>
+          <Plug size={16} />{p.name.replace(' (', ' · ').replace(')', '')}{oauth.busyProvider === p.id ? '…' : ''}
+        </Button>
+      ))}
       <Button primary onClick={() => setEditor({})}><MailPlus size={16} />IMAP manually</Button>
     </CommunicationsHeader>
     {notice && <Message message={notice} onClose={() => setNotice('')} />}
-    {error && <Message message={error} error onClose={() => setError('')} />}
+    {(error || oauth.error) && <Message message={error || oauth.error} error onClose={() => { setError(''); oauth.clearError(); }} />}
 
     {conns.length > 0 && <section className="au-panel" style={{ marginBottom: 16 }} aria-label="Mail connections">
       <div className="cm-mail-connections">
@@ -233,8 +229,19 @@ export function MailInboxPage() {
         </div>
         {messages.error && <Message message={messages.error} error onRetry={messages.refresh} />}
         {messages.loading && !messages.data ? <Loading /> : messages.error && !messages.data ? null : !items.length ? (
-          <CommunicationsEmpty icon={<Inbox size={29} />} title={query ? 'No matching messages' : conns.length ? 'No messages yet' : 'Connect an inbox to receive mail'} description={conns.length ? 'Run "Sync now" to fetch recent messages from your connected mailboxes.' : 'Add an IMAP connection above, then sync.'}>
-            {!conns.length && <Button primary onClick={() => setEditor({})}><MailPlus size={15} />Connect inbox</Button>}
+          <CommunicationsEmpty icon={<Inbox size={29} />} title={query ? 'No matching messages' : conns.length ? 'No messages yet' : 'Connect your inbox to receive mail'} description={conns.length ? 'Run "Sync now" to fetch recent messages from your connected mailboxes.' : 'Click Google or Microsoft above — one click, you authorize on their site, and you are connected. No password is stored by us.'}>
+            {!conns.length && <div className="cm-oauth-providers">
+              {(oauth.providers ?? []).map(p => (
+                <button key={p.id} className="cm-oauth-provider" disabled={!p.configured || !!oauth.busyProvider} onClick={() => oauth.connect(p.id)}>
+                  <strong>{p.name}</strong>
+                  <span>{p.configured ? 'Click to connect — you will authorize on the provider site' : 'Not configured on this server'}</span>
+                </button>
+              ))}
+              <button className="cm-oauth-provider" onClick={() => setEditor({})}>
+                <strong>IMAP manually</strong>
+                <span>Enter server, username and password (stored encrypted)</span>
+              </button>
+            </div>}
           </CommunicationsEmpty>
         ) : <div className="cm-mail-columns">
           <div className="cm-message-list" aria-label="Inbound messages">
@@ -253,7 +260,6 @@ export function MailInboxPage() {
     </section>
 
     {editor && <ConnectionEditor editor={editor} onClose={() => setEditor(null)} onSaved={() => { setEditor(null); setNotice('Inbox connection saved.'); connections.refresh(); messages.refresh(); }} />}
-    {oauthOpen && <OAuthConnectDialog onClose={() => setOauthOpen(false)} />}
     {deleting && <Dialog title="Delete inbox connection?" description={deleting.name} onClose={() => setDeleting(null)} busy={busy}>
       <div className="au-dialog-body"><p className="au-dialog-copy">This removes the connection and all ingested messages from this workspace. Stored credentials are deleted.</p></div>
       <div className="au-dialog-footer"><Button disabled={busy} onClick={() => setDeleting(null)}>Cancel</Button><Button primary disabled={busy} onClick={removeConn}>{busy ? 'Deleting...' : 'Delete connection'}</Button></div>
