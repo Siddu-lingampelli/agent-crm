@@ -185,7 +185,7 @@ export function MailInboxPage() {
         <Button key={p.id} onClick={() => oauth.connect(p.id)} disabled={!p.configured || !!oauth.busyProvider}
           title={p.configured ? `Connect ${p.name} — you'll authorize on their site` : 'Not configured on this server (set CRM_MAIL_OAUTH_*_CLIENT_ID/SECRET)'}
           className={oauth.busyProvider === p.id ? 'au-spin-wrap' : ''}>
-          <Plug size={16} />{p.name.replace(' (', ' · ').replace(')', '')}{oauth.busyProvider === p.id ? '…' : ''}
+          <span className={`cm-oauth-mark is-${p.id}`} aria-hidden="true">{p.id === 'google' ? 'G' : 'M'}</span>{p.name.replace(' (', ' · ').replace(')', '')}{oauth.busyProvider === p.id ? '…' : ''}
         </Button>
       ))}
       <Button primary onClick={() => setEditor({})}><MailPlus size={16} />IMAP manually</Button>
@@ -233,12 +233,12 @@ export function MailInboxPage() {
             {!conns.length && <div className="cm-oauth-providers">
               {(oauth.providers ?? []).map(p => (
                 <button key={p.id} className="cm-oauth-provider" disabled={!p.configured || !!oauth.busyProvider} onClick={() => oauth.connect(p.id)}>
-                  <strong>{p.name}</strong>
+                  <strong><span className={`cm-oauth-mark is-${p.id}`} aria-hidden="true">{p.id === 'google' ? 'G' : 'M'}</span>{p.name}</strong>
                   <span>{p.configured ? 'Click to connect — you will authorize on the provider site' : 'Not configured on this server'}</span>
                 </button>
               ))}
               <button className="cm-oauth-provider" onClick={() => setEditor({})}>
-                <strong>IMAP manually</strong>
+                <strong><span className="cm-oauth-mark is-imap" aria-hidden="true"><MailPlus size={15} /></span>IMAP manually</strong>
                 <span>Enter server, username and password (stored encrypted)</span>
               </button>
             </div>}
