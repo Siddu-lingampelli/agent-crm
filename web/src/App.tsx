@@ -1,7 +1,7 @@
 import { createBrowserRouter, RouterProvider, Navigate, useRouteError, useLocation } from 'react-router-dom'
 import { lazy, Suspense, useState, useEffect } from 'react'
 import { api } from './api'
-import { LayoutDashboard, Users, DollarSign, Contact, Building2, CheckSquare, FolderKanban, Mail, Calendar as CalendarIcon, Bot, GitBranch, Plug, Key, Database, ClipboardList, Monitor, Settings, Zap, Loader2 } from 'lucide-react'
+import { LayoutDashboard, Users, DollarSign, Contact, Building2, CheckSquare, FolderKanban, Mail, Send, Calendar as CalendarIcon, Bot, GitBranch, Plug, Key, Database, ClipboardList, Monitor, Settings, Zap, Loader2 } from 'lucide-react'
 import './index.css'
 import { WorkspaceShell } from './WorkspaceShell'
 import { AdminArea } from './AdminArea'
@@ -23,6 +23,7 @@ const SystemPage = lazy(() => import('./SystemPage').then(module => ({ default: 
 const SettingsPage = lazy(() => import('./SettingsPage').then(module => ({ default: module.SettingsPage })))
 const CalendarPage = lazy(() => import('./CalendarPage').then(module => ({ default: module.CalendarPage })))
 const EmailsPage = lazy(() => import('./EmailsPage').then(module => ({ default: module.EmailsPage })))
+const MailInboxPage = lazy(() => import('./MailInboxPage').then(module => ({ default: module.MailInboxPage })))
 const WebhooksPage = lazy(() => import('./WebhooksPage').then(module => ({ default: module.WebhooksPage })))
 const LoginPage = lazy(() => import('./LoginPage').then(module => ({ default: module.LoginPage })))
 const HomePage = lazy(() => import('./HomePage').then(module => ({ default: module.HomePage })))
@@ -38,6 +39,7 @@ const navigation: Array<{ name: string; href: string; icon: React.ReactNode }> =
   { name: 'Tasks', href: '/tasks', icon: <CheckSquare className="w-5 h-5" /> },
   { name: 'Projects', href: '/projects', icon: <FolderKanban className="w-5 h-5" /> },
   { name: 'Inbox', href: '/inbox', icon: <Mail className="w-5 h-5" /> },
+  { name: 'Outbox', href: '/outbox', icon: <Send className="w-5 h-5" /> },
   { name: 'Calendar', href: '/calendar', icon: <CalendarIcon className="w-5 h-5" /> },
 ]
 
@@ -178,6 +180,16 @@ const routes = [
   },
   {
     path: '/inbox',
+    element: (
+      <DashboardLayout>
+        <ProtectedRoute>
+          <MailInboxPage />
+        </ProtectedRoute>
+      </DashboardLayout>
+    ),
+  },
+  {
+    path: '/outbox',
     element: (
       <DashboardLayout>
         <ProtectedRoute>

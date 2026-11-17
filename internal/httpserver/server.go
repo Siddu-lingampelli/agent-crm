@@ -100,7 +100,8 @@ func (s *Server) ServeStatic(prefix, fsPath string) {
 			return
 		}
 		if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/mcp" ||
-			strings.HasPrefix(r.URL.Path, "/oauth/") || strings.HasPrefix(r.URL.Path, "/.well-known/") {
+			strings.HasPrefix(r.URL.Path, "/oauth/") || strings.HasPrefix(r.URL.Path, "/.well-known/") ||
+			strings.HasPrefix(r.URL.Path, "/t/") {
 			http.NotFound(w, r)
 			return
 		}

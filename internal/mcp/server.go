@@ -20,6 +20,7 @@ import (
 	"crm.local/internal/service/email"
 	"crm.local/internal/service/integrations"
 	"crm.local/internal/service/leads"
+	"crm.local/internal/service/mail"
 	"crm.local/internal/service/projects"
 	"crm.local/internal/service/search"
 	"crm.local/internal/service/tasks"
@@ -44,6 +45,7 @@ type CRMTools struct {
 	workflowSvc    *workflows.Service
 	integrationSvc *integrations.Service
 	webhookSvc     *webhooks.Service
+	mailSvc        *mail.Service
 	adminSvc       *admin.Service
 	log            *slog.Logger
 }
@@ -62,6 +64,7 @@ func NewCRMTools(
 	workflowSvc *workflows.Service,
 	integrationSvc *integrations.Service,
 	webhookSvc *webhooks.Service,
+	mailSvc *mail.Service,
 	adminSvc *admin.Service,
 	log *slog.Logger,
 ) *CRMTools {
@@ -78,6 +81,7 @@ func NewCRMTools(
 		workflowSvc:    workflowSvc,
 		integrationSvc: integrationSvc,
 		webhookSvc:     webhookSvc,
+		mailSvc:        mailSvc,
 		adminSvc:       adminSvc,
 		log:            log,
 	}
@@ -119,6 +123,7 @@ func NewServer(tools *CRMTools, inst *Instrumentation) *Server {
 	registerWorkflowTools(s, crmTools)
 	registerIntegrationTools(s, crmTools)
 	registerWebhookTools(s, crmTools)
+	registerMailTools(s, crmTools)
 	registerAdminTools(s, crmTools)
 
 	// Per-tool-call observability: count, time and audit every tools/call.

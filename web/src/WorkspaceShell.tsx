@@ -36,7 +36,7 @@ export function WorkspaceShell({ children, navigation, adminNavigation }: { chil
   const groups = [
     { label: '', items: navigation.filter(item => item.href === '/dashboard') },
     { label: 'CRM', items: navigation.filter(item => ['/leads', '/deals', '/contacts', '/companies'].includes(item.href)) },
-    { label: 'WORK', items: navigation.filter(item => ['/tasks', '/projects', '/inbox', '/calendar'].includes(item.href)) },
+    { label: 'WORK', items: navigation.filter(item => ['/tasks', '/projects', '/inbox', '/outbox', '/calendar'].includes(item.href)) },
     { label: 'AUTOMATION', items: adminNavigation.filter(item => ['/workflows', '/integrations', '/agent-console'].includes(item.href)) },
   ];
   const tools = adminNavigation.filter(item => !['/settings', '/workflows', '/integrations', '/agent-console'].includes(item.href));

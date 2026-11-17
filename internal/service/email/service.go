@@ -31,6 +31,14 @@ type SMTPConfig struct {
 	UseTLS   bool   `json:"use_tls"`
 }
 
+// Tracker is implemented by the mail service to add engagement tracking
+// (open pixel + click redirects) to outbound emails at send time.
+type Tracker interface {
+	EnsureTracking(ctx context.Context, workspaceID, emailID string) (string, error)
+	InjectPixel(bodyHTML, token string) string
+	RewriteLinks(token, bodyHTML string) string
+}
+
 // Service provides email business logic.
 type Service struct {
 	repo        *repository.EmailRepository
@@ -39,6 +47,7 @@ type Service struct {
 	approvalReq bool
 	mu          sync.RWMutex
 	jobPool     *jobs.Pool
+	tracker     Tracker
 }
 
 // New returns an email service.
@@ -429,7 +438,14 @@ func (s *Service) doSend(ctx context.Context, email *model.Email) error {
 	if err != nil {
 		return err
 	}
-	if _, err := writer.Write([]byte(buildMessage(from, to, cc, email.Subject, email.Body, email.BodyHTML))); err != nil {
+	bodyHTML := email.BodyHTML
+	if t := s.trackerSnapshot(); t != nil && bodyHTML != "" {
+		if tok, terr := t.EnsureTracking(ctx, email.WorkspaceID, email.ID); terr == nil && tok != "" {
+			bodyHTML = t.RewriteLinks(tok, bodyHTML)
+			bodyHTML = t.InjectPixel(bodyHTML, tok)
+		}
+	}
+	if _, err := writer.Write([]byte(buildMessage(from, to, cc, email.Subject, email.Body, bodyHTML))); err != nil {
 		_ = writer.Close()
 		return err
 	}
@@ -709,6 +725,19 @@ func ptrTime(t time.Time) *time.Time {
 	return &t
 }
 func (s *Service) SetJobPool(pool *jobs.Pool) { s.jobPool = pool }
+
+// SetTracker attaches the engagement tracker used at send time.
+func (s *Service) SetTracker(t Tracker) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.tracker = t
+}
+
+func (s *Service) trackerSnapshot() Tracker {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.tracker
+}
 func (s *Service) smtpSnapshot() *SMTPConfig {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

@@ -37,6 +37,7 @@ import (
 	"crm.local/internal/service/integrations"
 	"crm.local/internal/service/oauth"
 	"crm.local/internal/service/leads"
+	"crm.local/internal/service/mail"
 	"crm.local/internal/service/projects"
 	"crm.local/internal/service/search"
 	"crm.local/internal/service/tasks"
@@ -69,6 +70,8 @@ type App struct {
 	workflowHandler    *httpserver.WorkflowHandler
 	integrationHandler *httpserver.IntegrationHandler
 	webhookHandler     *httpserver.WebhookHandler
+	mailHandler        *httpserver.MailHandler
+	mailSvc            *mail.Service
 	dashboardHandler   *httpserver.DashboardHandler
 	mcpServer          *mcp.Server
 	oauthSvc           *oauth.Service
@@ -195,6 +198,20 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		emailSvc.SetSMTPConfig(*smtpConfig)
 	}
 
+	// Mail: IMAP inbox connections + engagement tracking, started in background
+	mailRepo := repository.NewMailRepository(database.SQL())
+	mailCfg := mail.Config{
+		TrackingBaseURL: os.Getenv("CRM_PUBLIC_URL"),
+		EncryptionKey:   os.Getenv("CRM_ENCRYPTION_KEY"),
+	}
+	mailSvc := mail.New(mailRepo,
+		repository.NewContactRepository(database.SQL()),
+		repository.NewLeadRepository(database.SQL()),
+		mailCfg, log)
+	mailSvc.Start(ctx)
+	emailSvc.SetTracker(mailSvc)
+	app.mailSvc = mailSvc
+
 	calendarRepo := repository.NewCalendarRepository(database.SQL())
 	calendarSvc := calendar.New(calendarRepo, log)
 
@@ -240,6 +257,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	app.workflowHandler = httpserver.NewWorkflowHandler(workflowSvc)
 	app.integrationHandler = httpserver.NewIntegrationHandler(integrationSvc)
 	app.webhookHandler = httpserver.NewWebhookHandler(webhookSvc)
+	app.mailHandler = httpserver.NewMailHandler(mailSvc)
 	app.dashboardHandler = httpserver.NewDashboardHandler(dashboardSvc)
 
 	// Initialize MCP server with all services + per-tool observability
@@ -249,7 +267,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	app.mcpServer = mcp.NewServer(
 		mcp.NewCRMTools(
 			companySvc, contactSvc, leadSvc, dealSvc, taskSvc, projectSvc, searchSvc,
-			emailSvc, calendarSvc, workflowSvc, integrationSvc, webhookSvc, adminSvc, log,
+			emailSvc, calendarSvc, workflowSvc, integrationSvc, webhookSvc, mailSvc, adminSvc, log,
 		),
 		&mcp.Instrumentation{Metrics: metricsReg, Repo: oauthRepo, Log: log},
 	)
@@ -434,6 +452,20 @@ func (a *App) registerRoutes(srv *httpserver.Server) {
 	srv.HandleFunc("/api/v1/webhooks/create", a.webhookHandler.Create)
 	srv.HandleFunc("/api/v1/webhooks/{id}", a.handleWebhook)
 	srv.HandleFunc("/api/v1/webhooks/{id}/test", a.webhookHandler.Test)
+
+	// Mail connections (IMAP inbox sync) + inbox + tracking stats
+	srv.HandleFunc("/api/v1/mail/connections", a.mailHandler.ListConnections)
+	srv.HandleFunc("/api/v1/mail/connections/create", a.mailHandler.CreateConnection)
+	srv.HandleFunc("/api/v1/mail/connections/{id}", a.mailHandler.HandleConnection)
+	srv.HandleFunc("/api/v1/mail/connections/{id}/test", a.mailHandler.TestConnection)
+	srv.HandleFunc("/api/v1/mail/sync", a.mailHandler.SyncNow)
+	srv.HandleFunc("/api/v1/inbox", a.mailHandler.ListInbound)
+	srv.HandleFunc("/api/v1/inbox/{id}", a.mailHandler.HandleInbound)
+	srv.HandleFunc("/api/v1/emails/{id}/tracking", a.mailHandler.TrackingStats)
+
+	// Public engagement tracking endpoints (token-authenticated, no session)
+	srv.HandleFuncNoAuth("GET /t/o/{token}", a.mailHandler.TrackOpen)
+	srv.HandleFuncNoAuth("GET /t/c/{token}", a.mailHandler.TrackClick)
 
 	// MCP endpoint (public - handles its own auth via API keys or OAuth JWT)
 	srv.HandleFuncNoAuth("/mcp", a.handleMCP)

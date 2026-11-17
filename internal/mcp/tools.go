@@ -13,7 +13,9 @@ import (
 	"crm.local/internal/service/deals"
 	"crm.local/internal/service/email"
 	"crm.local/internal/service/integrations"
+	"crm.local/internal/repository"
 	"crm.local/internal/service/leads"
+	"crm.local/internal/service/mail"
 	"crm.local/internal/service/projects"
 	"crm.local/internal/service/search"
 	"crm.local/internal/service/tasks"
@@ -99,6 +101,23 @@ func registerEmailTools(s *mcp.Server, t *CRMTools) {
 	mcp.AddTool(s, &mcp.Tool{Name: "emails.templates.update", Description: "Update an email template"}, t.updateEmailTemplate)
 	mcp.AddTool(s, &mcp.Tool{Name: "emails.templates.delete", Description: "Delete an email template"}, t.archiveEmailTemplate)
 	mcp.AddTool(s, &mcp.Tool{Name: "emails.templates.apply", Description: "Apply a template to create a draft"}, t.applyEmailTemplate)
+}
+
+// Mail tools (connections, inbox, tracking)
+func registerMailTools(s *mcp.Server, t *CRMTools) {
+	if t.mailSvc == nil {
+		return
+	}
+	mcp.AddTool(s, &mcp.Tool{Name: "mail.connections.list", Description: "List connected inboxes (IMAP)"}, t.listMailConnections)
+	mcp.AddTool(s, &mcp.Tool{Name: "mail.connections.create", Description: "Connect an IMAP inbox (host, port, username, password are sealed at rest)"}, t.createMailConnection)
+	mcp.AddTool(s, &mcp.Tool{Name: "mail.connections.update", Description: "Update an inbox connection (enable/disable, new password)"}, t.updateMailConnection)
+	mcp.AddTool(s, &mcp.Tool{Name: "mail.connections.delete", Description: "Delete an inbox connection"}, t.deleteMailConnection)
+	mcp.AddTool(s, &mcp.Tool{Name: "mail.connections.test", Description: "Test IMAP login for a connection"}, t.testMailConnection)
+	mcp.AddTool(s, &mcp.Tool{Name: "mail.sync", Description: "Poll all enabled inboxes now and ingest new messages"}, t.syncMail)
+	mcp.AddTool(s, &mcp.Tool{Name: "inbox.list", Description: "List inbound messages with pagination and filters"}, t.listInbound)
+	mcp.AddTool(s, &mcp.Tool{Name: "inbox.get", Description: "Get one inbound message"}, t.getInbound)
+	mcp.AddTool(s, &mcp.Tool{Name: "inbox.mark", Description: "Mark an inbound message read/unread/archived or link it to a contact/lead"}, t.markInbound)
+	mcp.AddTool(s, &mcp.Tool{Name: "emails.tracking", Description: "Get engagement stats (opens, clicks, delivery, bounces) for a sent email"}, t.emailTracking)
 }
 
 // Calendar tools
@@ -1032,6 +1051,149 @@ func (t *CRMTools) getStats(ctx context.Context, req *mcp.CallToolRequest, args 
 		return handleError(err), nil, err
 	}
 	return &mcp.CallToolResult{StructuredContent: map[string]any{"workflows": workflowStats, "integrations": integrationStats, "agents": agentStats}}, map[string]any{"workflows": workflowStats, "integrations": integrationStats, "agents": agentStats}, nil
+}
+
+// Mail implementations
+func (t *CRMTools) listMailConnections(ctx context.Context, req *mcp.CallToolRequest, args struct{}) (*mcp.CallToolResult, map[string]any, error) {
+	actor := mcpAuthContext(ctx)
+	items, err := t.mailSvc.ListConnections(ctx, actor)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"connections": items}}, map[string]any{"connections": items}, nil
+}
+
+type mailConnectionArgs struct {
+	ID               string `json:"id"`
+	Name             string `json:"name"`
+	EmailAddress     string `json:"email_address"`
+	IMAPHost         string `json:"imap_host"`
+	IMAPPort         int    `json:"imap_port"`
+	UseTLS           bool   `json:"use_tls"`
+	Username         string `json:"username"`
+	Password         string `json:"password"`
+	Mailbox          string `json:"mailbox"`
+	Enabled          *bool  `json:"enabled"`
+	PollIntervalSecs *int   `json:"poll_interval_seconds"`
+}
+
+func (t *CRMTools) createMailConnection(ctx context.Context, req *mcp.CallToolRequest, args mailConnectionArgs) (*mcp.CallToolResult, map[string]any, error) {
+	actor := mcpAuthContext(ctx)
+	c, err := t.mailSvc.CreateConnection(ctx, actor, mail.CreateConnectionInput{
+		Name: args.Name, EmailAddress: args.EmailAddress, IMAPHost: args.IMAPHost,
+		IMAPPort: args.IMAPPort, UseTLS: args.UseTLS, Username: args.Username,
+		Password: args.Password, Mailbox: args.Mailbox, PollIntervalSecs: derefInt(args.PollIntervalSecs),
+	})
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"connection": c}}, map[string]any{"connection": c}, nil
+}
+
+func (t *CRMTools) updateMailConnection(ctx context.Context, req *mcp.CallToolRequest, args mailConnectionArgs) (*mcp.CallToolResult, map[string]any, error) {
+	actor := mcpAuthContext(ctx)
+	c, err := t.mailSvc.UpdateConnection(ctx, actor, args.ID, mail.UpdateConnectionInput{
+		Name: args.Name, EmailAddress: args.EmailAddress, IMAPHost: args.IMAPHost,
+		IMAPPort: args.IMAPPort, UseTLS: args.UseTLS, Username: args.Username,
+		Password: args.Password, Mailbox: args.Mailbox, Enabled: args.Enabled, PollIntervalSecs: args.PollIntervalSecs,
+	})
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"connection": c}}, map[string]any{"connection": c}, nil
+}
+
+func (t *CRMTools) deleteMailConnection(ctx context.Context, req *mcp.CallToolRequest, args getEntityArgs) (*mcp.CallToolResult, map[string]any, error) {
+	actor := mcpAuthContext(ctx)
+	if err := t.mailSvc.DeleteConnection(ctx, actor, args.ID); err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"deleted": args.ID}}, map[string]any{"deleted": args.ID}, nil
+}
+
+func (t *CRMTools) testMailConnection(ctx context.Context, req *mcp.CallToolRequest, args getEntityArgs) (*mcp.CallToolResult, map[string]any, error) {
+	actor := mcpAuthContext(ctx)
+	if err := t.mailSvc.TestConnection(ctx, actor, args.ID); err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"ok": true}}, map[string]any{"ok": true}, nil
+}
+
+func (t *CRMTools) syncMail(ctx context.Context, req *mcp.CallToolRequest, args struct{}) (*mcp.CallToolResult, map[string]any, error) {
+	t.mailSvc.PollAll(ctx)
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"ok": true}}, map[string]any{"ok": true}, nil
+}
+
+type listInboundArgs struct {
+	ConnectionID string `json:"connection_id"`
+	Query        string `json:"query"`
+	IsRead       *bool  `json:"is_read"`
+	IsArchived   *bool  `json:"is_archived"`
+	RelatedType  string `json:"related_type"`
+	RelatedID    string `json:"related_id"`
+	Limit        int    `json:"limit"`
+	Offset       int    `json:"offset"`
+}
+
+func (t *CRMTools) listInbound(ctx context.Context, req *mcp.CallToolRequest, args listInboundArgs) (*mcp.CallToolResult, map[string]any, error) {
+	actor := mcpAuthContext(ctx)
+	page, err := t.mailSvc.ListInbound(ctx, actor, repository.InboundListOptions{
+		ConnectionID: args.ConnectionID, Query: args.Query, IsRead: args.IsRead,
+		IsArchived: args.IsArchived, RelatedType: args.RelatedType, RelatedID: args.RelatedID,
+		Limit: args.Limit, Offset: args.Offset,
+	})
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"messages": page.Items, "total": page.Total}}, map[string]any{"messages": page.Items, "total": page.Total}, nil
+}
+
+func (t *CRMTools) getInbound(ctx context.Context, req *mcp.CallToolRequest, args getEntityArgs) (*mcp.CallToolResult, map[string]any, error) {
+	actor := mcpAuthContext(ctx)
+	m, err := t.mailSvc.GetInbound(ctx, actor, args.ID)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"message": m}}, map[string]any{"message": m}, nil
+}
+
+type markInboundArgs struct {
+	ID          string `json:"id"`
+	IsRead      *bool  `json:"is_read"`
+	IsArchived  *bool  `json:"is_archived"`
+	RelatedType string `json:"related_type"`
+	RelatedID   string `json:"related_id"`
+}
+
+func (t *CRMTools) markInbound(ctx context.Context, req *mcp.CallToolRequest, args markInboundArgs) (*mcp.CallToolResult, map[string]any, error) {
+	actor := mcpAuthContext(ctx)
+	m, err := t.mailSvc.UpdateInboundFlags(ctx, actor, args.ID, mail.UpdateInboundFlagsInput{
+		IsRead: args.IsRead, IsArchived: args.IsArchived, RelatedType: args.RelatedType, RelatedID: args.RelatedID,
+	})
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"message": m}}, map[string]any{"message": m}, nil
+}
+
+type emailTrackingArgs struct {
+	EmailID string `json:"email_id"`
+}
+
+func (t *CRMTools) emailTracking(ctx context.Context, req *mcp.CallToolRequest, args emailTrackingArgs) (*mcp.CallToolResult, map[string]any, error) {
+	actor := mcpAuthContext(ctx)
+	tr, events, err := t.mailSvc.GetTracking(ctx, actor, args.EmailID)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"tracking": tr, "events": events}}, map[string]any{"tracking": tr, "events": events}, nil
+}
+
+func derefInt(p *int) int {
+	if p == nil {
+		return 0
+	}
+	return *p
 }
 
 // Argument structs for typed handlers (new ones for Level 7)

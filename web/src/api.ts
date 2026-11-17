@@ -192,6 +192,35 @@ export const api = {
     retryFailed: () => request<{ retried: number }>(`/emails/retry`, { method: 'POST' }),
   },
 
+  // Mail connections (IMAP inboxes)
+  mail: {
+    listConnections: () => request<{ items: MailConnection[] }>(`/mail/connections`),
+    createConnection: (data: MailConnectionCreateInput) => request<MailConnection>(`/mail/connections/create`, { method: 'POST', body: JSON.stringify(data) }),
+    updateConnection: (id: string, data: MailConnectionUpdateInput) => request<MailConnection>(`/mail/connections/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    deleteConnection: (id: string) => request<void>(`/mail/connections/${id}`, { method: 'DELETE' }),
+    testConnection: (id: string) => request<void>(`/mail/connections/${id}/test`, { method: 'POST' }),
+    sync: () => request<{ ok: boolean }>(`/mail/sync`, { method: 'POST' }),
+  },
+
+  // Inbox (inbound messages)
+  inbox: {
+    list: (params?: { q?: string; connection_id?: string; is_read?: boolean; is_archived?: boolean; related_type?: string; related_id?: string; limit?: number; offset?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (params) {
+        Object.entries(params).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) searchParams.set(key, String(value));
+        });
+      }
+      return request<{ items: InboundMessage[]; total: number; limit: number; offset: number }>(`/inbox?${searchParams}`);
+    },
+    get: (id: string) => request<InboundMessage>(`/inbox/${id}`),
+    update: (id: string, data: { is_read?: boolean; is_archived?: boolean; related_type?: string; related_id?: string }) =>
+      request<InboundMessage>(`/inbox/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  },
+
+  // Email engagement tracking
+  emailTracking: (emailId: string) => request<{ tracking: EmailTracking; events: EmailEvent[] }>(`/emails/${emailId}/tracking`),
+
   // Email Templates
   emailTemplates: {
     list: () => request<{ items: EmailTemplate[] }>(`/email-templates`),
@@ -832,6 +861,102 @@ export interface WorkflowExecution {
   started_at: string;
   completed_at: string | null;
   created_at: string;
+}
+
+// Mail connections / inbox / tracking
+export interface MailConnection {
+  id: string;
+  workspace_id: string;
+  name: string;
+  provider: string;
+  email_address: string;
+  imap_host: string;
+  imap_port: number;
+  use_tls: boolean;
+  username: string;
+  mailbox: string;
+  enabled: boolean;
+  poll_interval_seconds: number;
+  last_sync_at: string | null;
+  last_error: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MailConnectionCreateInput {
+  name: string;
+  email_address: string;
+  imap_host: string;
+  imap_port?: number;
+  use_tls?: boolean;
+  username?: string;
+  password: string;
+  mailbox?: string;
+  poll_interval_seconds?: number;
+}
+
+export interface MailConnectionUpdateInput {
+  name?: string;
+  email_address?: string;
+  imap_host?: string;
+  imap_port?: number;
+  use_tls?: boolean;
+  username?: string;
+  password?: string;
+  mailbox?: string;
+  enabled?: boolean;
+  poll_interval_seconds?: number;
+}
+
+export interface InboundMessage {
+  id: string;
+  workspace_id: string;
+  connection_id: string;
+  message_id: string;
+  uid: number;
+  thread_key: string;
+  from_addr: string;
+  from_name: string;
+  to_addr: string;
+  subject: string;
+  body_text: string;
+  body_html: string;
+  snippet: string;
+  received_at: string;
+  is_read: boolean;
+  is_archived: boolean;
+  related_type: string;
+  related_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmailTracking {
+  id: string;
+  workspace_id: string;
+  email_id: string;
+  open_count: number;
+  click_count: number;
+  first_opened_at: string | null;
+  last_opened_at: string | null;
+  first_clicked_at: string | null;
+  last_clicked_at: string | null;
+  delivered: boolean;
+  bounced: boolean;
+  bounce_reason: string;
+  created_at: string;
+}
+
+export interface EmailEvent {
+  id: string;
+  tracking_id: string;
+  email_id: string;
+  workspace_id: string;
+  type: 'open' | 'click' | 'delivered' | 'bounced';
+  url: string;
+  ip: string;
+  user_agent: string;
+  occurred_at: string;
 }
 
 // Integrations
