@@ -114,6 +114,8 @@ func registerMailTools(s *mcp.Server, t *CRMTools) {
 	mcp.AddTool(s, &mcp.Tool{Name: "mail.connections.delete", Description: "Delete an inbox connection"}, t.deleteMailConnection)
 	mcp.AddTool(s, &mcp.Tool{Name: "mail.connections.test", Description: "Test IMAP login for a connection"}, t.testMailConnection)
 	mcp.AddTool(s, &mcp.Tool{Name: "mail.sync", Description: "Poll all enabled inboxes now and ingest new messages"}, t.syncMail)
+	mcp.AddTool(s, &mcp.Tool{Name: "mail.oauth.providers", Description: "List OAuth mail providers (google/microsoft) and whether they are configured server-side"}, t.listOAuthProviders)
+	mcp.AddTool(s, &mcp.Tool{Name: "mail.oauth.connect", Description: "Start a provider OAuth connect flow; returns the authorization URL the user must open to approve access (redirect comes back to /api/v1/mail/oauth/callback)"}, t.beginOAuthConnect)
 	mcp.AddTool(s, &mcp.Tool{Name: "inbox.list", Description: "List inbound messages with pagination and filters"}, t.listInbound)
 	mcp.AddTool(s, &mcp.Tool{Name: "inbox.get", Description: "Get one inbound message"}, t.getInbound)
 	mcp.AddTool(s, &mcp.Tool{Name: "inbox.mark", Description: "Mark an inbound message read/unread/archived or link it to a contact/lead"}, t.markInbound)
@@ -1122,6 +1124,28 @@ func (t *CRMTools) testMailConnection(ctx context.Context, req *mcp.CallToolRequ
 func (t *CRMTools) syncMail(ctx context.Context, req *mcp.CallToolRequest, args struct{}) (*mcp.CallToolResult, map[string]any, error) {
 	t.mailSvc.PollAll(ctx)
 	return &mcp.CallToolResult{StructuredContent: map[string]any{"ok": true}}, map[string]any{"ok": true}, nil
+}
+
+func (t *CRMTools) listOAuthProviders(ctx context.Context, req *mcp.CallToolRequest, args struct{}) (*mcp.CallToolResult, map[string]any, error) {
+	out := []map[string]any{}
+	for _, p := range mail.Providers() {
+		p.Configured = p.ClientID != "" && p.ClientSecret != ""
+		out = append(out, map[string]any{"id": p.ID, "name": p.Name, "configured": p.Configured})
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"providers": out}}, map[string]any{"providers": out}, nil
+}
+
+type oauthConnectArgs struct {
+	Provider string `json:"provider"` // google | microsoft
+}
+
+func (t *CRMTools) beginOAuthConnect(ctx context.Context, req *mcp.CallToolRequest, args oauthConnectArgs) (*mcp.CallToolResult, map[string]any, error) {
+	actor := mcpAuthContext(ctx)
+	u, err := t.mailSvc.BeginConnect(ctx, actor.WorkspaceID, actor.ActorID, args.Provider)
+	if err != nil {
+		return handleError(err), nil, err
+	}
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"authorization_url": u, "provider": args.Provider}}, map[string]any{"authorization_url": u, "provider": args.Provider}, nil
 }
 
 type listInboundArgs struct {

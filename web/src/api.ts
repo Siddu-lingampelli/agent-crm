@@ -192,8 +192,10 @@ export const api = {
     retryFailed: () => request<{ retried: number }>(`/emails/retry`, { method: 'POST' }),
   },
 
-  // Mail connections (IMAP inboxes)
+  // Mail connections (IMAP inboxes) + OAuth connect flow
   mail: {
+    oauthProviders: () => request<{ providers: { id: string; name: string; configured: boolean }[] }>(`/mail/oauth/providers`),
+    oauthConnect: (provider: string) => request<{ authorization_url: string; provider: string }>(`/mail/oauth/connect`, { method: 'POST', body: JSON.stringify({ provider }) }),
     listConnections: () => request<{ items: MailConnection[] }>(`/mail/connections`),
     createConnection: (data: MailConnectionCreateInput) => request<MailConnection>(`/mail/connections/create`, { method: 'POST', body: JSON.stringify(data) }),
     updateConnection: (id: string, data: MailConnectionUpdateInput) => request<MailConnection>(`/mail/connections/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
@@ -868,7 +870,9 @@ export interface MailConnection {
   id: string;
   workspace_id: string;
   name: string;
-  provider: string;
+  provider: string; // imap | gmail | outlook
+  auth_mode?: string; // password | oauth
+  oauth_provider?: string;
   email_address: string;
   imap_host: string;
   imap_port: number;

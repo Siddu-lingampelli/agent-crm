@@ -307,7 +307,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 			CookieSecure: cfg.Security.SessionCookieSecure,
 			// Login must work before any CSRF cookie exists; it is still
 			// protected by the cross-origin middleware and login rate limit.
-			ExemptPaths: []string{"/api/v1/auth/login", "/mcp", "/oauth/token", "/oauth/revoke", "/oauth/authorize"},
+			ExemptPaths: []string{"/api/v1/auth/login", "/mcp", "/oauth/token", "/oauth/revoke", "/oauth/authorize", "/api/v1/mail/oauth/callback"},
 		}))
 	}
 
@@ -454,6 +454,9 @@ func (a *App) registerRoutes(srv *httpserver.Server) {
 	srv.HandleFunc("/api/v1/webhooks/{id}/test", a.webhookHandler.Test)
 
 	// Mail connections (IMAP inbox sync) + inbox + tracking stats
+	srv.HandleFunc("/api/v1/mail/oauth/providers", a.mailHandler.ListOAuthProviders)
+	srv.HandleFunc("/api/v1/mail/oauth/connect", a.mailHandler.BeginOAuthConnect)
+	srv.HandleFuncNoAuth("/api/v1/mail/oauth/callback", a.mailHandler.OAuthCallback)
 	srv.HandleFunc("/api/v1/mail/connections", a.mailHandler.ListConnections)
 	srv.HandleFunc("/api/v1/mail/connections/create", a.mailHandler.CreateConnection)
 	srv.HandleFunc("/api/v1/mail/connections/{id}", a.mailHandler.HandleConnection)

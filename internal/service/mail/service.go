@@ -12,6 +12,7 @@ import (
 	"io"
 	"log/slog"
 	netmail "net/mail"
+	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -21,6 +22,7 @@ import (
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
 	"github.com/emersion/go-message"
+	sasl "github.com/emersion/go-sasl"
 
 	"crm.local/internal/model"
 	"crm.local/internal/permissions"
@@ -31,15 +33,17 @@ import (
 
 // Config controls the mail service.
 type Config struct {
-	// TrackingBaseURL is the public base used to build tracking URLs
-	// (e.g. https://crm.example.com). Defaults to CRM_PUBLIC_URL or http://<addr>.
+	// TrackingBaseURL is the public base used to build tracking URLs and the
+	// OAuth redirect URI (e.g. https://crm.example.com). Defaults to CRM_PUBLIC_URL.
 	TrackingBaseURL string
-	// EncryptionKey is CRM_ENCRYPTION_KEY (hex, 32 bytes) used to unseal IMAP passwords.
+	// EncryptionKey is CRM_ENCRYPTION_KEY (hex, 32 bytes) used to unseal IMAP passwords and OAuth tokens.
 	EncryptionKey string
 	// PollInterval is the default background poll interval.
 	PollInterval time.Duration
 	// FetchLimit caps messages fetched per poll cycle per connection.
 	FetchLimit int
+	// HTTPClient is used for OAuth token/userinfo calls; defaults to a 20s client.
+	HTTPClient *http.Client
 }
 
 // Service provides mail connection, inbox and tracking logic.
@@ -305,6 +309,12 @@ func (s *Service) TestConnection(ctx context.Context, actor permissions.AuthCont
 	if c == nil || c.WorkspaceID != actor.WorkspaceID {
 		return fmt.Errorf("not found")
 	}
+	if c.AuthMode == "oauth" {
+		return s.withOAuthClient(ctx, c, func(cl *client.Client, mbox string) error {
+			_, err := cl.Select(mbox, true)
+			return err
+		})
+	}
 	password, err := s.unseal(c)
 	if err != nil {
 		return err
@@ -403,12 +413,18 @@ func (s *Service) PollAll(ctx context.Context) {
 
 // PollConnection polls one connection once and returns the number of new messages.
 func (s *Service) PollConnection(ctx context.Context, c *model.MailConnection) (int, error) {
-	password, err := s.unseal(c)
-	if err != nil {
-		return 0, err
-	}
 	newCount := 0
-	err = withClient(ctx, c, password, func(cl *client.Client, mbox string) error {
+	dialFn := func(fn func(*client.Client, string) error) error {
+		if c.AuthMode == "oauth" {
+			return s.withOAuthClient(ctx, c, fn)
+		}
+		password, err := s.unseal(c)
+		if err != nil {
+			return err
+		}
+		return withClient(ctx, c, password, fn)
+	}
+	err := dialFn(func(cl *client.Client, mbox string) error {
 		m, err := cl.Select(mbox, true)
 		if err != nil {
 			return fmt.Errorf("select %s: %w", mbox, err)
@@ -473,7 +489,7 @@ func (s *Service) unseal(c *model.MailConnection) (string, error) {
 	return pw, nil
 }
 
-// withClient dials, logs in, selects the mailbox and runs fn, then logs out.
+// withClient dials, authenticates (password or OAuth bearer), selects the mailbox and runs fn.
 func withClient(ctx context.Context, c *model.MailConnection, password string, fn func(*client.Client, string) error) error {
 	addr := fmt.Sprintf("%s:%d", c.IMAPHost, c.IMAPPort)
 	var cl *client.Client
@@ -488,8 +504,37 @@ func withClient(ctx context.Context, c *model.MailConnection, password string, f
 	}
 	defer cl.Logout()
 	cl.Timeout = 30 * time.Second
+	if c.AuthMode == "oauth" {
+		// handled by caller via withOAuthClient
+		return fmt.Errorf("oauth connections must use withOAuthClient")
+	}
 	if err := cl.Login(c.Username, password); err != nil {
 		return fmt.Errorf("imap login: %w", err)
+	}
+	return fn(cl, c.Mailbox)
+}
+
+// withOAuthClient dials and authenticates via OAUTHBEARER (RFC 7628) with a valid access token.
+func (s *Service) withOAuthClient(ctx context.Context, c *model.MailConnection, fn func(*client.Client, string) error) error {
+	tok, err := s.accessToken(ctx, c)
+	if err != nil {
+		return err
+	}
+	addr := fmt.Sprintf("%s:%d", c.IMAPHost, c.IMAPPort)
+	cl, err := client.DialTLS(addr, nil)
+	if err != nil {
+		return fmt.Errorf("dial %s: %w", addr, err)
+	}
+	defer cl.Logout()
+	cl.Timeout = 30 * time.Second
+	saslClient := sasl.NewOAuthBearerClient(&sasl.OAuthBearerOptions{
+		Username: c.Username,
+		Token:    tok,
+		Host:     c.IMAPHost,
+		Port:     c.IMAPPort,
+	})
+	if err := cl.Authenticate(saslClient); err != nil {
+		return fmt.Errorf("imap oauthbearer auth: %w", err)
 	}
 	return fn(cl, c.Mailbox)
 }

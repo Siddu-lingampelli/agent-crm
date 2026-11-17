@@ -6,13 +6,17 @@ CREATE TABLE IF NOT EXISTS mail_connections (
     workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     integration_id TEXT REFERENCES integrations(id) ON DELETE SET NULL,
     name TEXT NOT NULL,
-    provider TEXT NOT NULL DEFAULT 'imap', -- imap
+    provider TEXT NOT NULL DEFAULT 'imap', -- imap | gmail | outlook
     email_address TEXT NOT NULL,
     imap_host TEXT NOT NULL,
     imap_port INTEGER NOT NULL DEFAULT 993,
     use_tls INTEGER NOT NULL DEFAULT 1,
     username TEXT NOT NULL,
-    password_sealed TEXT NOT NULL, -- enc:v1:... via security.SealCredentials
+    password_sealed TEXT NOT NULL DEFAULT '', -- enc:v1:... via security.SealCredentials; empty when auth_mode=oauth
+    auth_mode TEXT NOT NULL DEFAULT 'password', -- password | oauth
+    oauth_provider TEXT NOT NULL DEFAULT '', -- google | microsoft (when auth_mode=oauth)
+    oauth_sealed TEXT NOT NULL DEFAULT '', -- enc:v1:{access_token,refresh_token,expiry} JSON, sealed
+    oauth_state TEXT NOT NULL DEFAULT '', -- pending connect state (nonce), cleared on callback
     mailbox TEXT NOT NULL DEFAULT 'INBOX',
     enabled INTEGER NOT NULL DEFAULT 1,
     poll_interval_seconds INTEGER NOT NULL DEFAULT 60,
@@ -89,7 +93,22 @@ CREATE INDEX IF NOT EXISTS idx_email_events_tracking ON email_events(tracking_id
 CREATE INDEX IF NOT EXISTS idx_email_events_email ON email_events(email_id);
 CREATE INDEX IF NOT EXISTS idx_email_events_type ON email_events(type, occurred_at);
 
+-- +goose StatementBegin
+-- OAuth connect flow state for mail providers (Google/Microsoft), stored per workspace.
+CREATE TABLE IF NOT EXISTS mail_oauth_states (
+    state TEXT PRIMARY KEY, -- random nonce used as OAuth 'state' and CSRF token
+    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    provider TEXT NOT NULL, -- google | microsoft
+    created_by TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_mail_oauth_states_workspace ON mail_oauth_states(workspace_id);
+-- +goose StatementEnd
+
 -- +goose Down
+DROP INDEX IF EXISTS idx_mail_oauth_states_workspace;
+DROP TABLE IF EXISTS mail_oauth_states;
 DROP INDEX IF EXISTS idx_email_events_type;
 DROP INDEX IF EXISTS idx_email_events_email;
 DROP INDEX IF EXISTS idx_email_events_tracking;

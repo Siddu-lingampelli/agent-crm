@@ -8,13 +8,17 @@ type MailConnection struct {
 	WorkspaceID       string     `json:"workspace_id"`
 	IntegrationID     string     `json:"integration_id,omitempty"`
 	Name              string     `json:"name"`
-	Provider          string     `json:"provider"` // imap
+	Provider          string     `json:"provider"` // imap | gmail | outlook
 	EmailAddress      string     `json:"email_address"`
 	IMAPHost          string     `json:"imap_host"`
 	IMAPPort          int        `json:"imap_port"`
 	UseTLS            bool       `json:"use_tls"`
 	Username          string     `json:"username"`
 	PasswordSealed    string     `json:"-"` // never serialized; set only when creating/updating credentials
+	AuthMode          string     `json:"auth_mode"` // password | oauth
+	OAuthProvider     string     `json:"oauth_provider,omitempty"` // google | microsoft
+	OAuthSealed       string     `json:"-"` // sealed token JSON; internal only
+	OAuthState        string     `json:"-"` // pending connect nonce; internal only
 	Mailbox           string     `json:"mailbox"`
 	Enabled           bool       `json:"enabled"`
 	PollIntervalSecs  int        `json:"poll_interval_seconds"`
@@ -23,6 +27,25 @@ type MailConnection struct {
 	CreatedBy         string     `json:"created_by"`
 	CreatedAt         time.Time  `json:"created_at"`
 	UpdatedAt         time.Time  `json:"updated_at"`
+}
+
+// MailOAuthState is a pending OAuth connect flow (CSRF state + expiry).
+type MailOAuthState struct {
+	State       string    `json:"state"`
+	WorkspaceID string    `json:"workspace_id"`
+	Provider    string    `json:"provider"`
+	CreatedBy   string    `json:"created_by"`
+	ExpiresAt   time.Time `json:"expires_at"`
+	Used        bool      `json:"used"`
+}
+
+// OAuthTokens is the sealed JSON payload stored in mail_connections.oauth_sealed.
+type OAuthTokens struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+	TokenType    string `json:"token_type,omitempty"`
+	Expiry       string `json:"expiry,omitempty"` // RFC3339
+	Scope        string `json:"scope,omitempty"`
 }
 
 // InboundMessage is a message ingested from a connected inbox.

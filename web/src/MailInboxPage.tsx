@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Eye, EyeOff, Inbox, Link2, MailPlus, Plug, RefreshCw, Send, Server, Trash2, MousePointerClick } from 'lucide-react';
 import { api, type InboundMessage, type MailConnection, type MailConnectionCreateInput } from './api';
 import { useAdminData } from './admin-data';
@@ -8,6 +9,38 @@ import { errorMessage, useDebouncedSearch, automationDate } from './automation-d
 import { CommunicationsHeader, CommunicationsEmpty } from './CommunicationsUI';
 
 type EditorState = { connection?: MailConnection } | null;
+
+function OAuthConnectDialog({ onClose }: { onClose: () => void }) {
+  const [providers, setProviders] = useState<{ id: string; name: string; configured: boolean }[] | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    api.mail.oauthProviders().then(d => setProviders(d.providers)).catch(err => setError(errorMessage(err)));
+  }, []);
+  async function connect(provider: string) {
+    if (busy) return;
+    setBusy(true); setError('');
+    try {
+      const res = await api.mail.oauthConnect(provider);
+      // HubSpot-style flow: open the provider consent screen; it redirects back to the API callback,
+      // which then redirects to /inbox?mail_connected=...
+      window.location.href = res.authorization_url;
+    } catch (err) { setError(errorMessage(err)); setBusy(false); }
+  }
+  return <Dialog title="Connect your email" description="Choose a provider. You'll approve access on their consent screen — no password is stored by us." onClose={onClose} busy={busy}>
+    <div className="au-dialog-body">{error && <Message message={error} error />}
+      {!providers ? <Loading /> : providers.length === 0 ? <p className="au-dialog-copy">No OAuth providers are configured on this server.</p> : (
+        <div className="cm-oauth-providers">
+          {providers.map(p => <button key={p.id} className="cm-oauth-provider" disabled={!p.configured || busy} onClick={() => connect(p.id)}>
+            <strong>{p.name}</strong>
+            <span>{p.configured ? 'Continue — you will authorize on the provider site' : 'Not configured on this server'}</span>
+          </button>)}
+        </div>
+      )}
+    </div>
+    <div className="au-dialog-footer"><Button disabled={busy} onClick={onClose}>Cancel</Button></div>
+  </Dialog>;
+}
 
 function ConnectionEditor({ editor, onClose, onSaved }: { editor: NonNullable<EditorState>; onClose: () => void; onSaved: () => void }) {
   const [fields, setFields] = useState({
@@ -104,12 +137,21 @@ export function MailInboxPage() {
   const [size, setSize] = useState(12);
   const [selectedId, setSelectedId] = useState('');
   const [editor, setEditor] = useState<EditorState>(null);
+  const [oauthOpen, setOauthOpen] = useState(false);
   const [deleting, setDeleting] = useState<MailConnection | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const connections = useAdminData(() => api.mail.listConnections(), 'mail-connections');
+  useEffect(() => {
+    const connected = searchParams.get('mail_connected');
+    const mailError = searchParams.get('mail_error');
+    if (connected) { setNotice(`Connected ${connected}. Syncing inbox…`); connections.refresh(); messages.refresh(); setSearchParams({}, { replace: true }); }
+    if (mailError) { setError(`Mail connect failed: ${mailError}`); setSearchParams({}, { replace: true }); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const isRead = folder === 'unread' ? false : folder === 'all' ? undefined : undefined;
   const isArchived = folder === 'archived' ? true : undefined;
   const messages = useAdminData(
@@ -149,7 +191,8 @@ export function MailInboxPage() {
     <CommunicationsHeader title="Inbox" description="Connected mailboxes, inbound messages, and sender replies linked to your CRM records.">
       <RefreshButton loading={messages.loading || connections.loading} onClick={() => { messages.refresh(); connections.refresh(); }} />
       <Button onClick={syncNow} disabled={busy}><RefreshCw size={15} className={busy ? 'au-spin' : ''} />Sync now</Button>
-      <Button primary onClick={() => setEditor({})}><MailPlus size={16} />Connect inbox</Button>
+      <Button onClick={() => setOauthOpen(true)}><Plug size={16} />Connect with Google/Microsoft</Button>
+      <Button primary onClick={() => setEditor({})}><MailPlus size={16} />IMAP manually</Button>
     </CommunicationsHeader>
     {notice && <Message message={notice} onClose={() => setNotice('')} />}
     {error && <Message message={error} error onClose={() => setError('')} />}
@@ -161,6 +204,7 @@ export function MailInboxPage() {
           <div className="cm-connection-info"><strong>{c.name}</strong><span>{c.email_address} · {c.imap_host}:{c.imap_port} · {c.mailbox}</span>
             <small>{c.enabled ? 'Enabled' : 'Disabled'} · poll {c.poll_interval_seconds}s · {c.last_sync_at ? `last sync ${automationDate(c.last_sync_at)}` : 'never synced'}{c.last_error ? ` · error: ${c.last_error}` : ''}</small></div>
           <div className="cm-connection-actions">
+            <span className="cm-auth-badge">{c.auth_mode === 'oauth' ? `OAuth · ${c.oauth_provider ?? ''}` : 'Password'}</span>
             <Button onClick={() => testConn(c.id)} disabled={busy}><Plug size={14} />Test</Button>
             <Button onClick={() => toggleConn(c)} disabled={busy}>{c.enabled ? 'Disable' : 'Enable'}</Button>
             <Button onClick={() => setEditor({ connection: c })} disabled={busy}>Edit</Button>
@@ -209,6 +253,7 @@ export function MailInboxPage() {
     </section>
 
     {editor && <ConnectionEditor editor={editor} onClose={() => setEditor(null)} onSaved={() => { setEditor(null); setNotice('Inbox connection saved.'); connections.refresh(); messages.refresh(); }} />}
+    {oauthOpen && <OAuthConnectDialog onClose={() => setOauthOpen(false)} />}
     {deleting && <Dialog title="Delete inbox connection?" description={deleting.name} onClose={() => setDeleting(null)} busy={busy}>
       <div className="au-dialog-body"><p className="au-dialog-copy">This removes the connection and all ingested messages from this workspace. Stored credentials are deleted.</p></div>
       <div className="au-dialog-footer"><Button disabled={busy} onClick={() => setDeleting(null)}>Cancel</Button><Button primary disabled={busy} onClick={removeConn}>{busy ? 'Deleting...' : 'Delete connection'}</Button></div>

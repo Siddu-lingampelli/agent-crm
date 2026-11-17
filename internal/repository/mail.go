@@ -23,7 +23,8 @@ func NewMailRepository(db *sql.DB) *MailRepository { return &MailRepository{db: 
 
 const mailConnectionColumns = `
     id, workspace_id, integration_id, name, provider, email_address,
-    imap_host, imap_port, use_tls, username, password_sealed, mailbox,
+    imap_host, imap_port, use_tls, username, password_sealed, auth_mode,
+    oauth_provider, oauth_sealed, oauth_state, mailbox,
     enabled, poll_interval_seconds, last_sync_at, last_error, created_by,
     created_at, updated_at
 `
@@ -35,7 +36,8 @@ func scanMailConnection(row interface{ Scan(...any) error }) (*model.MailConnect
 	var lastSync sql.NullString
 	var createdAt, updatedAt string
 	err := row.Scan(&c.ID, &c.WorkspaceID, &integrationID, &c.Name, &c.Provider, &c.EmailAddress,
-		&c.IMAPHost, &c.IMAPPort, &useTLS, &c.Username, &c.PasswordSealed, &c.Mailbox,
+		&c.IMAPHost, &c.IMAPPort, &useTLS, &c.Username, &c.PasswordSealed, &c.AuthMode,
+		&c.OAuthProvider, &c.OAuthSealed, &c.OAuthState, &c.Mailbox,
 		&enabled, &c.PollIntervalSecs, &lastSync, &c.LastError, &c.CreatedBy, &createdAt, &updatedAt)
 	if err != nil {
 		return nil, err
@@ -61,12 +63,14 @@ func (r *MailRepository) CreateConnection(ctx context.Context, c *model.MailConn
 	_, err := r.db.ExecContext(ctx, `
         INSERT INTO mail_connections (
             id, workspace_id, integration_id, name, provider, email_address,
-            imap_host, imap_port, use_tls, username, password_sealed, mailbox,
+            imap_host, imap_port, use_tls, username, password_sealed, auth_mode,
+            oauth_provider, oauth_sealed, oauth_state, mailbox,
             enabled, poll_interval_seconds, last_sync_at, last_error, created_by,
             created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		c.ID, c.WorkspaceID, integrationID, c.Name, c.Provider, c.EmailAddress,
-		c.IMAPHost, c.IMAPPort, c.UseTLS, c.Username, c.PasswordSealed, c.Mailbox,
+		c.IMAPHost, c.IMAPPort, c.UseTLS, c.Username, c.PasswordSealed, c.AuthMode,
+		c.OAuthProvider, c.OAuthSealed, c.OAuthState, c.Mailbox,
 		c.Enabled, c.PollIntervalSecs, c.LastSyncAt, nullString(&c.LastError), c.CreatedBy,
 		c.CreatedAt, c.UpdatedAt)
 	if err != nil {
@@ -123,21 +127,13 @@ func (r *MailRepository) ListEnabledConnections(ctx context.Context) ([]model.Ma
 
 // UpdateConnection modifies a connection (password_sealed empty = keep existing).
 func (r *MailRepository) UpdateConnection(ctx context.Context, c *model.MailConnection) error {
-	if c.PasswordSealed != "" {
-		_, err := r.db.ExecContext(ctx, `
-            UPDATE mail_connections SET name=?, provider=?, email_address=?, imap_host=?, imap_port=?,
-                use_tls=?, username=?, password_sealed=?, mailbox=?, enabled=?, poll_interval_seconds=?,
-                last_sync_at=?, last_error=?, updated_at=? WHERE id=? AND workspace_id=?`,
-			c.Name, c.Provider, c.EmailAddress, c.IMAPHost, c.IMAPPort, c.UseTLS, c.Username,
-			c.PasswordSealed, c.Mailbox, c.Enabled, c.PollIntervalSecs, c.LastSyncAt, c.LastError, c.UpdatedAt,
-			c.ID, c.WorkspaceID)
-		return err
-	}
 	_, err := r.db.ExecContext(ctx, `
         UPDATE mail_connections SET name=?, provider=?, email_address=?, imap_host=?, imap_port=?,
-            use_tls=?, username=?, mailbox=?, enabled=?, poll_interval_seconds=?,
+            use_tls=?, username=?, password_sealed=?, auth_mode=?, oauth_provider=?, oauth_sealed=?, oauth_state=?,
+            mailbox=?, enabled=?, poll_interval_seconds=?,
             last_sync_at=?, last_error=?, updated_at=? WHERE id=? AND workspace_id=?`,
 		c.Name, c.Provider, c.EmailAddress, c.IMAPHost, c.IMAPPort, c.UseTLS, c.Username,
+		c.PasswordSealed, c.AuthMode, c.OAuthProvider, c.OAuthSealed, c.OAuthState,
 		c.Mailbox, c.Enabled, c.PollIntervalSecs, c.LastSyncAt, c.LastError, c.UpdatedAt,
 		c.ID, c.WorkspaceID)
 	return err
@@ -154,6 +150,65 @@ func (r *MailRepository) UpdateConnectionSync(ctx context.Context, id string, sy
 	_, err := r.db.ExecContext(ctx, `UPDATE mail_connections SET last_sync_at = ?, last_error = ?, updated_at = ? WHERE id = ?`,
 		syncAt, lastError, time.Now().UTC(), id)
 	return err
+}
+
+// UpdateConnectionOAuth stores sealed OAuth tokens and clears the pending state.
+func (r *MailRepository) UpdateConnectionOAuth(ctx context.Context, id, oauthSealed, provider, emailAddress string) error {
+	_, err := r.db.ExecContext(ctx, `
+        UPDATE mail_connections SET oauth_sealed = ?, oauth_state = '', oauth_provider = ?,
+            email_address = COALESCE(NULLIF(?, ''), email_address), auth_mode = 'oauth',
+            last_error = '', updated_at = ? WHERE id = ?`,
+		oauthSealed, provider, emailAddress, time.Now().UTC(), id)
+	return err
+}
+
+// CreateOAuthState stores a pending connect flow.
+func (r *MailRepository) CreateOAuthState(ctx context.Context, s *model.MailOAuthState) error {
+	_, err := r.db.ExecContext(ctx, `
+        INSERT INTO mail_oauth_states (state, workspace_id, provider, created_by, expires_at, used)
+        VALUES (?, ?, ?, ?, ?, ?)`,
+		s.State, s.WorkspaceID, s.Provider, s.CreatedBy, s.ExpiresAt.UTC().Format(time.RFC3339Nano), s.Used)
+	return err
+}
+
+// ResolveOAuthState returns workspace/user for a pending, unexpired state without consuming it.
+func (r *MailRepository) ResolveOAuthState(ctx context.Context, state string) (workspaceID, userID string, err error) {
+	row := r.db.QueryRowContext(ctx,
+		`SELECT workspace_id, created_by FROM mail_oauth_states WHERE state = ? AND used = 0 AND julianday(expires_at) > julianday('now')`, state)
+	err = row.Scan(&workspaceID, &userID)
+	if err == sql.ErrNoRows {
+		return "", "", fmt.Errorf("invalid or expired state")
+	}
+	return workspaceID, userID, err
+}
+
+// ConsumeOAuthState atomically marks a state used and returns it if valid (single-use, unexpired, same workspace).
+func (r *MailRepository) ConsumeOAuthState(ctx context.Context, state, workspaceID string) (*model.MailOAuthState, error) {
+	res, err := r.db.ExecContext(ctx, `
+        UPDATE mail_oauth_states SET used = 1
+        WHERE state = ? AND workspace_id = ? AND used = 0 AND julianday(expires_at) > julianday('now')`,
+		state, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if n == 0 {
+		return nil, fmt.Errorf("invalid or expired state")
+	}
+	row := r.db.QueryRowContext(ctx,
+		`SELECT state, workspace_id, provider, created_by, expires_at, used FROM mail_oauth_states WHERE state = ?`, state)
+	var s model.MailOAuthState
+	var expiresAt string
+	var used bool
+	if err := row.Scan(&s.State, &s.WorkspaceID, &s.Provider, &s.CreatedBy, &expiresAt, &used); err != nil {
+		return nil, err
+	}
+	s.ExpiresAt = parseTime(expiresAt)
+	s.Used = used
+	return &s, nil
 }
 
 // ---------- inbound messages ----------

@@ -3,6 +3,7 @@ package httpserver
 
 import (
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -20,13 +21,15 @@ type MailHandler struct {
 func NewMailHandler(svc *mail.Service) *MailHandler { return &MailHandler{svc: svc} }
 
 func (h *MailHandler) handleError(w http.ResponseWriter, err error) {
+	msg := err.Error()
 	switch {
-	case err.Error() == "not found":
+	case msg == "not found":
 		jsonutil.Error(w, http.StatusNotFound, "not_found", "not found")
-	case strings.Contains(err.Error(), "required") || strings.Contains(err.Error(), "invalid"):
-		jsonutil.Error(w, http.StatusBadRequest, "validation_failed", err.Error())
-	case strings.Contains(err.Error(), "unauthorized") || strings.Contains(err.Error(), "forbidden"):
-		jsonutil.Error(w, http.StatusForbidden, "forbidden", err.Error())
+	case strings.Contains(msg, "not configured") || strings.Contains(msg, "unknown provider") ||
+		strings.Contains(msg, "required") || strings.Contains(msg, "invalid") || strings.Contains(msg, "missing"):
+		jsonutil.Error(w, http.StatusBadRequest, "validation_failed", msg)
+	case strings.Contains(msg, "unauthorized") || strings.Contains(msg, "forbidden"):
+		jsonutil.Error(w, http.StatusForbidden, "forbidden", msg)
 	default:
 		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "internal error")
 	}
@@ -245,6 +248,80 @@ func (h *MailHandler) TrackingStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonutil.Write(w, http.StatusOK, map[string]any{"tracking": t, "events": events})
+}
+
+// ---------- OAuth "connect" flow (HubSpot/Salesforce style) ----------
+
+// ListOAuthProviders returns which mail providers are configured server-side.
+func (h *MailHandler) ListOAuthProviders(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		jsonutil.Error(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+		return
+	}
+	if _, err := h.svc.ListConnections(r.Context(), getAuth(r)); err != nil {
+		// just checking auth scope
+	}
+	out := []map[string]any{}
+	for _, p := range mail.Providers() {
+		p.Configured = p.ClientID != "" && p.ClientSecret != ""
+		out = append(out, map[string]any{"id": p.ID, "name": p.Name, "configured": p.Configured})
+	}
+	jsonutil.Write(w, http.StatusOK, map[string]any{"providers": out})
+}
+
+// BeginOAuthConnect starts the connect flow: returns the provider's authorization URL.
+// The SPA opens it in a popup/new tab; the provider redirects to /api/v1/mail/oauth/callback.
+func (h *MailHandler) BeginOAuthConnect(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		jsonutil.Error(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+		return
+	}
+	actor := getAuth(r)
+	var in struct {
+		Provider string `json:"provider"`
+	}
+	if err := jsonutil.Decode(r, jsonutil.MaxBodyBytes, &in); err != nil {
+		jsonutil.Error(w, http.StatusBadRequest, "invalid_body", err.Error())
+		return
+	}
+	authURL, err := h.svc.BeginConnect(r.Context(), actor.WorkspaceID, actor.ActorID, in.Provider)
+	if err != nil {
+		h.handleError(w, err)
+		return
+	}
+	jsonutil.Write(w, http.StatusOK, map[string]any{"authorization_url": authURL, "provider": in.Provider})
+}
+
+// OAuthCallback handles the provider redirect (NoAuth route; state row is the CSRF guard).
+// On success it creates the connection and redirects back to the SPA inbox with a flag.
+func (h *MailHandler) OAuthCallback(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		jsonutil.Error(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+		return
+	}
+	q := r.URL.Query()
+	if e := q.Get("error"); e != "" {
+		http.Redirect(w, r, "/inbox?mail_error="+url.QueryEscape(q.Get("error_description")+" "+e), http.StatusFound)
+		return
+	}
+	code, state, provider := q.Get("code"), q.Get("state"), q.Get("provider")
+	if code == "" || state == "" || provider == "" {
+		http.Redirect(w, r, "/inbox?mail_error="+url.QueryEscape("missing code/state/provider"), http.StatusFound)
+		return
+	}
+	// The state row is bound to the workspace that started the flow. We need the
+	// workspace to complete; look it up from the state row itself (public route).
+	wsID, userID, err := h.svc.ResolveState(r.Context(), state)
+	if err != nil {
+		http.Redirect(w, r, "/inbox?mail_error="+url.QueryEscape(err.Error()), http.StatusFound)
+		return
+	}
+	conn, err := h.svc.CompleteConnect(r.Context(), wsID, userID, provider, state, code)
+	if err != nil {
+		http.Redirect(w, r, "/inbox?mail_error="+url.QueryEscape(err.Error()), http.StatusFound)
+		return
+	}
+	http.Redirect(w, r, "/inbox?mail_connected="+url.QueryEscape(conn.Name), http.StatusFound)
 }
 
 // clientIP extracts the remote IP, honoring X-Forwarded-For only from the first hop.
