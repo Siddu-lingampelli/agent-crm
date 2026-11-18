@@ -19,7 +19,7 @@ const agentColumns = `
 `
 
 const apiKeyColumns = `
-    id, workspace_id, agent_id, name, prefix, hash, scopes, rate_limit,
+    id, workspace_id, agent_id, name, prefix, hash, key_sealed, scopes, rate_limit,
     expires_at, revoked_at, last_used_at, created_at
 `
 
@@ -173,12 +173,16 @@ func NewApiKeyRepository(db *sql.DB) *ApiKeyRepository {
 // Create inserts an API key.
 func (r *ApiKeyRepository) Create(ctx context.Context, k *model.APIKey) error {
 	scopes := jsonOrDefault(k.Scopes)
+	var keySealed any
+	if k.KeySealed != "" {
+		keySealed = k.KeySealed
+	}
 	_, err := r.db.ExecContext(ctx, `
         INSERT INTO api_keys (
-            id, workspace_id, agent_id, name, prefix, hash, scopes, rate_limit,
+            id, workspace_id, agent_id, name, prefix, hash, key_sealed, scopes, rate_limit,
             expires_at, revoked_at, last_used_at, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		k.ID, k.WorkspaceID, k.AgentID, k.Name, k.Prefix, k.Hash, scopes,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		k.ID, k.WorkspaceID, k.AgentID, k.Name, k.Prefix, k.Hash, keySealed, scopes,
 		k.RateLimit, k.ExpiresAt, k.RevokedAt, k.LastUsedAt, k.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("insert api key: %w", err)
@@ -253,13 +257,27 @@ func (r *ApiKeyRepository) List(ctx context.Context, opts ApiKeyListOptions) (Pa
 // Update modifies an API key.
 func (r *ApiKeyRepository) Update(ctx context.Context, k *model.APIKey) error {
 	scopes := jsonOrDefault(k.Scopes)
+	var keySealed any
+	if k.KeySealed != "" {
+		keySealed = k.KeySealed
+	}
 	_, err := r.db.ExecContext(ctx, `
         UPDATE api_keys SET
-            name = ?, scopes = ?, rate_limit = ?, expires_at = ?, revoked_at = ?
+            name = ?, scopes = ?, rate_limit = ?, expires_at = ?, revoked_at = ?, key_sealed = ?
         WHERE id = ?`,
-		k.Name, scopes, k.RateLimit, k.ExpiresAt, k.RevokedAt, k.ID)
+		k.Name, scopes, k.RateLimit, k.ExpiresAt, k.RevokedAt, keySealed, k.ID)
 	if err != nil {
 		return fmt.Errorf("update api key: %w", err)
+	}
+	return nil
+}
+
+// UpdateKeySealed stores new sealed key material (key rotation).
+func (r *ApiKeyRepository) UpdateKeySealed(ctx context.Context, id, sealed, prefix, hash string) error {
+	_, err := r.db.ExecContext(ctx,
+		"UPDATE api_keys SET key_sealed = ?, prefix = ?, hash = ? WHERE id = ?", sealed, prefix, hash, id)
+	if err != nil {
+		return fmt.Errorf("update key sealed: %w", err)
 	}
 	return nil
 }
@@ -425,11 +443,13 @@ func scanApiKey(row *sql.Row) (*model.APIKey, error) {
 	var createdAt string
 	var expiresAt, revokedAt, lastUsedAt *string
 	var rateLimit *int
+	var keySealed sql.NullString
 	if err := row.Scan(
-		&k.ID, &k.WorkspaceID, &k.AgentID, &k.Name, &k.Prefix, &k.Hash,
+		&k.ID, &k.WorkspaceID, &k.AgentID, &k.Name, &k.Prefix, &k.Hash, &keySealed,
 		&scopesJSON, &rateLimit, &expiresAt, &revokedAt, &lastUsedAt, &createdAt); err != nil {
 		return nil, err
 	}
+	k.KeySealed = keySealed.String
 	k.Scopes = []string{}
 	_ = json.Unmarshal([]byte(scopesJSON), &k.Scopes)
 	k.RateLimit = rateLimit
@@ -458,11 +478,13 @@ func scanApiKeyRows(rows *sql.Rows) (*model.APIKey, error) {
 	var createdAt string
 	var expiresAt, revokedAt, lastUsedAt *string
 	var rateLimit *int
+	var keySealed sql.NullString
 	if err := rows.Scan(
-		&k.ID, &k.WorkspaceID, &k.AgentID, &k.Name, &k.Prefix, &k.Hash,
+		&k.ID, &k.WorkspaceID, &k.AgentID, &k.Name, &k.Prefix, &k.Hash, &keySealed,
 		&scopesJSON, &rateLimit, &expiresAt, &revokedAt, &lastUsedAt, &createdAt); err != nil {
 		return nil, err
 	}
+	k.KeySealed = keySealed.String
 	k.Scopes = []string{}
 	_ = json.Unmarshal([]byte(scopesJSON), &k.Scopes)
 	k.RateLimit = rateLimit

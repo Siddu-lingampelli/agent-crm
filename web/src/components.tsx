@@ -31,6 +31,8 @@ interface TableProps<T> {
   onEdit?: (item: T) => void;
   onDelete?: (item: T) => void;
   onView?: (item: T) => void;
+  onCustomAction?: (action: string, item: T) => void;
+  customActions?: { id: string; label: string; icon?: React.ReactNode }[];
   onRowClick?: (item: T) => void;
   loading?: boolean;
   emptyMessage?: string;
@@ -267,6 +269,8 @@ export function Table<T extends { id: string }>({
   onEdit,
   onDelete,
   onView,
+  onCustomAction,
+  customActions,
   onRowClick,
   loading = false,
   emptyMessage = 'No records found',
@@ -380,7 +384,7 @@ export function Table<T extends { id: string }>({
                 </div>
               </th>
             ))}
-            {(onEdit || onDelete || onView) && (
+            {(onEdit || onDelete || onView || (customActions && customActions.length)) && (
               <th className="w-24 text-center">Actions</th>
             )}
           </tr>
@@ -415,7 +419,7 @@ export function Table<T extends { id: string }>({
                     {col.render ? col.render(item) : String((item as any)[col.key] ?? '')}
                   </td>
                 ))}
-                {(onEdit || onDelete || onView) && (
+                {(onEdit || onDelete || onView || (customActions && customActions.length)) && (
                   <td className="text-center">
                     <div className="flex items-center justify-center gap-1">
                       {onView && (
@@ -427,6 +431,17 @@ export function Table<T extends { id: string }>({
                           <Eye className="w-4 h-4" />
                         </button>
                       )}
+                      {customActions?.map(ca => (
+                        <button
+                          key={ca.id}
+                          onClick={(e) => { e.stopPropagation(); onCustomAction?.(ca.id, item); }}
+                          className="btn-icon btn-ghost p-1.5"
+                          aria-label={ca.label}
+                          title={ca.label}
+                        >
+                          {ca.icon}
+                        </button>
+                      ))}
                       {onEdit && (
                         <button
                           onClick={(e) => { e.stopPropagation(); onEdit(item); }}

@@ -1,7 +1,7 @@
 import { useSearchParams } from 'react-router-dom';
 import { AdminTitle } from './AdminArea';
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, Key, Loader2, Trash2, Edit, Copy, Shield, Wifi, Globe, Database, TestTube, RefreshCw } from 'lucide-react';
+import { Plus, Search, Key, Loader2, Trash2, Edit, Copy, Shield, Wifi, Globe, Database, TestTube, RefreshCw, Eye, RotateCw } from 'lucide-react';
 import { api } from './api';
 import { Table, Modal, FormField, Input, Textarea, Select, Badge, Pagination, SearchFilter, ToastContainer, Toast, ConfirmDialog, getStatusBadge } from './components';
 
@@ -261,6 +261,40 @@ export function AgentsPage() {
     }
   };
 
+  const [revealedKey, setRevealedKey] = useState<string | null>(null);
+  const [revealedFor, setRevealedFor] = useState<string | null>(null);
+
+  const handleKeyAction = async (action: string, k: ApiKey) => {
+    if (action === 'copy') {
+      try {
+        const res = await api.post<{ key: string }>(`/api-keys/${k.id}/reveal`, {});
+        await navigator.clipboard.writeText(res.key);
+        showToast('success', 'Full API key copied to clipboard — use it as Bearer token for POST /mcp');
+      } catch (e: any) {
+        showToast('error', e.message || 'Could not reveal key');
+      }
+    } else if (action === 'show') {
+      try {
+        const res = await api.post<{ key: string }>(`/api-keys/${k.id}/reveal`, {});
+        setRevealedKey(res.key);
+        setRevealedFor(k.id);
+      } catch (e: any) {
+        showToast('error', e.message || 'Could not reveal key');
+      }
+    } else if (action === 'rotate') {
+      try {
+        const res = await api.post<{ key: string; api_key: ApiKey }>(`/api-keys/${k.id}/rotate`, {});
+        setGeneratedKey(res.key);
+        setRevealedKey(null);
+        setRevealedFor(null);
+        showToast('success', 'Key rotated — old key stopped working, copy the new one now');
+        fetchApiKeys();
+      } catch (e: any) {
+        showToast('error', e.message || 'Could not rotate key');
+      }
+    }
+  };
+
   const keyColumns = [
     { key: 'name', header: 'Name', render: (k: ApiKey) => <span className="font-medium">{k.name}</span> },
     { key: 'key_prefix', header: 'Prefix', render: (k: ApiKey) => <code className="text-xs">{k.prefix}...</code> },
@@ -322,7 +356,27 @@ export function AgentsPage() {
             onDelete={(k) => handleDelete(k, 'key')}
             loading={loading}
             emptyMessage="No API keys found. Create your first key to get started."
+            customActions={[
+              { id: 'copy', label: 'Copy full key (for MCP)', icon: <Copy className="w-4 h-4" /> },
+              { id: 'show', label: 'Reveal key', icon: <Eye className="w-4 h-4" /> },
+              { id: 'rotate', label: 'Rotate key', icon: <RotateCw className="w-4 h-4" /> },
+            ]}
+            onCustomAction={handleKeyAction}
           />
+
+          {revealedKey && (
+            <div className="mt-4 p-4 border border-yellow-300 bg-yellow-50 dark:bg-yellow-950 dark:border-yellow-800 rounded-lg">
+              <p className="text-sm font-medium mb-2">Full API key (shown once — copy it now):</p>
+              <div className="flex items-center gap-2">
+                <code className="text-xs break-all bg-white dark:bg-neutral-900 p-2 rounded flex-1">{revealedKey}</code>
+                <button className="btn-secondary text-sm" onClick={() => { navigator.clipboard.writeText(revealedKey); showToast('success', 'Copied'); }}>
+                  <Copy className="w-4 h-4" />
+                </button>
+                <button className="btn-secondary text-sm" onClick={() => { setRevealedKey(null); setRevealedFor(null); }}>Hide</button>
+              </div>
+              <p className="text-xs mt-2 opacity-70">Use as: <code>Authorization: Bearer {revealedKey.slice(0, 12)}…</code> on <code>POST /mcp</code></p>
+            </div>
+          )}
 
           <Pagination
             currentPage={page}

@@ -213,6 +213,7 @@ type APIKey struct {
 	Name        string     `json:"name"`
 	Prefix      string     `json:"prefix"`
 	Hash        string     `json:"-"`
+	KeySealed   string     `json:"-"` // AES-256-GCM sealed raw key; revealable once via API
 	Scopes      []string   `json:"scopes"`
 	RateLimit   *int       `json:"rate_limit"`
 	ExpiresAt   *time.Time `json:"expires_at"`

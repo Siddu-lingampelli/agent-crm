@@ -14,21 +14,28 @@ import (
 	"crm.local/internal/model"
 	"crm.local/internal/permissions"
 	"crm.local/internal/repository"
+	"crm.local/internal/security"
 	"crm.local/internal/uuid"
 )
 
 // Service provides agent business logic with authorization.
 type Service struct {
-	agentRepo  *repository.AgentRepository
-	apiKeyRepo *repository.ApiKeyRepository
-	log        *slog.Logger
-	limitMu    sync.Mutex
-	keyLimits  map[string]*rate.Limiter
+	agentRepo     *repository.AgentRepository
+	apiKeyRepo    *repository.ApiKeyRepository
+	log           *slog.Logger
+	encryptionKey string // CRM_ENCRYPTION_KEY; when set, raw API keys are sealed at rest and revealable
+	limitMu       sync.Mutex
+	keyLimits     map[string]*rate.Limiter
 }
 
 // New returns an agent service.
 func New(agentRepo *repository.AgentRepository, apiKeyRepo *repository.ApiKeyRepository, log *slog.Logger) *Service {
-	return &Service{agentRepo: agentRepo, apiKeyRepo: apiKeyRepo, log: log, keyLimits: make(map[string]*rate.Limiter)}
+	return NewWithEncryption(agentRepo, apiKeyRepo, log, "")
+}
+
+// NewWithEncryption returns an agent service that seals raw API keys with the given key.
+func NewWithEncryption(agentRepo *repository.AgentRepository, apiKeyRepo *repository.ApiKeyRepository, log *slog.Logger, encryptionKey string) *Service {
+	return &Service{agentRepo: agentRepo, apiKeyRepo: apiKeyRepo, log: log, encryptionKey: encryptionKey, keyLimits: make(map[string]*rate.Limiter)}
 }
 
 type CreateAgentInput struct {
@@ -271,6 +278,13 @@ func (s *Service) CreateApiKey(ctx context.Context, actor permissions.AuthContex
 		ExpiresAt:   nil,
 		CreatedAt:   now,
 	}
+	if s.encryptionKey != "" {
+		sealed, serr := security.SealCredentials(rawKey, s.encryptionKey)
+		if serr != nil {
+			return "", nil, fmt.Errorf("seal api key: %w", serr)
+		}
+		k.KeySealed = sealed
+	}
 	if in.ExpiresAt != nil && *in.ExpiresAt != "" {
 		t, err := time.Parse(time.RFC3339, *in.ExpiresAt)
 		if err != nil || !t.After(now) {
@@ -298,6 +312,68 @@ func (s *Service) GetApiKey(ctx context.Context, actor permissions.AuthContext, 
 		return nil, fmt.Errorf("not found")
 	}
 	return k, nil
+}
+
+// RevealApiKey returns the full raw key for an existing API key (owner-only, agents:write).
+// The raw key is unsealed from key_sealed; legacy keys without sealed material cannot be revealed.
+func (s *Service) RevealApiKey(ctx context.Context, actor permissions.AuthContext, id string) (string, error) {
+	if err := permissions.Authorize(actor, "agents:write"); err != nil {
+		return "", err
+	}
+	k, err := s.apiKeyRepo.Get(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	if k == nil || k.WorkspaceID != actor.WorkspaceID {
+		return "", fmt.Errorf("not found")
+	}
+	if k.RevokedAt != nil {
+		return "", fmt.Errorf("key is revoked")
+	}
+	if s.encryptionKey == "" || k.KeySealed == "" {
+		return "", fmt.Errorf("this key was created before reveal was enabled; rotate it to get a new one")
+	}
+	raw, err := security.UnsealCredentials(k.KeySealed, s.encryptionKey)
+	if err != nil {
+		return "", fmt.Errorf("unseal key: %w", err)
+	}
+	s.log.Info("api key revealed", "id", k.ID, "actor", actor.ActorID)
+	return raw, nil
+}
+
+// RotateApiKey replaces the key material of an existing API key and returns the new raw key.
+// Old key stops working immediately; the new one is sealed at rest and revealable later.
+func (s *Service) RotateApiKey(ctx context.Context, actor permissions.AuthContext, id string) (string, *model.APIKey, error) {
+	if err := permissions.Authorize(actor, "agents:write"); err != nil {
+		return "", nil, err
+	}
+	k, err := s.apiKeyRepo.Get(ctx, id)
+	if err != nil {
+		return "", nil, err
+	}
+	if k == nil || k.WorkspaceID != actor.WorkspaceID {
+		return "", nil, fmt.Errorf("not found")
+	}
+	if k.RevokedAt != nil {
+		return "", nil, fmt.Errorf("key is revoked")
+	}
+	rawKey, prefix, hash := repository.GenerateAPIKey()
+	sealed := ""
+	if s.encryptionKey != "" {
+		s, serr := security.SealCredentials(rawKey, s.encryptionKey)
+		if serr != nil {
+			return "", nil, fmt.Errorf("seal api key: %w", serr)
+		}
+		sealed = s
+	}
+	if err := s.apiKeyRepo.UpdateKeySealed(ctx, k.ID, sealed, prefix, hash); err != nil {
+		return "", nil, err
+	}
+	k.Prefix = prefix
+	k.Hash = hash
+	k.KeySealed = sealed
+	s.log.Info("api key rotated", "id", k.ID, "actor", actor.ActorID)
+	return rawKey, k, nil
 }
 
 func (s *Service) ListApiKeys(ctx context.Context, actor permissions.AuthContext, in ListApiKeyInput) (repository.Page[model.APIKey], error) {

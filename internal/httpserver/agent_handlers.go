@@ -4,6 +4,7 @@ package httpserver
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"crm.local/internal/jsonutil"
 	"crm.local/internal/service/agents"
@@ -236,6 +237,46 @@ func (h *AgentHandler) UpdateApiKey(w http.ResponseWriter, r *http.Request) {
 	jsonutil.Write(w, http.StatusOK, out)
 }
 
+// RevealApiKey returns the full raw key once (for copying into an MCP client config).
+func (h *AgentHandler) RevealApiKey(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		jsonutil.Error(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+		return
+	}
+	actor := getAuth(r)
+	id := r.PathValue("id")
+	if id == "" {
+		jsonutil.Error(w, http.StatusBadRequest, "missing_id", "id required")
+		return
+	}
+	raw, err := h.svc.RevealApiKey(r.Context(), actor, id)
+	if err != nil {
+		h.handleError(w, err)
+		return
+	}
+	jsonutil.Write(w, http.StatusOK, map[string]any{"key": raw})
+}
+
+// RotateApiKey replaces the key material and returns the new raw key (shown once).
+func (h *AgentHandler) RotateApiKey(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		jsonutil.Error(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+		return
+	}
+	actor := getAuth(r)
+	id := r.PathValue("id")
+	if id == "" {
+		jsonutil.Error(w, http.StatusBadRequest, "missing_id", "id required")
+		return
+	}
+	raw, out, err := h.svc.RotateApiKey(r.Context(), actor, id)
+	if err != nil {
+		h.handleError(w, err)
+		return
+	}
+	jsonutil.Write(w, http.StatusOK, map[string]any{"key": raw, "api_key": out})
+}
+
 func (h *AgentHandler) RevokeApiKey(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		jsonutil.Error(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
@@ -272,6 +313,10 @@ func (h *AgentHandler) handleError(w http.ResponseWriter, err error) {
 		jsonutil.Error(w, http.StatusNotFound, "not_found", msg)
 	case msg == "not found":
 		jsonutil.Error(w, http.StatusNotFound, "not_found", msg)
+	case msg == "key is revoked":
+		jsonutil.Error(w, http.StatusForbidden, "key_revoked", msg)
+	case strings.Contains(msg, "reveal"):
+		jsonutil.Error(w, http.StatusBadRequest, "not_revealable", msg)
 	default:
 		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "internal error")
 	}
