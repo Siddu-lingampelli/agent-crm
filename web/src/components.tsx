@@ -385,7 +385,7 @@ export function Table<T extends { id: string }>({
               </th>
             ))}
             {(onEdit || onDelete || onView || (customActions && customActions.length)) && (
-              <th className="w-24 text-center">Actions</th>
+              <th className="w-40 text-center">Actions</th>
             )}
           </tr>
         </thead>

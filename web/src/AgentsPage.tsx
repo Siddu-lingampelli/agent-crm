@@ -179,13 +179,14 @@ export function AgentsPage() {
     setDeleteType(type);
   };
 
+
   const confirmDelete = async () => {
     if (!deleteConfirm || !deleteType) return;
     setSubmitLoading(true);
     try {
       if (deleteType === 'key') {
         await api.delete(`/api-keys/${deleteConfirm.id}`);
-        showToast('success', 'API key deleted successfully');
+        showToast('success', 'API key revoked — it no longer works');
         fetchApiKeys();
       } else {
         await api.delete(`/agents/${deleteConfirm.id}`);
@@ -265,6 +266,7 @@ export function AgentsPage() {
   const [revealedFor, setRevealedFor] = useState<string | null>(null);
 
   const handleKeyAction = async (action: string, k: ApiKey) => {
+    if (action === 'revoke') { handleDelete(k, 'key'); return; }
     if (action === 'copy') {
       try {
         const res = await api.post<{ key: string }>(`/api-keys/${k.id}/reveal`, {});
@@ -297,10 +299,10 @@ export function AgentsPage() {
 
   const keyColumns = [
     { key: 'name', header: 'Name', render: (k: ApiKey) => <span className="font-medium">{k.name}</span> },
-    { key: 'key_prefix', header: 'Prefix', render: (k: ApiKey) => <code className="text-xs">{k.prefix}...</code> },
+    { key: 'key_prefix', header: 'Key', render: (k: ApiKey) => <code className="text-xs" title="Only the prefix is stored in plaintext — use the copy/reveal action for the full key">{k.prefix}…</code> },
     { key: 'scopes', header: 'Scopes', render: (k: ApiKey) => <span className="text-sm">{k.scopes.join(', ')}</span> },
     { key: 'rate_limit', header: 'Rate Limit', render: (k: ApiKey) => `${k.rate_limit}/min` },
-    { key: 'active', header: 'Status', render: (k: ApiKey) => <Badge variant={(!k.revoked_at && (!k.expires_at || new Date(k.expires_at).getTime() > Date.now())) ? 'success' : 'neutral'}>{(!k.revoked_at && (!k.expires_at || new Date(k.expires_at).getTime() > Date.now())) ? 'Active' : 'Inactive'}</Badge> },
+    { key: 'active', header: 'Status', render: (k: ApiKey) => <Badge variant={(!k.revoked_at && (!k.expires_at || new Date(k.expires_at).getTime() > Date.now())) ? 'success' : 'neutral'}>{k.revoked_at ? 'Revoked' : (!k.expires_at || new Date(k.expires_at).getTime() > Date.now()) ? 'Active' : 'Expired'}</Badge> },
     { key: 'last_used_at', header: 'Last Used', render: (k: ApiKey) => k.last_used_at ? new Date(k.last_used_at).toLocaleString() : 'Never' },
     { key: 'expires_at', header: 'Expires', render: (k: ApiKey) => k.expires_at ? new Date(k.expires_at).toLocaleDateString() : 'Never' },
   ];
@@ -359,7 +361,8 @@ export function AgentsPage() {
             customActions={[
               { id: 'copy', label: 'Copy full key (for MCP)', icon: <Copy className="w-4 h-4" /> },
               { id: 'show', label: 'Reveal key', icon: <Eye className="w-4 h-4" /> },
-              { id: 'rotate', label: 'Rotate key', icon: <RotateCw className="w-4 h-4" /> },
+              { id: 'rotate', label: 'Rotate key (old one stops working)', icon: <RotateCw className="w-4 h-4" /> },
+              { id: 'revoke', label: 'Revoke key', icon: <Trash2 className="w-4 h-4 text-red-600" /> },
             ]}
             onCustomAction={handleKeyAction}
           />
@@ -486,9 +489,11 @@ export function AgentsPage() {
         isOpen={!!deleteConfirm}
         onClose={() => { setDeleteConfirm(null); setDeleteType(null); }}
         onConfirm={confirmDelete}
-        title={deleteType === 'key' ? 'Delete API Key' : 'Delete Agent'}
-        message={`Are you sure you want to delete "${deleteConfirm?.name}"? This action cannot be undone.`}
-        confirmText="Delete"
+        title={deleteType === 'key' ? 'Revoke API key' : 'Delete agent'}
+        message={deleteType === 'key'
+          ? `Revoke "${deleteConfirm?.name}"? The key stops working immediately (MCP calls with it get 401) and cannot be undone. Use Rotate instead if you just need a new key.`
+          : `Are you sure you want to delete "${deleteConfirm?.name}"? This action cannot be undone.`}
+        confirmText={deleteType === 'key' ? 'Revoke key' : 'Delete'}
         variant="danger"
         loading={submitLoading}
       />
