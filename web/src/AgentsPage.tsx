@@ -179,6 +179,16 @@ export function AgentsPage() {
     setDeleteType(type);
   };
 
+  const handleRestoreAgent = async (a: Agent) => {
+    try {
+      await api.patch(`/agents/${a.id}/restore`, {});
+      showToast('success', `Agent "${a.name}" re-enabled — its keys work again`);
+      fetchAgents();
+    } catch (e: any) {
+      showToast('error', e.message || 'Failed to restore agent');
+    }
+  };
+
 
   const confirmDelete = async () => {
     if (!deleteConfirm || !deleteType) return;
@@ -190,7 +200,7 @@ export function AgentsPage() {
         fetchApiKeys();
       } else {
         await api.delete(`/agents/${deleteConfirm.id}`);
-        showToast('success', 'Agent deleted successfully');
+        showToast('success', 'Agent disabled — its API keys are revoked too');
         fetchAgents();
       }
     } catch (error) {
@@ -310,7 +320,7 @@ export function AgentsPage() {
   const agentColumns = [
     { key: 'name', header: 'Name', render: (a: Agent) => <span className="font-medium">{a.name}</span> },
     { key: 'provider', header: 'Type', render: (a: Agent) => <Badge>{a.provider}</Badge> },
-    { key: 'enabled', header: 'Status', render: (a: Agent) => <Badge>{a.enabled ? 'Active' : 'Disabled'}</Badge> },
+    { key: 'enabled', header: 'Status', render: (a: Agent) => <Badge variant={a.enabled ? 'success' : 'neutral'}>{a.enabled ? 'Active' : 'Disabled'}</Badge> },
     { key: 'scopes', header: 'Scopes', render: (a: Agent) => a.scopes.join(', ') },
     { key: 'last_used_at', header: 'Last Used', render: (a: Agent) => a.last_used_at ? new Date(a.last_used_at).toLocaleString() : 'Never' },
   ];
@@ -407,6 +417,8 @@ export function AgentsPage() {
             onDelete={(a) => handleDelete(a, 'agent')}
             loading={loading}
             emptyMessage="No agents found. Create your first agent to get started."
+            customActions={[{ id: 'restore', label: 'Restore (re-enable) agent', icon: <RefreshCw className="w-4 h-4" /> }]}
+            onCustomAction={(action, a) => { if (action === 'restore' && !a.enabled) handleRestoreAgent(a); }}
           />
 
           <Pagination
@@ -489,11 +501,11 @@ export function AgentsPage() {
         isOpen={!!deleteConfirm}
         onClose={() => { setDeleteConfirm(null); setDeleteType(null); }}
         onConfirm={confirmDelete}
-        title={deleteType === 'key' ? 'Revoke API key' : 'Delete agent'}
+        title={deleteType === 'key' ? 'Revoke API key' : 'Disable agent'}
         message={deleteType === 'key'
           ? `Revoke "${deleteConfirm?.name}"? The key stops working immediately (MCP calls with it get 401) and cannot be undone. Use Rotate instead if you just need a new key.`
-          : `Are you sure you want to delete "${deleteConfirm?.name}"? This action cannot be undone.`}
-        confirmText={deleteType === 'key' ? 'Revoke key' : 'Delete'}
+          : `Disable "${deleteConfirm?.name}"? The agent and ALL its API keys stop working immediately (MCP calls get 401). You can re-enable it later via Restore — nothing is permanently deleted.`}
+        confirmText={deleteType === 'key' ? 'Revoke key' : 'Disable agent'}
         variant="danger"
         loading={submitLoading}
       />
