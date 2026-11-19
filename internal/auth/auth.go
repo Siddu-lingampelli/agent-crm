@@ -228,6 +228,103 @@ func Logout(ctx context.Context, database *db.DB, token string) error {
 	return err
 }
 
+// RegisterResult describes the outcome of a registration attempt.
+type RegisterResult struct {
+	Success   bool
+	Token     string
+	ExpiresAt time.Time
+	Reason    string
+}
+
+// Register creates the first owner user (or a regular user in the existing
+// workspace) and immediately logs them in. The first registrant becomes the
+// workspace owner; subsequent registrants join the default workspace.
+func Register(ctx context.Context, database *db.DB, name, email, password string) (RegisterResult, error) {
+	var result RegisterResult
+	if database == nil {
+		return result, errors.New("database is nil")
+	}
+	if strings.TrimSpace(email) == "" {
+		result.Reason = "email is required"
+		return result, nil
+	}
+	if len(strings.TrimSpace(password)) < 8 {
+		result.Reason = "password must be at least 8 characters"
+		return result, nil
+	}
+	if !strings.Contains(email, "@") {
+		result.Reason = "email looks invalid"
+		return result, nil
+	}
+
+	hash, err := HashArgon2(password)
+	if err != nil {
+		return result, fmt.Errorf("hash: %w", err)
+	}
+
+	var userID, workspaceID string
+	var existing int
+	err = database.SQL().QueryRowContext(ctx, "SELECT COUNT(*) FROM users").Scan(&existing)
+	if err != nil {
+		return result, fmt.Errorf("count users: %w", err)
+	}
+
+	if existing == 0 {
+		// First registrant becomes the owner: create workspace + pipelines.
+		workspaceID = uuid.New()
+		now := time.Now().UTC().Format(time.RFC3339)
+		if _, err := database.SQL().ExecContext(ctx,
+			`INSERT INTO workspaces (id, name, created_at) VALUES (?, ?, ?)`,
+			workspaceID, "Default Workspace", now); err != nil {
+			return result, fmt.Errorf("create workspace: %w", err)
+		}
+		if _, err := database.SQL().ExecContext(ctx,
+			"UPDATE pipelines SET workspace_id = ? WHERE workspace_id = ?", workspaceID, "ws_default"); err != nil {
+			return result, fmt.Errorf("claim pipelines: %w", err)
+		}
+	} else {
+		err = database.SQL().QueryRowContext(ctx, "SELECT workspace_id FROM users LIMIT 1").Scan(&workspaceID)
+		if err != nil {
+			return result, fmt.Errorf("lookup workspace: %w", err)
+		}
+	}
+
+	userID = uuid.New()
+	now := time.Now().UTC().Format(time.RFC3339)
+	if _, err := database.SQL().ExecContext(ctx,
+		`INSERT INTO users (id, workspace_id, email, display_name, password_hash, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		userID, workspaceID, strings.TrimSpace(email), strings.TrimSpace(name), hash, now, now); err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") {
+			result.Reason = "an account with this email already exists"
+			return result, nil
+		}
+		return result, fmt.Errorf("create user: %w", err)
+	}
+
+	// Issue a session immediately.
+	var random [32]byte
+	if _, err := rand.Read(random[:]); err != nil {
+		return result, err
+	}
+	token := hex.EncodeToString(random[:])
+	expiresAt := time.Now().UTC().Add(DefaultSessionOptions().MaxAge)
+	if _, err := database.SQL().ExecContext(ctx,
+		"DELETE FROM sessions WHERE expires_at <= ?", time.Now().UTC().Format(time.RFC3339)); err != nil {
+		return result, fmt.Errorf("clean sessions: %w", err)
+	}
+	if _, err := database.SQL().ExecContext(ctx,
+		`INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)`,
+		sessionHash(token), userID, expiresAt.Format(time.RFC3339), time.Now().UTC().Format(time.RFC3339)); err != nil {
+		return result, fmt.Errorf("create session: %w", err)
+	}
+
+	result.Success = true
+	result.Token = token
+	result.ExpiresAt = expiresAt
+	return result, nil
+}
+
 // SessionMiddleware creates middleware that validates session cookies.
 func SessionMiddleware(db *db.DB, log *slog.Logger, configured ...SessionOptions) func(http.Handler) http.Handler {
 	options := DefaultSessionOptions()

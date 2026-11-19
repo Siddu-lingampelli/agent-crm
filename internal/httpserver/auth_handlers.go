@@ -3,6 +3,7 @@ package httpserver
 
 import (
 	"golang.org/x/time/rate"
+	"log"
 	"net/http"
 
 	"crm.local/internal/auth"
@@ -103,4 +104,51 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, clearCookie)
 
 	jsonutil.Write(w, http.StatusOK, map[string]any{"success": true})
+}
+
+func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		jsonutil.Error(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+		return
+	}
+
+	var in struct {
+		Name     string `json:"name"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	if err := jsonutil.Decode(r, jsonutil.MaxBodyBytes, &in); err != nil {
+		jsonutil.Error(w, http.StatusBadRequest, "invalid_body", err.Error())
+		return
+	}
+
+	result, err := auth.Register(r.Context(), h.db, in.Name, in.Email, in.Password)
+	if err != nil {
+		log.Printf("register error: %v", err)
+		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", err.Error())
+		return
+	}
+	log.Printf("register success: user=%s", result.Token[:12])
+
+	if !result.Success {
+		jsonutil.Error(w, http.StatusBadRequest, "registration_failed", result.Reason)
+		return
+	}
+
+	// Set session cookie (same as login)
+	cookie := &http.Cookie{
+		Name:     h.options.CookieName,
+		Value:    result.Token,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: h.options.SameSite,
+		Secure:   h.options.Secure || r.TLS != nil,
+		Expires:  result.ExpiresAt,
+	}
+	http.SetCookie(w, cookie)
+
+	jsonutil.Write(w, http.StatusCreated, map[string]any{
+		"token":      result.Token,
+		"expires_at": result.ExpiresAt,
+	})
 }

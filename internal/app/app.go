@@ -307,7 +307,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 			CookieSecure: cfg.Security.SessionCookieSecure,
 			// Login must work before any CSRF cookie exists; it is still
 			// protected by the cross-origin middleware and login rate limit.
-			ExemptPaths: []string{"/api/v1/auth/login", "/mcp", "/api/v1/mcp", "/oauth/token", "/oauth/revoke", "/oauth/authorize", "/api/v1/mail/oauth/callback"},
+			ExemptPaths: []string{"/api/v1/auth/login", "/api/v1/auth/register", "/mcp", "/api/v1/mcp", "/oauth/token", "/oauth/revoke", "/oauth/authorize", "/api/v1/mail/oauth/callback"},
 		}))
 	}
 
@@ -355,6 +355,7 @@ func (a *App) Close() {
 func (a *App) registerRoutes(srv *httpserver.Server) {
 	// Auth (public - no auth middleware)
 	srv.HandleFuncNoAuth("/api/v1/auth/login", a.authHandler.Login)
+	srv.HandleFuncNoAuth("/api/v1/auth/register", a.authHandler.Register)
 	srv.HandleFuncNoAuth("/api/v1/auth/logout", a.authHandler.Logout)
 	srv.HandleFunc("/api/v1/auth/me", a.authHandler.Me)
 	srv.HandleFunc("/api/v1/admin/settings/password", a.authHandler.ChangePassword)
