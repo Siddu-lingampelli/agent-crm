@@ -1,7 +1,7 @@
 import { createBrowserRouter, RouterProvider, Navigate, useRouteError, useLocation } from 'react-router-dom'
 import { lazy, Suspense, useState, useEffect } from 'react'
 import { api } from './api'
-import { LayoutDashboard, Users, DollarSign, Contact, Building2, CheckSquare, FolderKanban, Mail, Send, Calendar as CalendarIcon, Bot, GitBranch, Plug, Key, Database, ClipboardList, Monitor, Settings, Zap, Loader2 } from 'lucide-react'
+import { LayoutDashboard, Users, DollarSign, Contact, Building2, CheckSquare, FolderKanban, Mail, Send, Calendar as CalendarIcon, Bot, GitBranch, Plug, Key, ClipboardList, Monitor, Settings, Zap, Loader2 } from 'lucide-react'
 import './index.css'
 import { WorkspaceShell } from './WorkspaceShell'
 import { AdminArea } from './AdminArea'
@@ -17,7 +17,7 @@ const AgentConsolePage = lazy(() => import('./AgentConsolePage').then(module => 
 const WorkflowsPage = lazy(() => import('./WorkflowsPage').then(module => ({ default: module.WorkflowsPage })))
 const IntegrationsPage = lazy(() => import('./IntegrationsPage').then(module => ({ default: module.IntegrationsPage })))
 const AgentsPage = lazy(() => import('./AgentsPage').then(module => ({ default: module.AgentsPage })))
-const SchemaPage = lazy(() => import('./SchemaPage').then(module => ({ default: module.SchemaPage })))
+const McpConnectionsPage = lazy(() => import('./McpConnectionsPage').then(module => ({ default: module.McpConnectionsPage })))
 const AuditPage = lazy(() => import('./AuditPage').then(module => ({ default: module.AuditPage })))
 const SystemPage = lazy(() => import('./SystemPage').then(module => ({ default: module.SystemPage })))
 const SettingsPage = lazy(() => import('./SettingsPage').then(module => ({ default: module.SettingsPage })))
@@ -50,7 +50,7 @@ const adminNavigation: Array<{ name: string; href: string; icon: React.ReactNode
   { name: 'Integrations', href: '/integrations', icon: <Plug className="w-5 h-5" /> },
   { name: 'Webhooks', href: '/webhooks', icon: <Zap className="w-5 h-5" /> },
   { name: 'Agents & API', href: '/agents', icon: <Key className="w-5 h-5" /> },
-  { name: 'Data Model', href: '/schema', icon: <Database className="w-5 h-5" /> },
+  { name: 'MCP connections', href: '/mcp', icon: <Plug className="w-5 h-5" /> },
   { name: 'Audit Log', href: '/audit', icon: <ClipboardList className="w-5 h-5" /> },
   { name: 'System & Health', href: '/system', icon: <Monitor className="w-5 h-5" /> },
   { name: 'Settings', href: '/settings', icon: <Settings className="w-5 h-5" /> },
@@ -259,11 +259,11 @@ const routes = [
     ),
   },
   {
-    path: '/schema',
+    path: '/mcp',
     element: (
       <DashboardLayout>
         <ProtectedRoute>
-          <SchemaPage />
+          <McpConnectionsPage />
         </ProtectedRoute>
       </DashboardLayout>
     ),

@@ -1,0 +1,157 @@
+.endpointCard {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 16px;
+}
+
+@media (max-width: 700px) {
+  .endpointCard {
+    grid-template-columns: 1fr;
+  }
+}
+
+.endpointRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.endpointLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #75695f;
+}
+
+.endpointValue {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: #493627;
+  background: #f8f0e4;
+  border: 1px solid #ecddc7;
+  border-radius: 5px;
+  padding: 8px 12px;
+}
+
+.authHint {
+  font-family: var(--font-family);
+  font-size: 10px;
+  color: #8e7358;
+  margin-left: 10px;
+}
+
+.tableWrapper {
+  overflow-x: auto;
+  border: 1px solid #e7ded2;
+  border-radius: 5px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  background: #fffefb;
+}
+
+.table th,
+.table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e7ded2;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.table th {
+  background: #f8f0e4;
+  font-weight: 600;
+  color: #6a5542;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.table tbody tr:hover {
+  background: #fbf6ee;
+}
+
+.table code {
+  font-size: 10px;
+  color: #493627;
+  background: #f5ece0;
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+
+.tableWrapper .table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.uris {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.uris code {
+  font-size: 9px;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scopeTag {
+  display: inline-block;
+  background: #e7ded2;
+  color: #5c4b3c;
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-right: 4px;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.statsFilter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.filterLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #75695f;
+}
+
+.filterSelect {
+  padding: 6px 10px;
+  border: 1px solid #dfd2c1;
+  border-radius: 4px;
+  background: #fffefb;
+  font-size: 11px;
+  color: #493627;
+  font-family: var(--font-family);
+}
+
+.errorText {
+  color: #ae4c1a;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  max-width: 280px;
+  display: block;
+}

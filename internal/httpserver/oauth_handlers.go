@@ -4,12 +4,14 @@ import (
 	"crm.local/internal/auth"
 	"crm.local/internal/db"
 	"crm.local/internal/jsonutil"
+	"crm.local/internal/model"
 	"crm.local/internal/permissions"
 	"crm.local/internal/service/oauth"
 	"crypto/subtle"
 	"encoding/base64"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -186,6 +188,66 @@ func (h *OAuthHandler) Revoke(w http.ResponseWriter, r *http.Request) {
 		_ = h.svc.Revoke(r.Context(), token)
 	}
 	w.WriteHeader(http.StatusOK)
+}
+
+// ListClients returns the OAuth clients registered in the caller's workspace.
+func (h *OAuthHandler) ListClients(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		jsonutil.Error(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+		return
+	}
+	actor := getAuth(r)
+	limit := 100
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 500 {
+			limit = n
+		}
+	}
+	out, err := h.svc.ListClients(r.Context(), actor.WorkspaceID, limit)
+	if err != nil {
+		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", err.Error())
+		return
+	}
+	if out == nil {
+		out = []model.OAuthClient{}
+	}
+	jsonutil.Write(w, http.StatusOK, map[string]any{"items": out})
+}
+
+// ListAccessTokens returns issued access tokens for the caller's workspace.
+// The raw token value is never exposed; only the hash prefix for identification.
+func (h *OAuthHandler) ListAccessTokens(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		jsonutil.Error(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+		return
+	}
+	actor := getAuth(r)
+	limit := 100
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 500 {
+			limit = n
+		}
+	}
+	out, err := h.svc.ListAccessTokens(r.Context(), actor.WorkspaceID, limit)
+	if err != nil {
+		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", err.Error())
+		return
+	}
+	if out == nil {
+		out = []model.OAuthAccessToken{}
+	}
+	// Never return the raw token hash — replace with a short prefix for display.
+	for i := range out {
+		out[i].TokenHash = prefix(out[i].TokenHash, 12)
+	}
+	jsonutil.Write(w, http.StatusOK, map[string]any{"items": out})
+}
+
+func prefix(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n]
 }
 
 // BearerToken extracts a bearer token from the Authorization header.

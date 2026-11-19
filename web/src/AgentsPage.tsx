@@ -5,7 +5,7 @@ import { Plus, Search, Key, Loader2, Trash2, Edit, Copy, Shield, Wifi, Globe, Da
 import { api } from './api';
 import { Table, Modal, FormField, Input, Textarea, Select, Badge, Pagination, SearchFilter, ToastContainer, Toast, ConfirmDialog, getStatusBadge } from './components';
 
-interface ApiKey {
+export interface ApiKey {
   id: string;
   name: string;
   prefix: string;
@@ -20,7 +20,7 @@ interface ApiKey {
   active: boolean;
 }
 
-interface Agent {
+export interface Agent {
   id: string;
   name: string;
   description: string;
@@ -438,6 +438,11 @@ export function AgentsPage() {
           </FormField>
 
               <FormField label="Scopes" error={formErrors.scopes} required>
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <button type="button" onClick={() => setFormData({ ...formData, scopes: scopeOptions.map(s => s.value) })} className="px-3 py-1.5 text-sm rounded-lg bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 font-medium">All permissions</button>
+                  <button type="button" onClick={() => setFormData({ ...formData, scopes: [] })} className="px-3 py-1.5 text-sm rounded-lg border border-neutral-300 dark:border-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-800">None</button>
+                  <span className="text-xs text-neutral-500 ml-auto">{formData.scopes.length} of {scopeOptions.length} selected</span>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {scopeOptions.map((scope) => (
                     <label key={scope.value} className="flex items-center gap-2 px-3 py-1.5 bg-neutral-50 dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 cursor-pointer">

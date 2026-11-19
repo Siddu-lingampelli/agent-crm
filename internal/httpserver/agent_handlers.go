@@ -168,6 +168,33 @@ func (h *AgentHandler) CreateApiKey(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// CreateMCPKey creates an API key with all workspace scopes for an agent,
+// in one click. Input: { agent_id: string, name?: string }.
+func (h *AgentHandler) CreateMCPKey(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		jsonutil.Error(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+		return
+	}
+	actor := getAuth(r)
+	var in struct {
+		AgentID string `json:"agent_id"`
+		Name    string `json:"name"`
+	}
+	if err := jsonutil.Decode(r, jsonutil.MaxBodyBytes, &in); err != nil {
+		jsonutil.Error(w, http.StatusBadRequest, "invalid_body", err.Error())
+		return
+	}
+	rawKey, out, err := h.svc.CreateMCPKey(r.Context(), actor, in.AgentID, in.Name)
+	if err != nil {
+		h.handleError(w, err)
+		return
+	}
+	jsonutil.Write(w, http.StatusCreated, map[string]any{
+		"key":     rawKey,
+		"api_key": out,
+	})
+}
+
 func (h *AgentHandler) GetApiKey(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		jsonutil.Error(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")

@@ -119,6 +119,85 @@ func (r *OAuthRepository) ConsumeAuthorizationCode(ctx context.Context, code, cl
 	return &a, nil
 }
 
+// --- Listing (admin/MCP-connections UI) ---
+
+// ListClients returns OAuth clients for a workspace, newest first.
+func (r *OAuthRepository) ListClients(ctx context.Context, workspaceID string, limit int) ([]model.OAuthClient, error) {
+	if limit <= 0 || limit > 500 {
+		limit = 100
+	}
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, workspace_id, client_id, client_secret_hash, name, redirect_uris, scopes, created_at, updated_at
+		FROM oauth_clients WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?`,
+		workspaceID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list oauth clients: %w", err)
+	}
+	defer rows.Close()
+	var out []model.OAuthClient
+	for rows.Next() {
+		c, err := scanOAuthClient(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
+func scanOAuthClient(rows *sql.Rows) (model.OAuthClient, error) {
+	var c model.OAuthClient
+	var secret sql.NullString
+	var redirects, scopes, createdAt, updatedAt string
+	if err := rows.Scan(&c.ID, &c.WorkspaceID, &c.ClientID, &secret, &c.Name, &redirects, &scopes, &createdAt, &updatedAt); err != nil {
+		return model.OAuthClient{}, err
+	}
+	c.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAt)
+	c.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updatedAt)
+	if secret.Valid {
+		c.ClientSecretHash = &secret.String
+	}
+	c.RedirectURIs = parseList(redirects)
+	c.Scopes = parseList(scopes)
+	return c, nil
+}
+
+// ListAccessTokens returns issued access tokens for a workspace (newest first).
+// The raw token value is never stored, only its SHA-256 hash.
+func (r *OAuthRepository) ListAccessTokens(ctx context.Context, workspaceID string, limit int) ([]model.OAuthAccessToken, error) {
+	if limit <= 0 || limit > 500 {
+		limit = 100
+	}
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT token_hash, client_id, workspace_id, user_id, scopes, expires_at, revoked_at, created_at
+		FROM oauth_access_tokens WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?`,
+		workspaceID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list access tokens: %w", err)
+	}
+	defer rows.Close()
+	var out []model.OAuthAccessToken
+	for rows.Next() {
+		var t model.OAuthAccessToken
+		var scopes, expiresAt, createdAt string
+		var revoked sql.NullString
+		if err := rows.Scan(&t.TokenHash, &t.ClientID, &t.WorkspaceID, &t.UserID, &scopes, &expiresAt, &revoked, &createdAt); err != nil {
+			return nil, err
+		}
+		t.Scopes = parseList(scopes)
+		t.ExpiresAt, _ = time.Parse(time.RFC3339Nano, expiresAt)
+		t.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAt)
+		if revoked.Valid {
+			parsed, perr := time.Parse(time.RFC3339Nano, revoked.String)
+			if perr == nil {
+				t.RevokedAt = &parsed
+			}
+		}
+		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
 // --- Access tokens ---
 
 func (r *OAuthRepository) CreateAccessToken(ctx context.Context, t *model.OAuthAccessToken) error {
@@ -215,9 +294,11 @@ func (r *OAuthRepository) MCPToolCallStats(ctx context.Context, workspaceID stri
 	var out []MCPToolStat
 	for rows.Next() {
 		var s MCPToolStat
-		if err := rows.Scan(&s.Tool, &s.Calls, &s.Errors, &s.TotalUS, &s.AvgUS); err != nil {
+		var avg float64
+		if err := rows.Scan(&s.Tool, &s.Calls, &s.Errors, &s.TotalUS, &avg); err != nil {
 			return nil, err
 		}
+		s.AvgUS = int64(avg)
 		out = append(out, s)
 	}
 	return out, rows.Err()

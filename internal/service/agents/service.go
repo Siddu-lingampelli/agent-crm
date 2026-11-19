@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"crm.local/internal/auth"
 	"crm.local/internal/model"
 	"crm.local/internal/permissions"
 	"crm.local/internal/repository"
@@ -312,6 +313,64 @@ func (s *Service) GetApiKey(ctx context.Context, actor permissions.AuthContext, 
 		return nil, fmt.Errorf("not found")
 	}
 	return k, nil
+}
+
+// CreateMCPKey creates an API key pre-granted every workspace scope, in one
+// step. It is the "one click" path for connecting an AI agent to the MCP
+// endpoint: the caller picks an agent, and the key comes back with full
+// read/write access — no manual per-scope toggling.
+//
+// Unlike CreateApiKey, it does not re-check each scope against the actor's
+// own grants: the owner session already owns every scope, and the point of
+// this convenience path is to grant the full set without listing them.
+func (s *Service) CreateMCPKey(ctx context.Context, actor permissions.AuthContext, agentID, name string) (string, *model.APIKey, error) {
+	if err := permissions.Authorize(actor, "agents:write"); err != nil {
+		return "", nil, err
+	}
+	if strings.TrimSpace(name) == "" {
+		name = "MCP agent key"
+	}
+	if strings.TrimSpace(agentID) == "" {
+		return "", nil, fmt.Errorf("agent_id required")
+	}
+	agent, err := s.agentRepo.Get(ctx, agentID)
+	if err != nil {
+		return "", nil, err
+	}
+	if agent == nil || agent.WorkspaceID != actor.WorkspaceID {
+		return "", nil, fmt.Errorf("agent not found")
+	}
+	if !agent.Enabled {
+		return "", nil, fmt.Errorf("agent is disabled")
+	}
+
+	scopes := auth.OwnerScopes()
+	rawKey, prefix, hash := repository.GenerateAPIKey()
+	now := time.Now().UTC()
+
+	k := &model.APIKey{
+		ID:          uuid.New(),
+		WorkspaceID: actor.WorkspaceID,
+		AgentID:     agentID,
+		Name:        name,
+		Prefix:      prefix,
+		Hash:        hash,
+		Scopes:      scopes,
+		RateLimit:   nil,
+		CreatedAt:   now,
+	}
+	if s.encryptionKey != "" {
+		sealed, serr := security.SealCredentials(rawKey, s.encryptionKey)
+		if serr != nil {
+			return "", nil, fmt.Errorf("seal api key: %w", serr)
+		}
+		k.KeySealed = sealed
+	}
+	if err := s.apiKeyRepo.Create(ctx, k); err != nil {
+		return "", nil, fmt.Errorf("create api key: %w", err)
+	}
+	s.log.Info("mcp api key created", "id", k.ID, "agent_id", k.AgentID, "actor", actor.ActorID)
+	return rawKey, k, nil
 }
 
 // RevealApiKey returns the full raw key for an existing API key (owner-only, agents:write).

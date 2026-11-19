@@ -1,4 +1,6 @@
 // API Client for TORQ Backend
+import type { ApiKey } from './AgentsPage';
+
 const API_BASE = '/api/v1';
 
 export class ApiError extends Error {
@@ -58,6 +60,18 @@ export const api = {
   post: <T>(path: string, data?: any) => request<T>(path, { method: 'POST', body: JSON.stringify(data) }),
   patch: <T>(path: string, data?: any) => request<T>(path, { method: 'PATCH', body: JSON.stringify(data) }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  // API Keys
+  apiKeys: {
+    createMCPKey: (agentId: string, name?: string) => request<{ key: string; api_key: ApiKey }>(`/api-keys/mcp-key`, { method: 'POST', body: JSON.stringify({ agent_id: agentId, name }) }),
+  },
+  // MCP server: connections, tokens, and per-tool activity.
+  mcp: {
+    endpoint: () => '/api/v1/mcp',
+    clients: (limit = 100) => api.get<{ items: McpClient[] }>(`/mcp/clients`, { params: { limit } }),
+    tokens: (limit = 100) => api.get<{ items: McpToken[] }>(`/mcp/tokens`, { params: { limit } }),
+    stats: (sinceHours = 24) => api.get<{ items: McpToolStat[] }>(`/mcp/stats`, { params: { since_hours: sinceHours } }),
+    calls: (limit = 100) => api.get<{ items: McpToolCall[] }>(`/mcp/calls`, { params: { limit } }),
+  },
 
   // Dashboard
   dashboard: {
@@ -1079,3 +1093,42 @@ export interface DashboardCurrency {currency:string;open_value:number;weighted_v
 export interface DashboardStage {id:string;name:string;category:string;position:number;currency:string;count:number;value:number}
 export interface DashboardRevenue {month:string;currency:string;value:number;count:number}
 export interface DashboardInsights {day:string;pipeline_id:string;pipeline_name:string;open_deals:number;won_deals:number;lost_deals:number;past_close_deals:number;inactive_deals:number;total_leads:number;converted_leads:number;companies:number;contacts:number;active_tasks:number;unscheduled_tasks:number;currencies:DashboardCurrency[];stages:DashboardStage[];revenue:DashboardRevenue[]}
+
+// MCP server — connections, credentials, and tool activity.
+export interface McpClient {
+  id: string;
+  client_id: string;
+  name: string;
+  redirect_uris: string[];
+  scopes: string[];
+  token_endpoint_auth_method: string;
+  created_at: string;
+  updated_at: string;
+}
+export interface McpToken {
+  token_hash: string; // short prefix only — the raw value is never exposed
+  client_id: string;
+  user_id: string;
+  scopes: string[];
+  expires_at: string;
+  revoked_at: string | null;
+  created_at: string;
+}
+export interface McpToolStat {
+  tool: string;
+  calls: number;
+  errors: number;
+  total_duration_us: number;
+  avg_duration_us: number;
+}
+export interface McpToolCall {
+  id: string;
+  actor_type: string;
+  actor_id: string;
+  tool: string;
+  status: 'ok' | 'error';
+  duration_us: number;
+  error: string | null;
+  ip_address: string;
+  created_at: string;
+}

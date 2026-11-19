@@ -495,6 +495,12 @@ func (a *App) registerRoutes(srv *httpserver.Server) {
 	srv.HandleFunc("/api/v1/admin/audit", a.adminHandler.AuditLogs)
 	srv.HandleFunc("/api/v1/admin/workflows", a.adminHandler.Workflows)
 	srv.HandleFunc("/api/v1/admin/integrations", a.adminHandler.Integrations)
+
+	// MCP connections: OAuth clients, issued access tokens, and per-tool activity.
+	srv.HandleFunc("/api/v1/mcp/clients", a.oauthHandler.ListClients)
+	srv.HandleFunc("/api/v1/mcp/tokens", a.oauthHandler.ListAccessTokens)
+	srv.HandleFunc("/api/v1/mcp/stats", a.adminHandler.MCPToolStats)
+	srv.HandleFunc("/api/v1/mcp/calls", a.adminHandler.MCPToolCalls)
 	srv.HandleFunc("/api/v1/admin/agents", a.adminHandler.Agents)
 	srv.HandleFunc("/api/v1/admin/mcp/stats", a.adminHandler.MCPToolStats)
 	srv.HandleFunc("/api/v1/admin/mcp/calls", a.adminHandler.MCPToolCalls)
@@ -508,6 +514,7 @@ func (a *App) registerRoutes(srv *httpserver.Server) {
 	// API Key endpoints
 	srv.HandleFunc("/api/v1/api-keys", a.agentHandler.ListApiKeys)
 	srv.HandleFunc("/api/v1/api-keys/create", a.agentHandler.CreateApiKey)
+	srv.HandleFunc("/api/v1/api-keys/mcp-key", a.agentHandler.CreateMCPKey)
 	srv.HandleFunc("/api/v1/api-keys/{id}", a.handleApiKey)
 	srv.HandleFunc("/api/v1/api-keys/{id}/reveal", a.agentHandler.RevealApiKey)
 	srv.HandleFunc("/api/v1/api-keys/{id}/rotate", a.agentHandler.RotateApiKey)

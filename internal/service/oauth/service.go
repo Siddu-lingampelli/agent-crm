@@ -388,6 +388,20 @@ func (s *Service) Revoke(ctx context.Context, raw string) error {
 	return s.repo.RevokeAccessToken(ctx, hashString(raw))
 }
 
+// --- Listing (admin/MCP-connections UI) ---
+
+// ListClients returns the OAuth clients registered for a workspace.
+func (s *Service) ListClients(ctx context.Context, workspaceID string, limit int) ([]model.OAuthClient, error) {
+	return s.repo.ListClients(ctx, workspaceID, limit)
+}
+
+// ListAccessTokens returns issued access tokens for a workspace. The raw token
+// value is never returned — only the hash prefix, which is enough to identify
+// a credential without exposing it.
+func (s *Service) ListAccessTokens(ctx context.Context, workspaceID string, limit int) ([]model.OAuthAccessToken, error) {
+	return s.repo.ListAccessTokens(ctx, workspaceID, limit)
+}
+
 // --- RFC 9728 protected resource metadata ---
 
 // ProtectedResourceMetadata returns the /.well-known/oauth-protected-resource document.

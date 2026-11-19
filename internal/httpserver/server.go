@@ -99,9 +99,10 @@ func (s *Server) ServeStatic(prefix, fsPath string) {
 			http.Error(w, "method not allowed", 405)
 			return
 		}
-		if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/mcp" ||
-			strings.HasPrefix(r.URL.Path, "/oauth/") || strings.HasPrefix(r.URL.Path, "/.well-known/") ||
-			strings.HasPrefix(r.URL.Path, "/t/") {
+		if (strings.HasPrefix(r.URL.Path, "/api/") && r.URL.Path != "/api/v1/mcp" &&
+		!strings.HasPrefix(r.URL.Path, "/api/v1/mcp/") && r.URL.Path != "/api/v1/api-keys/mcp-key") || r.URL.Path == "/mcp" ||
+		strings.HasPrefix(r.URL.Path, "/oauth/") || strings.HasPrefix(r.URL.Path, "/.well-known/") ||
+		strings.HasPrefix(r.URL.Path, "/t/") {
 			http.NotFound(w, r)
 			return
 		}

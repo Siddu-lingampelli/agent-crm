@@ -6,8 +6,6 @@ export interface ProcessMemory { pid: number; resident_bytes: number; peak_resid
 export interface RuntimeMetrics { memory_usage: number; memory_total: number; goroutines: number; db_connections: number; db_idle: number; uptime_seconds: number; process_memory?: ProcessMemory | null }
 export interface QueueStats { name: string; workers: number; queue_size: number; closed: boolean; pending: number; processing: number; completed: number; failed: number; throughput_per_min?: number }
 export interface AuditRecord { id: string; actor_type: string; actor_id: string; action: string; resource_type: string; resource_id: string; old_values: string; new_values: string; ip_address: string; user_agent: string; created_at: string }
-export interface SchemaColumn { name: string; type: string; nullable: boolean; default_value?: string; primary_key: boolean }
-export interface SchemaTable { id: string; name: string; type: string; columns: SchemaColumn[]; indexes: { name: string }[] }
 export interface Migration { id: string; name: string; applied_at: string }
 export interface AccountIdentity { id: string; email: string; workspace_id: string }
 
