@@ -307,7 +307,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 			CookieSecure: cfg.Security.SessionCookieSecure,
 			// Login must work before any CSRF cookie exists; it is still
 			// protected by the cross-origin middleware and login rate limit.
-			ExemptPaths: []string{"/api/v1/auth/login", "/mcp", "/oauth/token", "/oauth/revoke", "/oauth/authorize", "/api/v1/mail/oauth/callback"},
+			ExemptPaths: []string{"/api/v1/auth/login", "/mcp", "/api/v1/mcp", "/oauth/token", "/oauth/revoke", "/oauth/authorize", "/api/v1/mail/oauth/callback"},
 		}))
 	}
 
@@ -690,8 +690,10 @@ func (a *App) handleWebhook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleMCP(w http.ResponseWriter, r *http.Request) {
+	// First try session auth (set by SessionMiddleware on /api/v1/mcp)
 	actor := auth.GetAuth(r)
 	if actor.ActorID == "" {
+		// Fall back to Authorization: Bearer <token> (for /mcp and API keys / OAuth JWT)
 		parts := strings.Fields(r.Header.Get("Authorization"))
 		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
 			w.Header().Set("WWW-Authenticate", `Bearer resource_metadata="/.well-known/oauth-protected-resource", error="invalid_token"`)
