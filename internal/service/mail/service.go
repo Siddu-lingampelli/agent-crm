@@ -44,6 +44,11 @@ type Config struct {
 	FetchLimit int
 	// HTTPClient is used for OAuth token/userinfo calls; defaults to a 20s client.
 	HTTPClient *http.Client
+	// BlockPrivateHosts rejects IMAP hosts resolving to private/loopback/link-local IPs (SSRF).
+	// Defaults to true; CRM_MAIL_ALLOW_PRIVATE_HOSTS=1 opts out (local dev only).
+	BlockPrivateHosts *bool
+	// AllowedCIDRs exempts specific networks from the private-host block (dev/testing).
+	AllowedCIDRs []string
 }
 
 // Service provides mail connection, inbox and tracking logic.
@@ -69,6 +74,11 @@ func New(repo *repository.MailRepository, contacts *repository.ContactRepository
 	}
 	if cfg.TrackingBaseURL == "" {
 		cfg.TrackingBaseURL = strings.TrimRight(os.Getenv("CRM_PUBLIC_URL"), "/")
+	}
+	// SSRF protection on by default; CRM_MAIL_ALLOW_PRIVATE_HOSTS=1 opts out (local dev only).
+	if cfg.BlockPrivateHosts == nil {
+		b := os.Getenv("CRM_MAIL_ALLOW_PRIVATE_HOSTS") != "1"
+		cfg.BlockPrivateHosts = &b
 	}
 	return &Service{repo: repo, contacts: contacts, leads: leads, cfg: cfg, log: log}
 }
@@ -144,8 +154,17 @@ func (s *Service) CreateConnection(ctx context.Context, actor permissions.AuthCo
 	if in.IMAPHost == "" {
 		return nil, fmt.Errorf("imap host required")
 	}
+	// SSRF guard: never dial private/loopback/link-local hosts (unless explicitly allowed).
+	if s.cfg.BlockPrivateHosts == nil || *s.cfg.BlockPrivateHosts {
+		if err := security.ValidateOutboundHost(ctx, in.IMAPHost, true, s.cfg.AllowedCIDRs); err != nil {
+			return nil, fmt.Errorf("imap host blocked: %w", err)
+		}
+	}
 	if in.IMAPPort == 0 {
 		in.IMAPPort = 993
+	}
+	if in.IMAPPort < 1 || in.IMAPPort > 65535 {
+		return nil, fmt.Errorf("imap port must be 1-65535")
 	}
 	if in.Username == "" {
 		in.Username = in.EmailAddress
@@ -256,9 +275,17 @@ func (s *Service) UpdateConnection(ctx context.Context, actor permissions.AuthCo
 		c.EmailAddress = in.EmailAddress
 	}
 	if in.IMAPHost != "" {
+		if s.cfg.BlockPrivateHosts == nil || *s.cfg.BlockPrivateHosts {
+			if err := security.ValidateOutboundHost(ctx, in.IMAPHost, true, s.cfg.AllowedCIDRs); err != nil {
+				return nil, fmt.Errorf("imap host blocked: %w", err)
+			}
+		}
 		c.IMAPHost = in.IMAPHost
 	}
 	if in.IMAPPort != 0 {
+		if in.IMAPPort < 1 || in.IMAPPort > 65535 {
+			return nil, fmt.Errorf("imap port must be 1-65535")
+		}
 		c.IMAPPort = in.IMAPPort
 	}
 	c.UseTLS = in.UseTLS || c.IMAPPort == 993
@@ -280,6 +307,10 @@ func (s *Service) UpdateConnection(ctx context.Context, actor permissions.AuthCo
 			return nil, fmt.Errorf("seal credentials: %w", err)
 		}
 		c.PasswordSealed = sealed
+		// Switching to password auth clears any stale OAuth material.
+		c.AuthMode = "password"
+		c.OAuthSealed = ""
+		c.OAuthProvider = ""
 	}
 	c.UpdatedAt = time.Now().UTC()
 	if err := s.repo.UpdateConnection(ctx, c); err != nil {
@@ -402,6 +433,13 @@ func (s *Service) PollAll(ctx context.Context) {
 		if err != nil {
 			errStr = err.Error()
 			s.log.Warn("mail connection poll failed", "id", c.ID, "host", c.IMAPHost, "error", err)
+			// Auth failures usually mean revoked/expired credentials — stop polling
+			// until the user reconnects, instead of hammering the server every interval.
+			if isAuthError(err) && c.AuthMode == "oauth" {
+				if derr := s.repo.SetConnectionEnabled(ctx, c.ID, false, "oauth token rejected — reconnect required"); derr != nil {
+					s.log.Error("disable oauth connection", "id", c.ID, "error", derr)
+				}
+			}
 		} else {
 			s.log.Info("mail connection polled", "id", c.ID, "host", c.IMAPHost, "new_messages", n)
 		}
@@ -409,6 +447,15 @@ func (s *Service) PollAll(ctx context.Context) {
 			s.log.Error("update mail connection sync state", "id", c.ID, "error", uerr)
 		}
 	}
+}
+
+// isAuthError reports whether an IMAP error looks like an authentication failure.
+func isAuthError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "auth") || strings.Contains(msg, "login") || strings.Contains(msg, "credentials") || strings.Contains(msg, "no ") || strings.Contains(msg, "invalid")
 }
 
 // PollConnection polls one connection once and returns the number of new messages.

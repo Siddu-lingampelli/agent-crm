@@ -145,6 +145,14 @@ func (r *MailRepository) DeleteConnection(ctx context.Context, workspaceID, id s
 	return err
 }
 
+// SetConnectionEnabled toggles a connection and records an error note.
+func (r *MailRepository) SetConnectionEnabled(ctx context.Context, id string, enabled bool, lastError string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE mail_connections SET enabled = ?, last_error = ?, updated_at = ? WHERE id = ?`,
+		enabled, lastError, time.Now().UTC(), id)
+	return err
+}
+
 // UpdateConnectionSync records the result of a poll cycle.
 func (r *MailRepository) UpdateConnectionSync(ctx context.Context, id string, syncAt *time.Time, lastError string) error {
 	_, err := r.db.ExecContext(ctx, `UPDATE mail_connections SET last_sync_at = ?, last_error = ?, updated_at = ? WHERE id = ?`,

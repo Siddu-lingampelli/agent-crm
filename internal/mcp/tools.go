@@ -1122,8 +1122,9 @@ func (t *CRMTools) testMailConnection(ctx context.Context, req *mcp.CallToolRequ
 }
 
 func (t *CRMTools) syncMail(ctx context.Context, req *mcp.CallToolRequest, args struct{}) (*mcp.CallToolResult, map[string]any, error) {
-	t.mailSvc.PollAll(ctx)
-	return &mcp.CallToolResult{StructuredContent: map[string]any{"ok": true}}, map[string]any{"ok": true}, nil
+	// Detached context: a cancelled MCP request must not abort an in-flight poll.
+	go t.mailSvc.PollAll(context.Background())
+	return &mcp.CallToolResult{StructuredContent: map[string]any{"ok": true, "started": true}}, map[string]any{"ok": true, "started": true}, nil
 }
 
 func (t *CRMTools) listOAuthProviders(ctx context.Context, req *mcp.CallToolRequest, args struct{}) (*mcp.CallToolResult, map[string]any, error) {

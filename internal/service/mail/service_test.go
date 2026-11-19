@@ -81,12 +81,15 @@ func testActor() permissions.AuthContext {
 }
 
 func newTestService(t *testing.T, db *sql.DB) *Service {
+	t.Helper()
 	repo := repository.NewMailRepository(db)
+	allow := false // tests use fake hosts; skip SSRF host blocking
 	return New(repo, nil, nil, Config{
-		TrackingBaseURL: "http://crm.test",
-		EncryptionKey:   testKey,
-		PollInterval:    0,
-		FetchLimit:      10,
+		TrackingBaseURL:   "http://crm.test",
+		EncryptionKey:     testKey,
+		PollInterval:      0,
+		FetchLimit:        10,
+		BlockPrivateHosts: &allow,
 	}, slog.Default())
 }
 

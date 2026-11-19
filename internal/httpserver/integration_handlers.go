@@ -4,6 +4,7 @@ package httpserver
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"crm.local/internal/jsonutil"
 	"crm.local/internal/model"
@@ -162,6 +163,8 @@ func (h *IntegrationHandler) handleError(w http.ResponseWriter, err error) {
 		jsonutil.Error(w, http.StatusBadRequest, "validation_failed", msg)
 	case msg == "not found":
 		jsonutil.Error(w, http.StatusNotFound, "not_found", msg)
+	case strings.Contains(msg, "SSRF"), strings.Contains(msg, "blocked"):
+		jsonutil.Error(w, http.StatusBadRequest, "url_blocked", msg)
 	default:
 		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "internal error")
 	}

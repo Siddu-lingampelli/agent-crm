@@ -2,6 +2,7 @@
 package httpserver
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -26,7 +27,8 @@ func (h *MailHandler) handleError(w http.ResponseWriter, err error) {
 	case msg == "not found":
 		jsonutil.Error(w, http.StatusNotFound, "not_found", "not found")
 	case strings.Contains(msg, "not configured") || strings.Contains(msg, "unknown provider") ||
-		strings.Contains(msg, "required") || strings.Contains(msg, "invalid") || strings.Contains(msg, "missing"):
+		strings.Contains(msg, "required") || strings.Contains(msg, "invalid") || strings.Contains(msg, "missing") ||
+		strings.Contains(msg, "blocked") || strings.Contains(msg, "port must be"):
 		jsonutil.Error(w, http.StatusBadRequest, "validation_failed", msg)
 	case strings.Contains(msg, "unauthorized") || strings.Contains(msg, "forbidden"):
 		jsonutil.Error(w, http.StatusForbidden, "forbidden", msg)
@@ -126,8 +128,9 @@ func (h *MailHandler) SyncNow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	actor := getAuth(r)
-	// run in background so the request returns fast; poll is quick enough to do inline too
-	h.svc.PollAll(r.Context())
+	// Run in background with a detached context: the request returns immediately
+	// and the poll is not cancelled if the client disconnects mid-request.
+	go h.svc.PollAll(context.Background())
 	jsonutil.Write(w, http.StatusOK, map[string]any{"ok": true, "actor": actor.ActorID})
 }
 

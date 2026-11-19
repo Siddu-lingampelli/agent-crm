@@ -7,6 +7,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -244,6 +245,45 @@ func getClientIP(r *http.Request) string {
 }
 
 // isPrivateIP checks if an IP is in private ranges.
+// ValidateOutboundHost blocks hostnames that resolve only to private/loopback/link-local
+// addresses (SSRF protection for non-HTTP outbound connections such as IMAP).
+func ValidateOutboundHost(ctx context.Context, host string, blockPrivate bool, allowedCIDRs []string) error {
+	if strings.TrimSpace(host) == "" {
+		return errors.New("host required")
+	}
+	// Literal IP: check directly, no DNS.
+	if ip := net.ParseIP(host); ip != nil {
+		if blockPrivate && isPrivateIP(ip.String()) {
+			if !cidrAllowed(ip, allowedCIDRs) {
+				return errors.New("private/loopback IP addresses are blocked")
+			}
+		}
+		return nil
+	}
+	ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	if err != nil {
+		return fmt.Errorf("resolve host: %w", err)
+	}
+	if len(ips) == 0 {
+		return errors.New("hostname resolved to no addresses")
+	}
+	for _, a := range ips {
+		if blockPrivate && isPrivateIP(a.IP.String()) && !cidrAllowed(a.IP, allowedCIDRs) {
+			return fmt.Errorf("host %s resolves to blocked address %s", host, a.IP)
+		}
+	}
+	return nil
+}
+
+func cidrAllowed(ip net.IP, cidrs []string) bool {
+	for _, c := range cidrs {
+		if _, n, err := net.ParseCIDR(c); err == nil && n.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
 func isPrivateIP(ip string) bool {
 	parsedIP := net.ParseIP(ip)
 	if parsedIP == nil {

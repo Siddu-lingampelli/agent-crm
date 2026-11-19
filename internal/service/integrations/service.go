@@ -64,6 +64,11 @@ func (s *Service) Create(ctx context.Context, actor permissions.AuthContext, in 
 		UpdatedAt:   now,
 	}
 
+	// SSRF: validate configured URLs at create time too.
+	if err := validateSyncURLs(integration, s.log); err != nil {
+		return nil, err
+	}
+
 	if err := s.repo.Create(ctx, integration); err != nil {
 		return nil, fmt.Errorf("create integration: %w", err)
 	}
@@ -143,6 +148,10 @@ func (s *Service) Update(ctx context.Context, actor permissions.AuthContext, id 
 	if in.Config != nil {
 		configJSON, _ := json.Marshal(in.Config)
 		integration.Config = string(configJSON)
+		// SSRF: validate any configured URLs at write time, not only at sync time.
+		if err := validateSyncURLs(integration, s.log); err != nil {
+			return nil, err
+		}
 	}
 	if in.Enabled != nil {
 		integration.Enabled = *in.Enabled

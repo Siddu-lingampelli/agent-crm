@@ -64,6 +64,10 @@ func (s *Service) Create(ctx context.Context, actor permissions.AuthContext, in 
 	if err := validateWebhook(in.Name, in.URL, in.Events, in.Secret, in.Status); err != nil {
 		return nil, err
 	}
+	// SSRF: reject private/loopback targets at write time (test path re-validates at send).
+	if err := security.ValidateSSRFURL(in.URL, security.SecurityConfig{SSRFBlockPrivateIPs: true, SSRFAllowedCIDRs: []string{}}); err != nil {
+		return nil, fmt.Errorf("webhook URL blocked by SSRF protection: %w", err)
+	}
 
 	now := time.Now().UTC()
 	eventsJSON, _ := json.Marshal(in.Events)
@@ -172,6 +176,10 @@ func (s *Service) Update(ctx context.Context, actor permissions.AuthContext, id 
 	_ = json.Unmarshal([]byte(webhook.Events), &events)
 	if err := validateWebhook(webhook.Name, webhook.URL, events, webhook.Secret, webhook.Status); err != nil {
 		return nil, err
+	}
+	// SSRF: validate on update as well (URL may have changed).
+	if err := security.ValidateSSRFURL(webhook.URL, security.SecurityConfig{SSRFBlockPrivateIPs: true, SSRFAllowedCIDRs: []string{}}); err != nil {
+		return nil, fmt.Errorf("webhook URL blocked by SSRF protection: %w", err)
 	}
 
 	if err := s.repo.Update(ctx, webhook); err != nil {

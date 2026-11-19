@@ -56,12 +56,15 @@ func mockProviderServer(t *testing.T) *httptest.Server {
 }
 
 func newOAuthTestService(t *testing.T, db *sql.DB, base string) *Service {
+	t.Helper()
 	repo := repository.NewMailRepository(db)
+	allow := false // tests use mock hosts; skip SSRF host blocking
 	return New(repo, nil, nil, Config{
-		TrackingBaseURL: base,
-		EncryptionKey:   testKey,
-		PollInterval:    time.Minute,
-		FetchLimit:      10,
+		TrackingBaseURL:   base,
+		EncryptionKey:     testKey,
+		PollInterval:      time.Minute,
+		FetchLimit:        10,
+		BlockPrivateHosts: &allow,
 	}, slog.Default())
 }
 
