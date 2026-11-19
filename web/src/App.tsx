@@ -26,6 +26,7 @@ const EmailsPage = lazy(() => import('./EmailsPage').then(module => ({ default: 
 const MailInboxPage = lazy(() => import('./MailInboxPage').then(module => ({ default: module.MailInboxPage })))
 const WebhooksPage = lazy(() => import('./WebhooksPage').then(module => ({ default: module.WebhooksPage })))
 const LoginPage = lazy(() => import('./LoginPage').then(module => ({ default: module.LoginPage })))
+const SignupPage = lazy(() => import('./SignupPage').then(module => ({ default: module.SignupPage })))
 const HomePage = lazy(() => import('./HomePage').then(module => ({ default: module.HomePage })))
 const DashboardPage = lazy(() => import('./DashboardPage').then(module => ({ default: module.DashboardPage })))
 
@@ -303,6 +304,10 @@ const routes = [
   {
     path: '/login',
     element: <LoginPage />,
+  },
+  {
+    path: '/signup',
+    element: <SignupPage />,
   },
 ]
 

@@ -58,6 +58,7 @@ export function LoginPage() {
           <div className="tl-field"><label htmlFor="tl-password">Password</label><div className="tl-password"><input id="tl-password" type={showPassword ? 'text' : 'password'} name="password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Enter your password" autoComplete="current-password" required disabled={loading} /><button type="button" className="tl-password-toggle" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} disabled={loading}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></div>
           <button type="submit" className="tl-submit" disabled={loading}>{loading ? 'Signing in...' : 'Sign in'}{loading ? <Loader2 size={18} className="tl-spinner" /> : <ArrowRight size={18} />}</button>
         </form><p className="tl-help">Need access? Contact your workspace administrator.</p>
+        <p className="tl-signup">Don't have an account? <Link to="/signup" className="tl-signup-link">Create one</Link></p>
       </div><footer className="tl-footer"><span>TORQ CRM</span><Link to="/">View product<ArrowUpRight size={13} /></Link></footer></main>
     </div>
   </div>;
