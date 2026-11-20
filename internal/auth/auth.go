@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -236,9 +237,9 @@ type RegisterResult struct {
 	Reason    string
 }
 
-// Register creates the first owner user (or a regular user in the existing
-// workspace) and immediately logs them in. The first registrant becomes the
-// workspace owner; subsequent registrants join the default workspace.
+// Register creates a new account with its own isolated workspace and
+// immediately logs the user in. All operations run in a single transaction
+// so the workspace, pipelines, user, and session are atomic.
 func Register(ctx context.Context, database *db.DB, name, email, password string) (RegisterResult, error) {
 	var result RegisterResult
 	if database == nil {
@@ -262,36 +263,51 @@ func Register(ctx context.Context, database *db.DB, name, email, password string
 		return result, fmt.Errorf("hash: %w", err)
 	}
 
-	var userID, workspaceID string
-	var existing int
-	err = database.SQL().QueryRowContext(ctx, "SELECT COUNT(*) FROM users").Scan(&existing)
+	tx, err := database.SQL().BeginTx(ctx, nil)
 	if err != nil {
-		return result, fmt.Errorf("count users: %w", err)
+		return result, fmt.Errorf("begin tx: %w", err)
 	}
+	defer tx.Rollback() // no-op if committed
 
-	if existing == 0 {
-		// First registrant becomes the owner: create workspace + pipelines.
-		workspaceID = uuid.New()
-		now := time.Now().UTC().Format(time.RFC3339)
-		if _, err := database.SQL().ExecContext(ctx,
-			`INSERT INTO workspaces (id, name, created_at) VALUES (?, ?, ?)`,
-			workspaceID, "Default Workspace", now); err != nil {
-			return result, fmt.Errorf("create workspace: %w", err)
-		}
-		if _, err := database.SQL().ExecContext(ctx,
-			"UPDATE pipelines SET workspace_id = ? WHERE workspace_id = ?", workspaceID, "ws_default"); err != nil {
-			return result, fmt.Errorf("claim pipelines: %w", err)
-		}
-	} else {
-		err = database.SQL().QueryRowContext(ctx, "SELECT workspace_id FROM users LIMIT 1").Scan(&workspaceID)
-		if err != nil {
-			return result, fmt.Errorf("lookup workspace: %w", err)
-		}
-	}
-
-	userID = uuid.New()
+	workspaceID := uuid.New()
+	userID := uuid.New()
 	now := time.Now().UTC().Format(time.RFC3339)
-	if _, err := database.SQL().ExecContext(ctx,
+
+	// 1) Create workspace
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO workspaces (id, name, created_at) VALUES (?, ?, ?)`,
+		workspaceID, strings.TrimSpace(name)+"'s Workspace", now); err != nil {
+		return result, fmt.Errorf("create workspace: %w", err)
+	}
+	log.Printf("register: workspace created id=%s name=%s", workspaceID, strings.TrimSpace(name)+"'s Workspace")
+
+	// 2) Seed default pipeline + stages for this workspace
+	pipelineID := "pipeline_default_" + workspaceID
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO pipelines (id, workspace_id, name, is_default, created_at, updated_at)
+		 VALUES (?, ?, ?, 1, ?, ?)`,
+		pipelineID, workspaceID, "Default Pipeline", now, now); err != nil {
+		return result, fmt.Errorf("seed pipeline: %w", err)
+	}
+	log.Printf("register: pipeline created id=%s", pipelineID)
+	stageIDs := []string{"discovery", "proposal", "negotiation", "won", "lost"}
+	stageNames := []string{"Discovery", "Proposal", "Negotiation", "Won", "Lost"}
+	stageProbs := []int{20, 50, 75, 100, 0}
+	stageCats := []string{"open", "open", "open", "won", "lost"}
+	for i := range stageIDs {
+		stageID := "stage_" + stageIDs[i] + "_" + workspaceID
+		pos := i + 1
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO pipeline_stages (id, pipeline_id, name, position, probability, category, created_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			stageID, pipelineID, stageNames[i], pos, stageProbs[i], stageCats[i], now); err != nil {
+			return result, fmt.Errorf("seed stage %s: %w", stageIDs[i], err)
+		}
+	}
+
+	// 3) Create user
+	userID = uuid.New()
+	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO users (id, workspace_id, email, display_name, password_hash, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		userID, workspaceID, strings.TrimSpace(email), strings.TrimSpace(name), hash, now, now); err != nil {
@@ -302,21 +318,25 @@ func Register(ctx context.Context, database *db.DB, name, email, password string
 		return result, fmt.Errorf("create user: %w", err)
 	}
 
-	// Issue a session immediately.
+	// 4) Create session
 	var random [32]byte
 	if _, err := rand.Read(random[:]); err != nil {
 		return result, err
 	}
 	token := hex.EncodeToString(random[:])
 	expiresAt := time.Now().UTC().Add(DefaultSessionOptions().MaxAge)
-	if _, err := database.SQL().ExecContext(ctx,
+	if _, err := tx.ExecContext(ctx,
 		"DELETE FROM sessions WHERE expires_at <= ?", time.Now().UTC().Format(time.RFC3339)); err != nil {
 		return result, fmt.Errorf("clean sessions: %w", err)
 	}
-	if _, err := database.SQL().ExecContext(ctx,
+	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)`,
 		sessionHash(token), userID, expiresAt.Format(time.RFC3339), time.Now().UTC().Format(time.RFC3339)); err != nil {
 		return result, fmt.Errorf("create session: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return result, fmt.Errorf("commit: %w", err)
 	}
 
 	result.Success = true
