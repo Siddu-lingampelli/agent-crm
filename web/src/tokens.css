@@ -222,69 +222,27 @@
   --shadow-card: var(--shadow-sm);
   --tracking-display: -0.02em;
   --display-weight: var(--font-weight-bold);
-  
-  
-  
-  --color-muted-2: var(--color-gray-400);
-
-  /* ========================================
-     HALLMARK COMPATIBILITY ALIASES
-     ======================================== */
-  /* Old Hallmark variable names mapped to new design system */
-  --color-paper: var(--surface-bg);
-  --color-paper-2: var(--surface-card-hover);
-  --color-paper-3: var(--color-gray-100);
-  --color-ink: var(--text-primary);
-  --color-ink-2: var(--text-secondary);
-  --color-muted: var(--text-tertiary);
-  --color-muted-2: var(--color-gray-400);
-  --color-rule: var(--surface-border);
-  --color-rule-2: var(--surface-border-strong);
-  --color-accent: var(--color-orange);
-  --color-accent-ink: var(--color-white);
-  --color-accent-2: var(--color-info);
-  --color-focus: var(--color-orange);
-  --font-display: var(--font-family);
-  --font-body: var(--font-family);
-  --font-outlier: var(--font-mono);
-  --radius-card: var(--radius-lg);
-  --radius-pill: var(--radius-full);
-  --rule-hair: var(--border-width);
-  --shadow-card: var(--shadow-sm);
-  --tracking-display: -0.02em;
-  --display-weight: var(--font-weight-bold);
-  
-  
-  
-  --color-muted-2: var(--color-gray-400);
 
   /* ========================================
      DARK MODE SUPPORT (Optional - for future)
      ======================================== */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --surface-bg: #111827;
-    --surface-card: #1F2937;
-    --surface-card-hover: #374151;
-    --surface-muted: #374151;
-    --surface-border: #374151;
-    --surface-border-strong: #4B5563;
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface-bg: #111827;
+      --surface-card: #1F2937;
+      --surface-card-hover: #374151;
+      --surface-muted: #374151;
+      --surface-border: #374151;
+      --surface-border-strong: #4B5563;
 
-    --text-primary: #F9FAFB;
-    --text-secondary: #D1D5DB;
-    --text-tertiary: #9CA3AF;
-    --text-inverse: #111827;
-    --text-link: #FB923C;
-    --text-link-hover: #FDBA74;
-
-    --surface-bg: #111827;
-    --surface-card: #1F2937;
-    --surface-card-hover: #374151;
-    --surface-muted: #374151;
-    --surface-border: #374151;
-    --surface-border-strong: #4B5563;
+      --text-primary: #F9FAFB;
+      --text-secondary: #D1D5DB;
+      --text-tertiary: #9CA3AF;
+      --text-inverse: #111827;
+      --text-link: #FB923C;
+      --text-link-hover: #FDBA74;
+    }
   }
-}
 }
 
 /* ========================================

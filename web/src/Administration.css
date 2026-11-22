@@ -8,7 +8,7 @@
 .mcp-key-form > div { display: grid; gap: 7px; }
 .mcp-key-form .form-error { margin: 0; padding: 10px 12px; background: #fff3ee; border: 1px solid #f0c9b9; border-radius: 5px; }
 .mcp-key-modal .modal-footer { gap: 9px; }
-.mcp-key-modal .modal-footer .ad-button-primary { color: #fffefb !important; }
+.mcp-key-modal .modal-footer .ad-button-primary { color: #000 !important; }
 .mcp-key-done { width: 100%; }
 .mcp-key-success { display: flex; gap: 11px; align-items: flex-start; padding: 13px; background: #f4f8f1; border: 1px solid #d9e6d0; border-radius: 6px; color: #365b35; }
 .mcp-key-success > svg { flex: 0 0 auto; margin-top: 1px; }
@@ -19,9 +19,24 @@
 .agent-scope-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; max-height: 230px; overflow: auto; padding: 2px; }
 .agent-scope-option { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 9px 10px; border: 1px solid #e7ded2; border-radius: 5px; background: #f6ead7; color: #493627; cursor: pointer; font-size: 10px !important; font-weight: 500 !important; }
 .agent-scope-option:hover { border-color: #d2b9a0; background: #fbf6ee; }
-.agent-scope-option input { accent-color: #d23d00; flex: 0 0 auto; }
-.admin-area .modal-content .ad-button-primary { color: #fffefb; }
+.agent-scope-option input { accent-color: #ff4f00; flex: 0 0 auto; }
+.admin-area .modal-content .ad-button-primary { color: #000; }
 @media(max-width:600px) { .agent-scope-grid { grid-template-columns: 1fr; max-height: 190px; } }
+
+/* Match the Dashboard's black, orange, and warm cream visual system. */
+.admin-area { color:#000; }
+.admin-area :is(.ad-title h1,.ad-panel-header h2,.ad-overview-stat > strong,.ad-destination h3,.ad-recent-event strong,.ad-service-list strong,.ad-key-values dd,.ad-empty h3) { color:#000; }
+.admin-area :is(.ad-panel,.ad-overview-stat,.ad-health-banner,.ad-button,.table,.tableWrapper) { border-color:rgba(0,0,0,.14); background-color:#fbf3e6; }
+.admin-area :is(.ad-panel-header,.ad-panel-footer,.ad-destination,.ad-recent-event,.ad-service-list > div,.ad-key-values > div,.table th,.table td) { border-color:rgba(0,0,0,.14); }
+.admin-area .ad-panel-footer { background:#f6ead7; }
+.admin-area .ad-button { color:#000 !important; }
+.admin-area .ad-button-primary { background:#ff4f00; border-color:#ff4f00; color:#000 !important; }
+.admin-area .ad-button-primary:hover:not(:disabled) { background:#e34700; border-color:#e34700; }
+.admin-area :is(.ad-navigation > a.is-active,.ad-text-link,.ad-footer > a,.ad-icon-button:hover) { color:#ff4f00 !important; }
+.admin-area .ad-navigation > a.is-active { border-bottom-color:#ff4f00; }
+.admin-area :is(.ad-navigation,.tableWrapper) { border-color:rgba(0,0,0,.14); }
+.admin-area .table th { background:#f6ead7; color:#4b453d; }
+.admin-area .table td { color:#302720; }
 .ad-navigation { display: flex; align-items: center; gap: 24px; overflow-x: auto; border-bottom: 1px solid #e5ddd2; margin-bottom: 27px; scrollbar-width: thin; }
 .ad-navigation > a { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; padding: 0 1px 14px; border-bottom: 2px solid transparent; color: #75695f !important; font-size: 11px; line-height: 1.5; white-space: nowrap; }
 .ad-navigation > a:hover { color: #bd3907 !important; }

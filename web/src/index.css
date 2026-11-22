@@ -58,7 +58,7 @@
   /* Button Variants */
   .btn-primary {
     background: var(--color-orange);
-    color: var(--color-white);
+    color: #000;
     border-color: var(--color-orange);
   }
 
@@ -68,7 +68,7 @@
   }
 
   .btn-primary:active:not(:disabled) {
-    background: #D04015;
+    background: #e34700;
   }
 
   .btn-secondary {
@@ -978,13 +978,13 @@
   }
 
   .modal-content :is(.form-input, .form-select, .form-textarea, input.w-full, select.w-full):focus {
-    border-color: #d23d00;
+    border-color: #ff4f00;
     outline: 2px solid #ff4f0022;
     outline-offset: 0;
   }
 
-  .modal-content .btn-primary { background: #d23d00; border-color: #d23d00; color: #fffefb; }
-  .modal-content .btn-primary:hover:not(:disabled) { background: #b93200; border-color: #b93200; }
+  .modal-content .btn-primary { background: #ff4f00; border-color: #ff4f00; color: #000; }
+  .modal-content .btn-primary:hover:not(:disabled) { background: #e34700; border-color: #e34700; }
   .modal-content .btn-danger { background: #b93819; border-color: #b93819; color: #fffefb; }
 
   .confirm-dialog { max-width: 480px; }

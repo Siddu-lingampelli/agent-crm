@@ -180,6 +180,22 @@
 .errorText { max-width: 250px; padding: 3px 6px; border-radius: 4px; background: #fff2ec; color: #a44224; line-height: 1.6; }
 .uris code { max-width: 260px; }
 
+/* Dashboard palette: warm cream panels, black outlines, and vivid orange accents. */
+.page :global(.ad-title h1), .heroMain h2, .guideHeader, .metric > strong { color:#000; }
+.hero, .endpointValue, .connectionGuide, .metric, .tableWrapper, .filterSelect { border-color:rgba(0,0,0,.14); }
+.hero { background:linear-gradient(120deg,#fbf3e6 0%,#f6ead7 58%,#fbf3e6 100%); }
+.heroEyebrow, .heroEyebrow svg, .guideHeader svg, .heroLinks a, .heroLinks a:hover, .endpointValue :global(.ad-icon-button:hover) { color:#ff4f00; }
+.endpointValue, .endpointValue code, .guideHeader, .guideRow > strong, .table td { color:#000; }
+.endpointValue :global(.ad-icon-button) { border-color:rgba(0,0,0,.14); background:#fbf3e6; color:#000; }
+.connectionGuide, .metric, .tableWrapper, .filterSelect { background:#fbf3e6; }
+.connectionGuide .guideHeader { border-color:rgba(0,0,0,.14); }
+.metric > span svg { color:#ff4f00; }
+.table th { background:#f6ead7; color:#000; }
+.table td { border-color:rgba(0,0,0,.14); }
+.table code { color:#000; background:#f6ead7; }
+.scopeTag { border-color:rgba(0,0,0,.14); background:#f6ead7; color:#000; }
+.filterSelect { color:#000; }
+
 @media (max-width: 1000px) {
   .hero { grid-template-columns: minmax(0, 1.2fr) minmax(230px, .8fr); gap: 20px; padding: 23px; }
   .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
