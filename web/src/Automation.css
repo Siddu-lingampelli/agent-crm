@@ -1,4 +1,4 @@
-﻿.automation-area { --au-ink:#000; --au-paper:#fff; --au-orange:#ff4f00; --au-border:rgba(0,0,0,.14); color:var(--au-ink); font-family:Arial,Helvetica,sans-serif; }
+﻿.automation-area { --au-ink:#000; --au-paper:#fbf3e6; --au-orange:#ff4f00; --au-border:rgba(0,0,0,.14); color:var(--au-ink); font-family:Arial,Helvetica,sans-serif; }
 .automation-area * { box-sizing:border-box; }
 .automation-area :is(h1,h2,h3,h4,p) { margin:0; color:inherit; }
 .automation-area :is(button,input,select,textarea) { font-family:inherit; }
@@ -73,6 +73,20 @@
 .au-dialog-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:25px; padding:23px 25px 20px; border-bottom:1px solid var(--au-border); }.au-dialog-heading h2 { font-size:21px; font-weight:500; letter-spacing:-.035em; line-height:1.4; }.au-dialog-heading p { font-size:11px; line-height:1.7; margin-top:7px; }.au-dialog-heading>button { display:grid; place-items:center; flex-shrink:0; width:32px; height:32px; color:inherit; background:none; border:0; }
 .au-dialog-body { padding:23px 25px; max-height:calc(100dvh - 245px); overflow:auto; }.au-dialog-footer { display:flex; justify-content:flex-end; gap:10px; padding:17px 25px; border-top:1px solid var(--au-border); }.au-dialog-copy { font-size:12px; line-height:1.8; margin-bottom:20px!important; }.au-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
 .au-dialog .form-group { margin-bottom:20px; }.au-dialog .form-label { color:var(--au-ink); font-size:11px; font-weight:500; margin-bottom:9px; }.au-dialog .form-label>span { color:var(--au-orange); }.au-dialog :is(.form-input,.form-textarea,.form-select) { color:var(--au-ink); background:var(--au-paper); border:1px solid var(--au-border); border-radius:4px; font-size:12px; box-shadow:none; min-height:42px; }.au-dialog .form-help { color:var(--au-ink); font-size:10px; line-height:1.8; }.au-dialog .form-error { color:var(--au-ink); font-size:11px; }.au-dialog .form-error>svg { color:var(--au-orange); }.au-dialog .au-code-input { font-family:'Courier New',monospace; font-size:11px; line-height:1.7; }
+.automation-area .au-dialog { --au-ink:#302720; --au-paper:#fbf3e6; --au-border:#e7ded2; border-color:#e2ddd5; border-radius:8px; box-shadow:0 24px 80px #201b1626; }
+.automation-area .au-dialog::backdrop { background:#201b1680; backdrop-filter:blur(3px); }
+.automation-area .au-dialog-heading { padding:20px 23px; border-color:#e9e1d8; background:linear-gradient(110deg,#f8ecda,#fbf3e6 75%); }
+.automation-area .au-dialog-heading h2 { color:#201b16; font-size:20px; font-weight:600; letter-spacing:-.03em; }
+.automation-area .au-dialog-heading p { color:#75695f; font-size:11px; }
+.automation-area .au-dialog-heading>button { border-radius:5px; }
+.automation-area .au-dialog-heading>button:hover { background:#f5ece2; }
+.automation-area .au-dialog-body { color:#493627; }
+.automation-area .au-dialog-footer { border-color:#e9e1d8; background:#f6ead7; }
+.automation-area .au-dialog .form-label { color:#493627; font-weight:600; }
+.automation-area .au-dialog :is(.form-input,.form-textarea,.form-select) { border-color:#dfd2c1; border-radius:5px; background:#fbf3e6; color:#302720; }
+.automation-area .au-dialog :is(.form-input,.form-textarea,.form-select):focus { border-color:#d23d00; outline:2px solid #ff4f0022; outline-offset:0; }
+.automation-area .au-dialog .au-button-primary { background:#d23d00; border-color:#d23d00; color: #fffefb; }
+.automation-area .au-dialog .au-button-primary:hover:not(:disabled) { background:#b93200; border-color:#b93200; color: #fffefb; }
 .au-config-details { border:1px solid var(--au-border); border-radius:4px; margin-bottom:25px; padding:13px; }.au-config-details summary { font-size:11px; cursor:pointer; }.au-config-details .form-group { margin-top:20px; margin-bottom:0; }.au-field-error { font-size:11px; line-height:1.8; margin-block:10px!important; }
 .au-editor-steps { border-top:1px solid var(--au-border); margin-top:20px; }.au-editor-steps>.au-panel-heading { padding:20px 0; border:0; }.au-step-empty { text-align:center; font-size:11px; border:1px dashed var(--au-border); border-radius:4px; padding:25px; }.au-step-editor { border:1px solid var(--au-border); border-radius:4px; padding:16px; margin-bottom:15px; }.au-step-editor-heading { display:flex; align-items:center; gap:9px; margin-bottom:19px; }.au-step-number { display:grid; place-items:center; background:var(--au-orange); width:23px; height:23px; border-radius:3px; font-size:10px; }.au-step-editor-heading>strong { font-size:11px; font-weight:500; }.au-step-editor-heading>div { display:flex; gap:6px; margin-left:auto; }.au-step-editor-heading button { display:grid; place-items:center; height:30px; width:30px; color:inherit; background:var(--au-paper); border:1px solid var(--au-border); border-radius:3px; }.au-step-editor .form-group:last-child { margin-bottom:0; }
 .au-checkbox { display:flex; align-items:center; gap:10px; font-size:12px; line-height:1.7; }.au-checkbox input { width:16px; height:16px; accent-color:var(--au-orange); }

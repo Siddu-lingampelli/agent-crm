@@ -536,6 +536,25 @@ func (s *Service) RevokeApiKey(ctx context.Context, actor permissions.AuthContex
 	return nil
 }
 
+// DeleteApiKey permanently deletes an API key (hard delete).
+func (s *Service) DeleteApiKey(ctx context.Context, actor permissions.AuthContext, id string) error {
+	if err := permissions.Authorize(actor, "agents:write"); err != nil {
+		return err
+	}
+	k, err := s.apiKeyRepo.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if k == nil || k.WorkspaceID != actor.WorkspaceID {
+		return fmt.Errorf("not found")
+	}
+	if err := s.apiKeyRepo.Delete(ctx, id); err != nil {
+		return fmt.Errorf("delete api key: %w", err)
+	}
+	s.log.Info("api key deleted", "id", id, "actor", actor.ActorID)
+	return nil
+}
+
 func (s *Service) ValidateApiKey(ctx context.Context, hash string) (*model.APIKey, error) {
 	k, err := s.apiKeyRepo.GetByHash(ctx, hash)
 	if err != nil {

@@ -76,10 +76,7 @@ func (r *AdminRepository) ListAuditLogs(ctx context.Context, opts AuditLogListOp
 	sort := auditLogSort(opts.Sort)
 	order := NormalizeOrder(opts.Order)
 	limit := ClampLimit(opts.Limit)
-	offset := opts.Offset
-	if offset < 0 {
-		offset = 0
-	}
+	offset := max(opts.Offset, 0)
 
 	// sort and order are validated by auditLogSort and NormalizeOrder, safe to use in query
 	//nolint:gosec // G202: sort and order are validated by auditLogSort and NormalizeOrder
@@ -383,6 +380,9 @@ func (r *AdminRepository) getTableColumns(ctx context.Context, tableName string)
 			PK:      pk == 1,
 		})
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return columns, nil
 }
 
@@ -404,6 +404,9 @@ func (r *AdminRepository) getTableIndexes(ctx context.Context, tableName string)
 			return nil, err
 		}
 		indexes = append(indexes, name)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return indexes, nil
 }
@@ -431,6 +434,9 @@ func (r *AdminRepository) GetSchemaMigrations(ctx context.Context) ([]SchemaMigr
 			return nil, err
 		}
 		migrations = append(migrations, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate migrations: %w", err)
 	}
 	return migrations, nil
 }

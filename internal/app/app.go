@@ -516,9 +516,9 @@ func (a *App) registerRoutes(srv *httpserver.Server) {
 	srv.HandleFunc("/api/v1/api-keys", a.agentHandler.ListApiKeys)
 	srv.HandleFunc("/api/v1/api-keys/create", a.agentHandler.CreateApiKey)
 	srv.HandleFunc("/api/v1/api-keys/mcp-key", a.agentHandler.CreateMCPKey)
-	srv.HandleFunc("/api/v1/api-keys/{id}", a.handleApiKey)
 	srv.HandleFunc("/api/v1/api-keys/{id}/reveal", a.agentHandler.RevealApiKey)
 	srv.HandleFunc("/api/v1/api-keys/{id}/rotate", a.agentHandler.RotateApiKey)
+	srv.HandleFunc("/api/v1/api-keys/{id}", a.handleApiKey)
 }
 
 func (a *App) handleCompany(w http.ResponseWriter, r *http.Request) {
@@ -613,6 +613,11 @@ func (a *App) handleAgent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleApiKey(w http.ResponseWriter, r *http.Request) {
+	// Check for ?action=delete query param for hard delete
+	if r.Method == http.MethodDelete && r.URL.Query().Get("action") == "delete" {
+		a.agentHandler.DeleteApiKey(w, r)
+		return
+	}
 	switch r.Method {
 	case http.MethodGet:
 		a.agentHandler.GetApiKey(w, r)

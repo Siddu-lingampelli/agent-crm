@@ -884,12 +884,16 @@ export function ConfirmDialog({ isOpen, onClose, onConfirm, title, message, conf
 
   return (
     <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-      <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
+      <div className={`modal-content confirm-dialog${destructive ? ' is-destructive' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2 id="confirm-title" className="modal-title">{title}</h2>
+          <div className="confirm-dialog-heading">
+            <span className="confirm-dialog-icon" aria-hidden="true"><AlertTriangle size={18} /></span>
+            <div><span className="confirm-dialog-eyebrow">{destructive ? 'PLEASE CONFIRM' : 'CONFIRM ACTION'}</span><h2 id="confirm-title" className="modal-title">{title}</h2></div>
+          </div>
+          <button onClick={onClose} disabled={loading} className="modal-close" aria-label="Close confirmation"><X className="w-5 h-5" /></button>
         </div>
         <div className="modal-body">
-          <p className="text-gray-600">{message}</p>
+          <p className="confirm-dialog-message">{message}</p>
         </div>
         <div className="modal-footer">
           <button onClick={onClose} disabled={loading} className="btn-secondary">{cancelText}</button>

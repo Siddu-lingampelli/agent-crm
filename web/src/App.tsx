@@ -51,7 +51,7 @@ const adminNavigation: Array<{ name: string; href: string; icon: React.ReactNode
   { name: 'Integrations', href: '/integrations', icon: <Plug className="w-5 h-5" /> },
   { name: 'Webhooks', href: '/webhooks', icon: <Zap className="w-5 h-5" /> },
   { name: 'Agents & API', href: '/agents', icon: <Key className="w-5 h-5" /> },
-  { name: 'MCP connections', href: '/mcp', icon: <Plug className="w-5 h-5" /> },
+  { name: 'MCP connections', href: '/mcp-connections', icon: <Plug className="w-5 h-5" /> },
   { name: 'Audit Log', href: '/audit', icon: <ClipboardList className="w-5 h-5" /> },
   { name: 'System & Health', href: '/system', icon: <Monitor className="w-5 h-5" /> },
   { name: 'Settings', href: '/settings', icon: <Settings className="w-5 h-5" /> },
@@ -260,7 +260,7 @@ const routes = [
     ),
   },
   {
-    path: '/mcp',
+    path: '/mcp-connections',
     element: (
       <DashboardLayout>
         <ProtectedRoute>

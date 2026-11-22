@@ -918,6 +918,94 @@
     border-radius: 0 0 var(--radius-modal) var(--radius-modal);
   }
 
+  /* Shared dialog treatment for CRM, admin, and workspace create/edit flows. */
+  .modal-overlay {
+    background: #201b1680;
+    backdrop-filter: blur(3px);
+  }
+
+  .modal-content {
+    max-height: min(90vh, 900px);
+    border: 1px solid #e2ddd5;
+    border-radius: 8px;
+    background: #fbf3e6;
+    box-shadow: 0 24px 80px #201b1626;
+    overflow: hidden;
+  }
+
+  .modal-header {
+    flex: 0 0 auto;
+    padding: 18px 23px;
+    border-color: #e9e1d8;
+    background: linear-gradient(110deg, #f8ecda, #fbf3e6 75%);
+  }
+
+  .modal-title {
+    color: #201b16;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -.03em;
+  }
+
+  .modal-close:hover { color: #201b16; background: #f5ece2; }
+
+  .modal-body {
+    min-height: 0;
+    padding: 22px 23px;
+    color: #493627;
+  }
+
+  .modal-footer {
+    flex: 0 0 auto;
+    padding: 15px 23px;
+    border-color: #e9e1d8;
+    background: #f6ead7;
+    border-radius: 0;
+  }
+
+  .modal-content :is(.form-label, label.block) {
+    color: #493627;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .modal-content :is(.form-input, .form-select, .form-textarea, input.w-full, select.w-full) {
+    min-height: 40px;
+    border-color: #dfd2c1;
+    border-radius: 5px;
+    background-color: #fbf3e6;
+    color: #302720;
+  }
+
+  .modal-content :is(.form-input, .form-select, .form-textarea, input.w-full, select.w-full):focus {
+    border-color: #d23d00;
+    outline: 2px solid #ff4f0022;
+    outline-offset: 0;
+  }
+
+  .modal-content .btn-primary { background: #d23d00; border-color: #d23d00; color: #fffefb; }
+  .modal-content .btn-primary:hover:not(:disabled) { background: #b93200; border-color: #b93200; }
+  .modal-content .btn-danger { background: #b93819; border-color: #b93819; color: #fffefb; }
+
+  .confirm-dialog { max-width: 480px; }
+  .confirm-dialog .modal-header { align-items: center; }
+  .confirm-dialog-heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .confirm-dialog-icon { display: grid; place-items: center; flex: 0 0 38px; width: 38px; height: 38px; border: 1px solid #efc5b4; border-radius: 6px; background: #fff1e9; color: #b93819; }
+  .confirm-dialog:not(.is-destructive) .confirm-dialog-icon { border-color: #e7ded2; background: #f8f0e4; color: #8b5a31; }
+  .confirm-dialog-eyebrow { display: block; margin-bottom: 4px; color: #8b5a31; font: 600 8px/1.4 'Courier New', monospace; letter-spacing: .12em; }
+  .confirm-dialog .modal-title { font-size: 17px; line-height: 1.3; }
+  .confirm-dialog .modal-body { padding-top: 18px; padding-bottom: 18px; }
+  .confirm-dialog-message { margin: 0; color: #6f6256; font-size: 12px; line-height: 1.75; overflow-wrap: anywhere; }
+
+  @media (max-width: 560px) {
+    .modal-overlay { padding: 12px; }
+    .modal-content { max-height: calc(100dvh - 24px); }
+    .modal-header { padding: 16px 18px; }
+    .modal-body { padding: 18px; }
+    .modal-footer { padding: 13px 18px; gap: 9px; flex-wrap: wrap; }
+    .confirm-dialog .modal-footer > button { min-height: 40px; }
+  }
+
   /* ========================================
      TOASTS
      ======================================== */

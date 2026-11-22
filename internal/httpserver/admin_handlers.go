@@ -2,6 +2,7 @@
 package httpserver
 
 import (
+	"crm.local/internal/model"
 	"crm.local/internal/repository"
 	"database/sql"
 	"fmt"
@@ -62,6 +63,9 @@ func (h *AdminHandler) MCPToolStats(w http.ResponseWriter, r *http.Request) {
 		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", err.Error())
 		return
 	}
+	if stats == nil {
+		stats = []repository.MCPToolStat{}
+	}
 	jsonutil.Write(w, http.StatusOK, map[string]any{"items": stats, "since": since})
 }
 
@@ -86,6 +90,9 @@ func (h *AdminHandler) MCPToolCalls(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", err.Error())
 		return
+	}
+	if calls == nil {
+		calls = []model.MCPToolCall{}
 	}
 	jsonutil.Write(w, http.StatusOK, map[string]any{"items": calls})
 }

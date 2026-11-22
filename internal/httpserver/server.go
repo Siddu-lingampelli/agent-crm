@@ -95,15 +95,19 @@ func (s *Server) HandleFuncNoAuth(pattern string, h http.HandlerFunc) {
 // observed without restarting the Go process.
 func (s *Server) ServeStatic(prefix, fsPath string) {
 	s.staticHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet && r.Method != http.MethodHead {
-			http.Error(w, "method not allowed", 405)
+		// First check if this is an API path that should not be served as static
+		// This MUST be checked BEFORE method validation so API methods (DELETE, POST, etc.) work
+		isAPIPath := strings.HasPrefix(r.URL.Path, "/api/") ||
+			strings.HasPrefix(r.URL.Path, "/oauth/") || strings.HasPrefix(r.URL.Path, "/.well-known/") ||
+			strings.HasPrefix(r.URL.Path, "/t/")
+
+		if isAPIPath {
+			http.NotFound(w, r)
 			return
 		}
-		if (strings.HasPrefix(r.URL.Path, "/api/") && r.URL.Path != "/api/v1/mcp" &&
-		!strings.HasPrefix(r.URL.Path, "/api/v1/mcp/") && r.URL.Path != "/api/v1/api-keys/mcp-key") || r.URL.Path == "/mcp" ||
-		strings.HasPrefix(r.URL.Path, "/oauth/") || strings.HasPrefix(r.URL.Path, "/.well-known/") ||
-		strings.HasPrefix(r.URL.Path, "/t/") {
-			http.NotFound(w, r)
+
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.Error(w, "method not allowed", 405)
 			return
 		}
 		root, err := os.OpenRoot(fsPath)
@@ -169,7 +173,7 @@ func (s *Server) Handler() http.Handler {
 	// Wrap both muxes with their respective middleware chains
 	protectedHandler := s.middleware(s.mux)
 
-	// Create a combined handler that checks public routes first, then protected
+	// Create a combined handler that checks public routes first, then protected, then static
 	combined := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check if the request matches any public route pattern
 		_, pattern := s.publicMux.Handler(r)
@@ -178,13 +182,21 @@ func (s *Server) Handler() http.Handler {
 			return
 		}
 
+		// Check if the request matches any protected route pattern
 		_, protectedPattern := s.mux.Handler(r)
-		if protectedPattern == "" && s.staticHandler != nil {
+		if protectedPattern != "" {
+			protectedHandler.ServeHTTP(w, r)
+			return
+		}
+
+		// If no protected route matches, try static files
+		if s.staticHandler != nil {
 			s.staticHandler.ServeHTTP(w, r)
 			return
 		}
-		// Otherwise try protected routes
-		protectedHandler.ServeHTTP(w, r)
+
+		// Nothing matched
+		http.NotFound(w, r)
 	})
 	// Shared protections must run before routing and before authentication,
 	// including CORS preflights for protected endpoints.

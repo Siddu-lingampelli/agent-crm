@@ -63,6 +63,7 @@ export const api = {
   // API Keys
   apiKeys: {
     createMCPKey: (agentId: string, name?: string) => request<{ key: string; api_key: ApiKey }>(`/api-keys/mcp-key`, { method: 'POST', body: JSON.stringify({ agent_id: agentId, name }) }),
+    delete: (id: string) => request<void>(`/api-keys/${id}?action=delete`, { method: 'DELETE' }),
   },
   // MCP server: connections, tokens, and per-tool activity.
   mcp: {

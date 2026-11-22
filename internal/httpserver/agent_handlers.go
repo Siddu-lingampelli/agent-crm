@@ -322,6 +322,25 @@ func (h *AgentHandler) RevokeApiKey(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// DeleteApiKey permanently deletes an API key (hard delete).
+func (h *AgentHandler) DeleteApiKey(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		jsonutil.Error(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+		return
+	}
+	actor := getAuth(r)
+	id := r.PathValue("id")
+	if id == "" {
+		jsonutil.Error(w, http.StatusBadRequest, "missing_id", "id required")
+		return
+	}
+	if err := h.svc.DeleteApiKey(r.Context(), actor, id); err != nil {
+		h.handleError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *AgentHandler) handleError(w http.ResponseWriter, err error) {
 	if writeKnownServiceError(w, err) {
 		return

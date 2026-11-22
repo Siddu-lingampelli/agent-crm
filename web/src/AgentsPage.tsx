@@ -92,6 +92,7 @@ export function AgentsPage() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<ApiKey | Agent | null>(null);
   const [deleteType, setDeleteType] = useState<'key' | 'agent' | null>(null);
+  const [permanentDelete, setPermanentDelete] = useState(false);
   const [selectedAgentID, setSelectedAgentID] = useState('');
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
 
@@ -195,8 +196,13 @@ export function AgentsPage() {
     setSubmitLoading(true);
     try {
       if (deleteType === 'key') {
-        await api.delete(`/api-keys/${deleteConfirm.id}`);
-        showToast('success', 'API key revoked — it no longer works');
+        if (permanentDelete) {
+          await api.apiKeys.delete(deleteConfirm.id);
+          showToast('success', 'API key permanently deleted — the row is gone for good');
+        } else {
+          await api.delete(`/api-keys/${deleteConfirm.id}`);
+          showToast('success', 'API key revoked — it no longer works');
+        }
         fetchApiKeys();
       } else {
         await api.delete(`/agents/${deleteConfirm.id}`);
@@ -209,6 +215,7 @@ export function AgentsPage() {
       setSubmitLoading(false);
       setDeleteConfirm(null);
       setDeleteType(null);
+      setPermanentDelete(false);
     }
   };
 
@@ -277,6 +284,12 @@ export function AgentsPage() {
 
   const handleKeyAction = async (action: string, k: ApiKey) => {
     if (action === 'revoke') { handleDelete(k, 'key'); return; }
+    if (action === 'delete') {
+      setDeleteConfirm(k);
+      setDeleteType('key');
+      setPermanentDelete(true);
+      return;
+    }
     if (action === 'copy') {
       try {
         const res = await api.post<{ key: string }>(`/api-keys/${k.id}/reveal`, {});
@@ -372,7 +385,8 @@ export function AgentsPage() {
               { id: 'copy', label: 'Copy full key (for MCP)', icon: <Copy className="w-4 h-4" /> },
               { id: 'show', label: 'Reveal key', icon: <Eye className="w-4 h-4" /> },
               { id: 'rotate', label: 'Rotate key (old one stops working)', icon: <RotateCw className="w-4 h-4" /> },
-              { id: 'revoke', label: 'Revoke key', icon: <Trash2 className="w-4 h-4 text-red-600" /> },
+              { id: 'revoke', label: 'Revoke key (soft delete)', icon: <Trash2 className="w-4 h-4 text-orange-600" /> },
+              { id: 'delete', label: 'Delete key (permanent)', icon: <Trash2 className="w-4 h-4 text-red-600" /> },
             ]}
             onCustomAction={handleKeyAction}
           />
@@ -439,18 +453,18 @@ export function AgentsPage() {
 
               <FormField label="Scopes" error={formErrors.scopes} required>
                 <div className="flex flex-wrap items-center gap-2 mb-3">
-                  <button type="button" onClick={() => setFormData({ ...formData, scopes: scopeOptions.map(s => s.value) })} className="px-3 py-1.5 text-sm rounded-lg bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 font-medium">All permissions</button>
-                  <button type="button" onClick={() => setFormData({ ...formData, scopes: [] })} className="px-3 py-1.5 text-sm rounded-lg border border-neutral-300 dark:border-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-800">None</button>
+                  <button type="button" onClick={() => setFormData({ ...formData, scopes: scopeOptions.map(s => s.value) })} className="ad-button ad-button-primary">All permissions</button>
+                  <button type="button" onClick={() => setFormData({ ...formData, scopes: [] })} className="ad-button">Clear</button>
                   <span className="text-xs text-neutral-500 ml-auto">{formData.scopes.length} of {scopeOptions.length} selected</span>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="agent-scope-grid">
                   {scopeOptions.map((scope) => (
-                    <label key={scope.value} className="flex items-center gap-2 px-3 py-1.5 bg-neutral-50 dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 cursor-pointer">
+                    <label key={scope.value} className="agent-scope-option">
                       <input
                         type="checkbox"
                         checked={formData.scopes.includes(scope.value)}
                         onChange={(e) => setFormData({ ...formData, scopes: e.target.checked ? [...formData.scopes, scope.value] : formData.scopes.filter(s => s !== scope.value) })}
-                        className="w-4 h-4 accent-black"
+                        className="w-4 h-4"
                       />
                       <span className="text-sm">{scope.label}</span>
                     </label>
@@ -504,13 +518,13 @@ export function AgentsPage() {
 
       <ConfirmDialog
         isOpen={!!deleteConfirm}
-        onClose={() => { setDeleteConfirm(null); setDeleteType(null); }}
+        onClose={() => { setDeleteConfirm(null); setDeleteType(null); setPermanentDelete(false); }}
         onConfirm={confirmDelete}
-        title={deleteType === 'key' ? 'Revoke API key' : 'Disable agent'}
+        title={deleteType === 'key' ? (permanentDelete ? 'Delete API key permanently' : 'Revoke API key') : 'Disable agent'}
         message={deleteType === 'key'
-          ? `Revoke "${deleteConfirm?.name}"? The key stops working immediately (MCP calls with it get 401) and cannot be undone. Use Rotate instead if you just need a new key.`
+          ? permanentDelete ? `Permanently delete "${deleteConfirm?.name}"? This removes the key record and cannot be undone.` : `Revoke "${deleteConfirm?.name}"? The key stops working immediately (MCP calls with it get 401) and cannot be undone. Use Rotate instead if you just need a new key.`
           : `Disable "${deleteConfirm?.name}"? The agent and ALL its API keys stop working immediately (MCP calls get 401). You can re-enable it later via Restore — nothing is permanently deleted.`}
-        confirmText={deleteType === 'key' ? 'Revoke key' : 'Disable agent'}
+        confirmText={deleteType === 'key' ? (permanentDelete ? 'Delete permanently' : 'Revoke key') : 'Disable agent'}
         variant="danger"
         loading={submitLoading}
       />

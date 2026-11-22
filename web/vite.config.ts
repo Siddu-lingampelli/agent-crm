@@ -27,6 +27,21 @@ export default defineConfig({
           });
         },
       },
+      // Proxy production-style /assets/* paths to the backend's built dist, so a
+      // stale built index.html loaded through the dev server still gets real JS
+      // instead of Vite's SPA index.html fallback (which breaks with a MIME error).
+      '/assets': {
+        target: 'http://127.0.0.1:8080',
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            const cookie = req.headers.cookie;
+            if (cookie) {
+              proxyReq.setHeader('Cookie', cookie);
+            }
+          });
+        },
+      },
     },
   },
 })

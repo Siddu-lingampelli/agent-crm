@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   ArrowRight,
   ArrowUpRight,
+  Bot,
   CircleAlert,
   Copy,
   ExternalLink,
@@ -12,7 +13,6 @@ import {
   Network,
   RefreshCw,
   ShieldCheck,
-  Trash2,
   X,
 } from 'lucide-react';
 import { api, type McpClient, type McpToken, type McpToolStat, type McpToolCall, ApiError } from './api';
@@ -20,7 +20,6 @@ import { Agent } from './AgentsPage';
 import {
   AdminHeader,
   AdminPanel,
-  AdminLink,
   AdminLoading,
   AdminError,
   AdminEmpty,
@@ -55,11 +54,11 @@ export function McpConnectionsPage() {
         api.mcp.calls(),
         api.get<{ items: Agent[] }>('/agents'),
       ]);
-      setClients(clientsRes.items);
-      setTokens(tokensRes.items);
-      setStats(statsRes.items);
-      setCalls(callsRes.items);
-      setAgents(agentsRes.items);
+      setClients(clientsRes.items ?? []);
+      setTokens(tokensRes.items ?? []);
+      setStats(statsRes.items ?? []);
+      setCalls(callsRes.items ?? []);
+      setAgents(agentsRes.items ?? []);
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
         setError('MCP observability not enabled on this server.');
@@ -99,10 +98,13 @@ export function McpConnectionsPage() {
   const statusBadge = (status: 'ok' | 'error') => (
     <AdminStatus status={status === 'ok' ? 'enabled' : 'disabled'} />
   );
+  const activeTokenCount = tokens.filter(isTokenAlive).length;
+  const totalCalls = stats.reduce((sum, item) => sum + item.calls, 0);
+  const totalErrors = stats.reduce((sum, item) => sum + item.errors, 0);
 
   if (error && !loading) {
     return (
-      <div className="ad-page">
+      <div className={`ad-page ${styles.page}`}>
         <AdminHeader
           title="MCP connections"
           description="OAuth clients, issued tokens, and per-tool activity for the MCP server."
@@ -113,7 +115,7 @@ export function McpConnectionsPage() {
   }
 
   return (
-    <div className="ad-page">
+    <div className={`ad-page ${styles.page}`}>
       <AdminHeader
         title="MCP connections"
         description="OAuth clients, issued tokens, and per-tool activity for the MCP server."
@@ -126,6 +128,7 @@ export function McpConnectionsPage() {
             >
               <Key size={14} /> Generate API key
             </button>
+            <Link className="ad-button" to="/agents?tab=agents"><Bot size={14} /> Agents</Link>
             <button
               className="ad-button"
               onClick={fetchAll}
@@ -139,60 +142,40 @@ export function McpConnectionsPage() {
         }
       />
 
-      {loading && !clients.length && <AdminLoading />}
-
-      {/* MCP Endpoint */}
-      <AdminPanel title="MCP server endpoint" description="Connect your AI agents to this workspace via the Model Context Protocol.">
-        <div className={styles.endpointCard}>
-          <div className={styles.endpointRow}>
-            <div className={styles.endpointLabel}>
-              <Network size={16} /> MCP endpoint (stateless HTTP)
-            </div>
-            <div className={styles.endpointValue}>
-              <code>/api/v1/mcp</code>
-              <button
-                className="ad-icon-button"
-                onClick={() => copyToClipboard('/api/v1/mcp')}
-                aria-label="Copy endpoint"
-                title="Copy endpoint"
-              >
-                <Copy size={13} />
-              </button>
-            </div>
+      <section className={styles.hero} aria-labelledby="mcp-overview-title">
+        <div className={styles.heroMain}>
+          <span className={styles.heroEyebrow}><Network size={13} /> MODEL CONTEXT PROTOCOL</span>
+          <h2 id="mcp-overview-title">Connect your AI tools to your CRM.</h2>
+          <p>Use one secured endpoint to let compatible agents work with this workspace through MCP.</p>
+          <div className={styles.endpointLabel}><span>Workspace endpoint</span><span className={styles.transport}><i /> Stateless HTTP</span></div>
+          <div className={styles.endpointValue}>
+            <code>/api/v1/mcp</code>
+            <button className="ad-icon-button" onClick={() => copyToClipboard('/api/v1/mcp')} aria-label="Copy MCP endpoint" title="Copy endpoint"><Copy size={14} /></button>
           </div>
-          <div className={styles.endpointRow}>
-            <div className={styles.endpointLabel}>
-              <ShieldCheck size={16} /> Authentication
-            </div>
-            <div className={styles.endpointValue}>
-              <code>Authorization: Bearer {'<token>'}</code>
-              <span className={styles.authHint}>OAuth JWT or <code>crm_</code> API key</span>
-            </div>
-          </div>
-          <div className={styles.endpointRow}>
-            <div className={styles.endpointLabel}>
-              <History size={16} /> Protocol version
-            </div>
-            <div className={styles.endpointValue}>
-              <code>2024-11-05</code>
-            </div>
-          </div>
-          <div className={styles.endpointRow}>
-            <div className={styles.endpointLabel}>
-              <ExternalLink size={16} /> Discovery docs
-            </div>
-            <div className={styles.endpointValue}>
-              <a href="/.well-known/oauth-protected-resource" target="_blank" rel="noopener">
-                /.well-known/oauth-protected-resource <ExternalLink size={12} />
-              </a>
-            </div>
+          <div className={styles.heroLinks}>
+            <a href="/.well-known/oauth-protected-resource" target="_blank" rel="noopener noreferrer">Discovery document <ExternalLink size={12} /></a>
+            <Link to="/agent-console">Open agent console <ArrowUpRight size={12} /></Link>
           </div>
         </div>
-      </AdminPanel>
+        <aside className={styles.connectionGuide} aria-label="Connection requirements">
+          <div className={styles.guideHeader}><ShieldCheck size={17} /><span>Connection details</span></div>
+          <div className={styles.guideRow}><span>Authentication</span><strong>Bearer token</strong><code>OAuth JWT or crm_ API key</code></div>
+          <div className={styles.guideRow}><span>Protocol version</span><strong>2024-11-05</strong></div>
+          <div className={styles.guideNote}>Keep API keys private. You can generate a dedicated key for each agent.</div>
+        </aside>
+      </section>
+
+      <section className={styles.metrics} aria-label="MCP connection summary" aria-busy={loading}>
+        <div className={styles.metric}><span><Network size={14} /> OAuth clients</span><strong>{loading ? '—' : clients.length}</strong><small>Registered with this workspace</small></div>
+        <div className={styles.metric}><span><ShieldCheck size={14} /> Active tokens</span><strong>{loading ? '—' : activeTokenCount}</strong><small>Not revoked or expired</small></div>
+        <div className={styles.metric}><span><History size={14} /> Tool calls</span><strong>{loading ? '—' : totalCalls.toLocaleString()}</strong><small>In the selected time window</small></div>
+        <div className={`${styles.metric} ${totalErrors ? styles.metricWarning : ''}`}><span><CircleAlert size={14} /> Errors</span><strong>{loading ? '—' : totalErrors.toLocaleString()}</strong><small>Across recorded tool calls</small></div>
+      </section>
 
       {/* OAuth Clients */}
       <AdminPanel
         title="OAuth clients"
+        className={styles.dataPanel}
         description="Registered OAuth 2.1 clients (dynamic client registration). Each client can request authorization codes and exchange them for JWT access tokens."
         action={
           <Link className="ad-button" to="/oauth/register" target="_blank" rel="noopener">
@@ -274,6 +257,7 @@ export function McpConnectionsPage() {
       {/* Issued Access Tokens */}
       <AdminPanel
         title="Issued access tokens"
+        className={styles.dataPanel}
         description="JWT access tokens issued to OAuth clients. The raw token value is never stored — only a short hash prefix is shown for identification. Tokens are scoped to the client's registered scopes and expire automatically."
       >
         {loading && !tokens.length ? (
@@ -341,8 +325,9 @@ export function McpConnectionsPage() {
 
       {/* Per-tool stats */}
       <AdminPanel
-        title="Per-tool activity (last {sinceHours}h)"
-        description="Aggregated MCP tool call counts, errors, and latency. Use this to see which tools your agents are using and spot failures."
+        title={`Per-tool activity · last ${sinceHours}h`}
+        className={styles.dataPanel}
+        description="See which tools your agents are using and spot errors or slow calls."
       >
         <div className={styles.statsFilter}>
           <label htmlFor="since-hours" className={styles.filterLabel}>
@@ -414,6 +399,7 @@ export function McpConnectionsPage() {
       {/* Recent tool calls */}
       <AdminPanel
         title="Recent tool calls"
+        className={styles.dataPanel}
         description="Individual MCP tool invocations (newest first). Shows the calling actor, tool name, status, latency, and any error."
       >
         {loading && !calls.length ? (
@@ -475,32 +461,32 @@ export function McpConnectionsPage() {
 
       {genOpen && (
         <div className="modal-overlay" onClick={() => { setGenOpen(false); setGenKey(null); setGenError(null); }}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal-content modal-md mcp-key-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Generate MCP API key</h3>
+              <div><span className="ad-eyebrow">MCP ACCESS</span><h3>Generate API key</h3><p className="mcp-key-subtitle">Create a credential for an enabled agent to connect to this workspace.</p></div>
               <button className="modal-close" onClick={() => { setGenOpen(false); setGenKey(null); setGenError(null); }}><X size={16} /></button>
             </div>
             {genKey ? (
               <div className="modal-body">
                 <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">Key created successfully. Copy it now — you won't see it again.</p>
-                <div className="flex gap-2 mb-4">
-                  <code className="flex-1 bg-neutral-100 dark:bg-neutral-800 px-3 py-2 rounded text-sm break-all">{genKey}</code>
-                  <button onClick={() => navigator.clipboard.writeText(genKey)} className="px-4 py-2 rounded bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 font-medium">Copy</button>
+                <div className="flex gap-2 mb-4 mt-4">
+                  <code className="mcp-key-value">{genKey}</code>
+                  <button onClick={() => navigator.clipboard.writeText(genKey)} className="ad-button ad-button-primary"><Copy size={14} />Copy</button>
                 </div>
-                <button className="w-full py-2 rounded bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 font-medium" onClick={() => { setGenOpen(false); setGenKey(null); setGenError(null); }}>Done</button>
+                <button className="ad-button ad-button-primary mcp-key-done" onClick={() => { setGenOpen(false); setGenKey(null); setGenError(null); }}>Done</button>
               </div>
             ) : (
               <div className="modal-body">
-                <div className="space-y-4">
+                <div className="mcp-key-form">
                   <div>
                     <label className="block text-sm font-medium mb-1">Agent</label>
-                    <select value={genAgent} onChange={e => setGenAgent(e.target.value)} className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800 text-sm">
+                    <select value={genAgent} onChange={e => setGenAgent(e.target.value)} className="w-full px-3 py-2 border border-neutral-300 rounded bg-white text-sm">
                       {agents.filter(a => a.enabled).map(a => <option key={a.id} value={a.id}>{a.name} ({a.provider})</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">Key name</label>
-                    <input value={genName} onChange={e => setGenName(e.target.value)} className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800 text-sm" placeholder="MCP agent key" />
+                    <input value={genName} onChange={e => setGenName(e.target.value)} className="w-full px-3 py-2 border border-neutral-300 rounded bg-white text-sm" placeholder="MCP agent key" />
                   </div>
                   {genError && <p className="text-sm text-red-600 dark:text-red-400">{genError}</p>}
                 </div>
@@ -508,7 +494,7 @@ export function McpConnectionsPage() {
             )}
             {!genKey && (
               <div className="modal-footer">
-                <button onClick={() => { setGenOpen(false); setGenError(null); }} className="px-4 py-2 rounded border border-neutral-300 dark:border-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-800">Cancel</button>
+                <button onClick={() => { setGenOpen(false); setGenError(null); }} className="ad-button">Cancel</button>
                 <button onClick={async () => {
                   setGenLoading(true);
                   setGenError(null);
@@ -520,7 +506,7 @@ export function McpConnectionsPage() {
                   } finally {
                     setGenLoading(false);
                   }
-                }} disabled={genLoading || !genAgent} className="px-4 py-2 rounded bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 font-medium disabled:opacity-50">
+                }} disabled={genLoading || !genAgent} className="ad-button ad-button-primary">
                   {genLoading ? <Loader2 size={14} className="loading-spinner" /> : 'Generate'}
                 </button>
               </div>

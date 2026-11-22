@@ -33,7 +33,7 @@ paths:
                   build: {type: string}
   /ready:
     get:
-      tags: [system]
+      tags: [system] 
       summary: Readiness check
       responses:
         '200':

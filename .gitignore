@@ -22,3 +22,9 @@ internal/**/data/
 .cache/
 *.log
 *.db&_pragma=*
+
+# Local test artifacts
+cookies.txt
+dev_cookies.txt
+empty_cookies.txt
+crm.exe~

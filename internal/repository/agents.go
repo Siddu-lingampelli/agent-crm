@@ -190,7 +190,10 @@ func (r *ApiKeyRepository) Create(ctx context.Context, k *model.APIKey) error {
 	return nil
 }
 
-// Get returns an API key by id.
+// Get returns an API key by id, including revoked keys. Key-management paths
+// (reveal, rotate, revoke, hard delete) need to see revoked rows and enforce
+// their own revoked checks; auth-time lookups use GetByHash, which filters
+// revoked keys out.
 func (r *ApiKeyRepository) Get(ctx context.Context, id string) (*model.APIKey, error) {
 	row := r.db.QueryRowContext(ctx,
 		"SELECT "+apiKeyColumns+" FROM api_keys WHERE id = ?", id)
@@ -282,12 +285,21 @@ func (r *ApiKeyRepository) UpdateKeySealed(ctx context.Context, id, sealed, pref
 	return nil
 }
 
-// Revoke marks an API key as revoked.
+// Revoke marks an API key as revoked (soft delete).
 func (r *ApiKeyRepository) Revoke(ctx context.Context, id string, now string) error {
 	_, err := r.db.ExecContext(ctx,
 		"UPDATE api_keys SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL", now, id)
 	if err != nil {
 		return fmt.Errorf("revoke api key: %w", err)
+	}
+	return nil
+}
+
+// Delete permanently removes an API key (hard delete).
+func (r *ApiKeyRepository) Delete(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx, "DELETE FROM api_keys WHERE id = ?", id)
+	if err != nil {
+		return fmt.Errorf("delete api key: %w", err)
 	}
 	return nil
 }
