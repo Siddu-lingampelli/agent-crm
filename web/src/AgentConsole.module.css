@@ -166,6 +166,21 @@
 .notice { display: flex; align-items: center; justify-content: center; gap: 7px; position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); border-radius: 5px; background: #302720; color: #fffefb; font-size: 11px; box-shadow: 0 5px 18px #39221320; z-index: 60; }
 .notice:not(:empty) { padding: 11px 16px; }
 .srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+
+/* Match the Dashboard: cream work surfaces, crisp black structure, orange actions. */
+.page { --console-ink:#000; --console-muted:#4b453d; --console-border:rgba(0,0,0,.14); --console-surface:#fbf3e6; color:#000; }
+.page :is(.pageHeader h1,.summaryGrid strong,.toolTitle h2,.sectionHeader h2,.empty h3) { color:#000; }
+.page :is(.primaryButton,.primaryButton:hover:not(:disabled)) { background:#ff4f00; border-color:#ff4f00; color:#000 !important; }
+.page .primaryButton:hover:not(:disabled) { background:#e34700; border-color:#e34700; }
+.page :is(.secondaryButton,.connectionBar,.summaryGrid,.catalog,.editorPanel,.resultPanel,.historyPanel,.rawPanel,.filterRow select,.historyActions select) { background:#fbf3e6; border-color:rgba(0,0,0,.14); }
+.page :is(.summaryGrid,.catalog,.editorPanel,.resultPanel,.historyPanel,.rawPanel,.toolSearch,.codeEditor) { border-color:rgba(0,0,0,.14); }
+.page :is(.summaryGrid > div,.connectionDivider,.pageTabs,.catalogFilters,.catalogFooter,.editorToolbar,.codeHeader,.runBar,.parameter,.sectionHeader,.resultMeta,.panelFooter,.historyTable th,.historyTable td) { border-color:rgba(0,0,0,.14); }
+.page :is(.catalogFooter,.editorToolbar,.runBar,.resultMeta,.panelFooter,.historyTable th) { background:#f6ead7; }
+.page :is(.toolSearch,.filterRow select,.historyActions select,.codeEditor) { background:#fbf3e6; color:#000; }
+.page :is(.toolSearch input,.codeEditor textarea,.connectionBar code,.toolDetailMeta,.parameter code,.schemaView pre,.resultCode,.historyTable td,.historyName,.toolTitle h2) { color:#000; }
+.page :is(.pageTabs > button.pageTabActive,.editorTabs button.editorTabActive,.historyName:hover,.formatButton:hover:not(:disabled),.footer > a,.footer > a:hover,.catalogEmpty button) { color:#ff4f00 !important; }
+.page :is(.selectedTool,.selectedTool .toolIcon) { border-color:#ff4f00; background:#f6ead7 !important; color:#000; }
+.page .toolSearch:focus-within { outline-color:#ff4f00; }
 .spinning { animation: consoleSpin 1s linear infinite; }
 @keyframes consoleSpin { to { transform: rotate(360deg); } }
 @media (min-width: 1600px) { .runnerGrid { grid-template-columns: 310px minmax(0, 1fr); } }

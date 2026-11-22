@@ -37,6 +37,14 @@
 .admin-area :is(.ad-navigation,.tableWrapper) { border-color:rgba(0,0,0,.14); }
 .admin-area .table th { background:#f6ead7; color:#4b453d; }
 .admin-area .table td { color:#302720; }
+.admin-area :is(.ad-table,.ad-filter-bar,.ad-schema-catalog,.ad-metadata) { background:#fbf3e6; border-color:rgba(0,0,0,.14); }
+.admin-area :is(.ad-table th,.ad-table td,.ad-local-tabs,.ad-settings-links > a,.ad-account-profile details,.ad-form-footer) { border-color:rgba(0,0,0,.14); }
+.admin-area .ad-table th { background:#f6ead7; color:#4b453d; }
+.admin-area .ad-table td { color:#302720; }
+.admin-area :is(.ad-filter-bar select,.ad-filter-bar input,.ad-readonly-input) { background:#fbf3e6; border-color:rgba(0,0,0,.14); color:#000; }
+.admin-area .ad-local-tabs button.is-active { color:#ff4f00; border-bottom-color:#ff4f00; }
+.admin-area .ad-settings-links strong { color:#000; }
+.admin-area .ad-settings-links > a > span { background:#f6ead7; color:#ff4f00; }
 .ad-navigation { display: flex; align-items: center; gap: 24px; overflow-x: auto; border-bottom: 1px solid #e5ddd2; margin-bottom: 27px; scrollbar-width: thin; }
 .ad-navigation > a { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; padding: 0 1px 14px; border-bottom: 2px solid transparent; color: #75695f !important; font-size: 11px; line-height: 1.5; white-space: nowrap; }
 .ad-navigation > a:hover { color: #bd3907 !important; }
