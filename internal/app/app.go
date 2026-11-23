@@ -73,6 +73,13 @@ type App struct {
 	mailHandler        *httpserver.MailHandler
 	mailSvc            *mail.Service
 	dashboardHandler   *httpserver.DashboardHandler
+	companiesExport    *httpserver.ExportHandler
+	contactsExport     *httpserver.ExportHandler
+	leadsExport        *httpserver.ExportHandler
+	dealsExport        *httpserver.ExportHandler
+	tasksExport        *httpserver.ExportHandler
+	projectsExport     *httpserver.ExportHandler
+	calendarExport     *httpserver.ExportHandler
 	mcpServer          *mcp.Server
 	oauthSvc           *oauth.Service
 	oauthHandler       *httpserver.OAuthHandler
@@ -260,6 +267,15 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	app.mailHandler = httpserver.NewMailHandler(mailSvc)
 	app.dashboardHandler = httpserver.NewDashboardHandler(dashboardSvc)
 
+	// CSV export/import handlers (per entity)
+	app.companiesExport = httpserver.NewCompaniesExportHandler(companySvc)
+	app.contactsExport = httpserver.NewContactsExportHandler(contactSvc)
+	app.leadsExport = httpserver.NewLeadsExportHandler(leadSvc)
+	app.dealsExport = httpserver.NewDealsExportHandler(dealSvc)
+	app.tasksExport = httpserver.NewTasksExportHandler(taskSvc)
+	app.projectsExport = httpserver.NewProjectsExportHandler(projectSvc)
+	app.calendarExport = httpserver.NewCalendarExportHandler(calendarSvc)
+
 	// Initialize MCP server with all services + per-tool observability
 	oauthRepo := repository.NewOAuthRepository(database.SQL())
 	app.adminHandler.SetOAuthRepo(oauthRepo)
@@ -431,6 +447,22 @@ func (a *App) registerRoutes(srv *httpserver.Server) {
 	srv.HandleFunc("/api/v1/calendar", a.calendarHandler.List)
 	srv.HandleFunc("/api/v1/calendar/create", a.calendarHandler.Create)
 	srv.HandleFunc("/api/v1/calendar/{id}", a.handleCalendar)
+
+	// CSV Export / Import (per entity)
+	srv.HandleFunc("/api/v1/companies/export", a.companiesExport.ExportCSV)
+	srv.HandleFunc("/api/v1/companies/import", a.companiesExport.ImportCSV)
+	srv.HandleFunc("/api/v1/contacts/export", a.contactsExport.ExportCSV)
+	srv.HandleFunc("/api/v1/contacts/import", a.contactsExport.ImportCSV)
+	srv.HandleFunc("/api/v1/leads/export", a.leadsExport.ExportCSV)
+	srv.HandleFunc("/api/v1/leads/import", a.leadsExport.ImportCSV)
+	srv.HandleFunc("/api/v1/deals/export", a.dealsExport.ExportCSV)
+	srv.HandleFunc("/api/v1/deals/import", a.dealsExport.ImportCSV)
+	srv.HandleFunc("/api/v1/tasks/export", a.tasksExport.ExportCSV)
+	srv.HandleFunc("/api/v1/tasks/import", a.tasksExport.ImportCSV)
+	srv.HandleFunc("/api/v1/projects/export", a.projectsExport.ExportCSV)
+	srv.HandleFunc("/api/v1/projects/import", a.projectsExport.ImportCSV)
+	srv.HandleFunc("/api/v1/calendar/export", a.calendarExport.ExportCSV)
+	srv.HandleFunc("/api/v1/calendar/import", a.calendarExport.ImportCSV)
 
 	// Workflows
 	srv.HandleFunc("/api/v1/workflows", a.workflowHandler.List)

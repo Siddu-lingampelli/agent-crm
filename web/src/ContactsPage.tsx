@@ -217,7 +217,13 @@ export function ContactsPage() {
 
   return (
     <div className="crm-area">
-      <CrmHeader title="Contacts" description="Keep the people behind every opportunity close." onCreate={handleCreate} busy={loading || !!loadError || !contacts.length} onExport={() => exportCrmPage('contacts', contacts, [{ key: 'first_name', label: 'first name' }, { key: 'last_name', label: 'last name' }, { key: 'email', label: 'email' }, { key: 'phone', label: 'phone' }, { key: 'company_id', label: 'company id' }, { key: 'status', label: 'status' }])} />
+      <CrmHeader title="Contacts" description="Keep the people behind every opportunity close." onCreate={handleCreate} busy={loading || !!loadError || !contacts.length} onExport={() => exportCrmPage('contacts', contacts, [{ key: 'first_name', label: 'first name' }, { key: 'last_name', label: 'last name' }, { key: 'email', label: 'email' }, { key: 'phone', label: 'phone' }, { key: 'company_id', label: 'company id' }, { key: 'status', label: 'status' }])} onImport={async (file) => {
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await fetch('/api/v1/contacts/import', { method: 'POST', body: fd });
+        if (!res.ok) { const j = await res.json().catch(() => null); throw new Error(j?.error?.message || 'Import failed'); }
+        fetchContacts();
+      }} />
       <CrmSummary loading={loading || !!loadError} items={[{ label: 'Matching contacts', value: total, note: 'With current filters' }, { label: 'Active relationships', value: contacts.filter(c => c.status === 'active').length, note: 'On this page' }, { label: 'Linked to a company', value: contacts.filter(c => c.company_id).length, note: 'On this page' }]} />
 
       <DataTableToolbar

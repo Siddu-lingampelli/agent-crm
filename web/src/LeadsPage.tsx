@@ -301,7 +301,13 @@ export function LeadsPage() {
 
   return (
     <div className="crm-area">
-      <CrmHeader title="Leads" description="Turn the next conversation into a lasting relationship." onCreate={handleCreate} busy={loading || !!loadError || !leads.length} onExport={() => exportCrmPage('leads', leads, [{ key: 'display_name', label: 'display name' }, { key: 'email', label: 'email' }, { key: 'company_name', label: 'company name' }, { key: 'status', label: 'status' }, { key: 'source', label: 'source' }, { key: 'priority', label: 'priority' }, { key: 'estimated_value', label: 'estimated value' }, { key: 'currency', label: 'currency' }])} />
+      <CrmHeader title="Leads" description="Turn the next conversation into a lasting relationship." onCreate={handleCreate} busy={loading || !!loadError || !leads.length} onExport={() => exportCrmPage('leads', leads, [{ key: 'display_name', label: 'display name' }, { key: 'email', label: 'email' }, { key: 'company_name', label: 'company name' }, { key: 'status', label: 'status' }, { key: 'source', label: 'source' }, { key: 'priority', label: 'priority' }, { key: 'estimated_value', label: 'estimated value' }, { key: 'currency', label: 'currency' }])} onImport={async (file) => {
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await fetch('/api/v1/leads/import', { method: 'POST', body: fd });
+        if (!res.ok) { const j = await res.json().catch(() => null); throw new Error(j?.error?.message || 'Import failed'); }
+        fetchLeads();
+      }} />
       <CrmSummary loading={loading || !!loadError} items={[{ label: 'Matching leads', value: total, note: 'With current filters' }, { label: 'Qualified leads', value: leads.filter(l => l.status === 'qualified').length, note: 'On this page' }, { label: 'Needs a follow-up', value: leads.filter(l => l.follow_up_date && l.follow_up_date.slice(0, 10) <= today && !['won', 'lost'].includes(l.status)).length, note: 'Due today or earlier, on this page' }]} />
 
       <DataTableToolbar

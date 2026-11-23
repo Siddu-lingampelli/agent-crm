@@ -291,7 +291,13 @@ const [formData, setFormData] = useState<DealFormData>({
 
   return (
     <div className="crm-area">
-      <CrmHeader title="Deals" description="A clearer view of every opportunity in motion." onCreate={handleCreate} busy={loading || !!loadError || !deals.length} onExport={() => exportCrmPage('deals', deals, [{ key: 'name', label: 'name' }, { key: 'amount', label: 'amount' }, { key: 'currency', label: 'currency' }, { key: 'probability', label: 'probability' }, { key: 'stage_id', label: 'stage id' }, { key: 'expected_close', label: 'expected close' }])} />
+      <CrmHeader title="Deals" description="A clearer view of every opportunity in motion." onCreate={handleCreate} busy={loading || !!loadError || !deals.length} onExport={() => exportCrmPage('deals', deals, [{ key: 'name', label: 'name' }, { key: 'amount', label: 'amount' }, { key: 'currency', label: 'currency' }, { key: 'probability', label: 'probability' }, { key: 'stage_id', label: 'stage id' }, { key: 'expected_close', label: 'expected close' }])} onImport={async (file) => {
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await fetch('/api/v1/deals/import', { method: 'POST', body: fd });
+        if (!res.ok) { const j = await res.json().catch(() => null); throw new Error(j?.error?.message || 'Import failed'); }
+        fetchDeals();
+      }} />
       <CrmSummary loading={loading || !!loadError || !!pipelineError} items={[{ label: 'Matching deals', value: total, note: 'With current filters' }, { label: 'Open pipeline', value: crmValueSummary(deals.filter(d => categoryFor(d) === 'open')), note: 'On this page, grouped by currency' }, { label: 'Weighted pipeline', value: crmValueSummary(deals.filter(d => categoryFor(d) === 'open').map(d => ({ ...d, amount: (d.amount || 0) * d.probability / 100 }))), note: 'Amount × probability, on this page' }]} />
       {pipelineError && <p className="crm-notice" role="alert">{pipelineError} The table view is still available.</p>}
 

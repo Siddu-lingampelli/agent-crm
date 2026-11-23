@@ -1,12 +1,87 @@
 ﻿import { useId, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckSquare, ChevronDown, FolderKanban, Search } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, CheckSquare, ChevronDown, FolderKanban, Loader2, Search } from 'lucide-react';
 import { api, type Project, type Task } from './api';
 import { useAdminData } from './admin-data';
 import { useDebouncedSearch } from './automation-data';
 import './WorkManagement.css';
 
-export function WorkHeader({title,description,children}:{title:'Projects'|'Tasks';description:string;children:ReactNode}){return <><nav className="au-section-nav" aria-label="Work management"><Link to="/tasks" aria-current={title==='Tasks'?'page':undefined}><CheckSquare size={15}/>Tasks</Link><Link to="/projects" aria-current={title==='Projects'?'page':undefined}><FolderKanban size={15}/>Projects</Link></nav><header className="au-header"><div><span className="au-eyebrow">WORK MANAGEMENT</span><h1>{title}</h1><p>{description}</p></div><div className="au-header-actions">{children}</div></header></>;}
+export function WorkHeader({
+  title,
+  description,
+  children,
+  onExport,
+  onImport,
+}: { title: 'Projects' | 'Tasks'; description: string; children: ReactNode; onExport?: () => void; onImport?: (file: File) => Promise<void> }) {
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess, setImportSuccess] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImport = async () => {
+    if (!importFile || importing || !onImport) return;
+    setImporting(true);
+    setImportError(null);
+    setImportSuccess(null);
+    try {
+      await onImport(importFile);
+      setImportSuccess('Import complete — list refreshed.');
+      setImportFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (e) {
+      setImportError(e instanceof Error ? e.message : 'Import failed');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  return (
+    <>
+      <nav className="au-section-nav" aria-label="Work management">
+        <Link to="/tasks" aria-current={title === 'Tasks' ? 'page' : undefined}>
+          <CheckSquare size={15} /> Tasks
+        </Link>
+        <Link to="/projects" aria-current={title === 'Projects' ? 'page' : undefined}>
+          <FolderKanban size={15} /> Projects
+        </Link>
+      </nav>
+      <header className="au-header">
+        <div>
+          <span className="au-eyebrow">WORK MANAGEMENT</span>
+          <h1>{title}</h1>
+          <p>{description}</p>
+        </div>
+        <div className="au-header-actions">
+          {onExport && (
+            <button className="crm-button" onClick={onExport}>
+              <ArrowDownToLine size={14} /> Export
+            </button>
+          )}
+          {onImport && (
+            <>
+              <input type="file" ref={fileInputRef} accept=".csv" hidden onChange={e => setImportFile(e.target.files?.[0] || null)} disabled={importing} />
+              <button className="crm-button" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+                <ArrowUpFromLine size={14} /> Import
+              </button>
+              {importFile && (
+                <div className="crm-import-status" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#775334' }}>
+                  <span>{importFile.name}</span>
+                  <button className="crm-button" onClick={handleImport} disabled={importing} style={{ padding: '4px 8px', fontSize: 11, minHeight: 28 }}>
+                    {importing ? <Loader2 size={12} className="loading-spinner" /> : 'Upload'}
+                  </button>
+                  {importError && <span style={{ color: '#b8562e' }}>{importError}</span>}
+                  {importSuccess && <span style={{ color: '#46673a' }}>{importSuccess}</span>}
+                </div>
+              )}
+            </>
+          )}
+          {children}
+        </div>
+      </header>
+    </>
+  );
+}
 export function WorkEmpty({kind,title,description,children}:{kind:'project'|'task';title:string;description:string;children?:ReactNode}){const Icon=kind==='project'?FolderKanban:CheckSquare;return <div className="wm-empty"><span><Icon size={25}/></span><h3>{title}</h3><p>{description}</p>{children}</div>;}
 export function WorkPriority({value}:{value:string}){return <span className={`wm-priority wm-priority-${value}`}>{['high','urgent'].includes(value)&&<i/>}{value||'Not set'}</span>;}
 export function WorkProgress({value,label='Progress'}:{value:number;label?:string}){const safe=Number.isFinite(value)?Math.max(0,Math.min(100,value)):0;return <div className="wm-progress"><div><span>{label}</span><strong>{safe}%</strong></div><div role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={safe}><span style={{width:safe+'%'}}/></div></div>;}

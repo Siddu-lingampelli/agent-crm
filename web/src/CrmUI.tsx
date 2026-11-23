@@ -1,14 +1,88 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
-import { ArrowDownToLine, ArrowRight, Building2, ChevronLeft, ChevronRight, Contact, DollarSign, Loader2, Plus, Users, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowRight, ArrowUpFromLine, Building2, ChevronLeft, ChevronRight, Contact, DollarSign, Loader2, Plus, Users, X } from 'lucide-react';
 import './Crm.css';
 import type { Company, Contact as ContactRecord } from './api';
 import { Badge, getStatusBadge } from './components';
 import { Briefcase, Globe, Mail, Pencil, Phone, Trash2 } from 'lucide-react';
 
-export function CrmHeader({ title, description, onCreate, onExport, busy }: { title: string; description: string; onCreate: () => void; onExport: () => void; busy: boolean }) {
+export function CrmHeader({
+  title,
+  description,
+  onCreate,
+  onExport,
+  onImport,
+  busy,
+}: { title: string; description: string; onCreate: () => void; onExport: () => void; onImport?: (file: File) => Promise<void>; busy: boolean }) {
   const singular = title === 'Companies' ? 'company' : title.slice(0, -1).toLowerCase();
-  return <><nav className="crm-nav" aria-label="Sales navigation">{[{ to: '/leads', name: 'Leads', icon: Users }, { to: '/deals', name: 'Deals', icon: DollarSign }, { to: '/contacts', name: 'Contacts', icon: Contact }, { to: '/companies', name: 'Companies', icon: Building2 }].map(({ to, name, icon: Icon }) => <NavLink key={to} to={to}><Icon size={14} />{name}</NavLink>)}</nav><header className="crm-heading"><div><span className="crm-eyebrow">WORKSPACE / RELATIONSHIPS</span><h1>{title}</h1><p>{description}</p></div><div className="crm-heading-actions"><button className="crm-button" onClick={onExport} disabled={busy}><ArrowDownToLine size={14} />Export page</button><button className="crm-button crm-primary" onClick={onCreate}><Plus size={15} />New {singular}</button></div></header></>;
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess, setImportSuccess] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImport = async () => {
+    if (!importFile || importing) return;
+    if (!onImport) return;
+    setImporting(true);
+    setImportError(null);
+    setImportSuccess(null);
+    try {
+      await onImport(importFile);
+      setImportSuccess('Import complete — list refreshed.');
+      setImportFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (e) {
+      setImportError(e instanceof Error ? e.message : 'Import failed');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  return (
+    <>
+      <nav className="crm-nav" aria-label="Sales navigation">
+        {[{ to: '/leads', name: 'Leads', icon: Users }, { to: '/deals', name: 'Deals', icon: DollarSign }, { to: '/contacts', name: 'Contacts', icon: Contact }, { to: '/companies', name: 'Companies', icon: Building2 }].map(({ to, name, icon: Icon }) => (
+          <NavLink key={to} to={to}>
+            <Icon size={14} />{name}
+          </NavLink>
+        ))}
+      </nav>
+      <header className="crm-heading">
+        <div>
+          <span className="crm-eyebrow">WORKSPACE / RELATIONSHIPS</span>
+          <h1>{title}</h1>
+          <p>{description}</p>
+        </div>
+        <div className="crm-heading-actions">
+          <button className="crm-button" onClick={onExport} disabled={busy}>
+            <ArrowDownToLine size={14} /> Export
+          </button>
+          {onImport && (
+            <>
+              <input type="file" ref={fileInputRef} accept=".csv" hidden onChange={e => setImportFile(e.target.files?.[0] || null)} disabled={importing} />
+              <button className="crm-button" onClick={() => fileInputRef.current?.click()} disabled={busy || importing}>
+                <ArrowUpFromLine size={14} /> Import
+              </button>
+              {importFile && (
+                <div className="crm-import-status" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#775334' }}>
+                  <span>{importFile.name}</span>
+                  <button className="crm-button" onClick={handleImport} disabled={importing} style={{ padding: '4px 8px', fontSize: 11, minHeight: 28 }}>
+                    {importing ? <Loader2 size={12} className="loading-spinner" /> : 'Upload'}
+                  </button>
+                  {importError && <span style={{ color: '#b8562e' }}>{importError}</span>}
+                  {importSuccess && <span style={{ color: '#46673a' }}>{importSuccess}</span>}
+                </div>
+              )}
+            </>
+          )}
+          <button className="crm-button crm-primary" onClick={onCreate} disabled={busy}>
+            <Plus size={15} /> New {singular}
+          </button>
+        </div>
+      </header>
+    </>
+  );
 }
 
 export function CrmSummary({ items, loading }: { items: { label: string; value: ReactNode; note: string }[]; loading: boolean }) {

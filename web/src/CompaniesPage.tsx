@@ -226,7 +226,13 @@ export function CompaniesPage() {
 
   return (
     <div className="crm-area">
-      <CrmHeader title="Companies" description="Every account, with the context to grow it." onCreate={handleCreate} busy={loading || !!loadError || !companies.length} onExport={() => exportCrmPage('companies', companies, [{ key: 'name', label: 'name' }, { key: 'domain', label: 'domain' }, { key: 'industry', label: 'industry' }, { key: 'status', label: 'status' }, { key: 'is_client', label: 'is client' }, { key: 'email', label: 'email' }])} />
+      <CrmHeader title="Companies" description="Every account, with the context to grow it." onCreate={handleCreate} busy={loading || !!loadError || !companies.length} onExport={() => exportCrmPage('companies', companies, [{ key: 'name', label: 'name' }, { key: 'domain', label: 'domain' }, { key: 'industry', label: 'industry' }, { key: 'status', label: 'status' }, { key: 'is_client', label: 'is client' }, { key: 'email', label: 'email' }])} onImport={async (file) => {
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await fetch('/api/v1/companies/import', { method: 'POST', body: fd });
+        if (!res.ok) { const j = await res.json().catch(() => null); throw new Error(j?.error?.message || 'Import failed'); }
+        fetchCompanies();
+      }} />
       <CrmSummary loading={loading || !!loadError} items={[{ label: 'Matching companies', value: total, note: 'With current filters' }, { label: 'Client accounts', value: companies.filter(c => c.is_client).length, note: 'On this page' }, { label: 'Active accounts', value: companies.filter(c => c.status === 'active').length, note: 'On this page' }]} />
 
       <DataTableToolbar
