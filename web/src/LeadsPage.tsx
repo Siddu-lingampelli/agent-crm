@@ -301,7 +301,7 @@ export function LeadsPage() {
 
   return (
     <div className="crm-area">
-      <CrmHeader title="Leads" description="Turn the next conversation into a lasting relationship." onCreate={handleCreate} busy={loading || !!loadError || !leads.length} onExport={() => exportCrmPage('leads', leads, [{ key: 'display_name', label: 'display name' }, { key: 'email', label: 'email' }, { key: 'company_name', label: 'company name' }, { key: 'status', label: 'status' }, { key: 'source', label: 'source' }, { key: 'priority', label: 'priority' }, { key: 'estimated_value', label: 'estimated value' }, { key: 'currency', label: 'currency' }])} onImport={async (file) => {
+      <CrmHeader title="Leads" description="Turn the next conversation into a lasting relationship." onCreate={handleCreate} busy={loading || !!loadError} onExport={() => exportCrmPage('leads', leads, [{ key: 'display_name', label: 'display name' }, { key: 'email', label: 'email' }, { key: 'company_name', label: 'company name' }, { key: 'status', label: 'status' }, { key: 'source', label: 'source' }, { key: 'priority', label: 'priority' }, { key: 'estimated_value', label: 'estimated value' }, { key: 'currency', label: 'currency' }])} onImport={async (file) => {
         const fd = new FormData();
         fd.append('file', file);
         const res = await fetch('/api/v1/leads/import', { method: 'POST', body: fd });

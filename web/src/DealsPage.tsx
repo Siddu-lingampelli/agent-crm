@@ -291,7 +291,7 @@ const [formData, setFormData] = useState<DealFormData>({
 
   return (
     <div className="crm-area">
-      <CrmHeader title="Deals" description="A clearer view of every opportunity in motion." onCreate={handleCreate} busy={loading || !!loadError || !deals.length} onExport={() => exportCrmPage('deals', deals, [{ key: 'name', label: 'name' }, { key: 'amount', label: 'amount' }, { key: 'currency', label: 'currency' }, { key: 'probability', label: 'probability' }, { key: 'stage_id', label: 'stage id' }, { key: 'expected_close', label: 'expected close' }])} onImport={async (file) => {
+      <CrmHeader title="Deals" description="A clearer view of every opportunity in motion." onCreate={handleCreate} busy={loading || !!loadError} onExport={() => exportCrmPage('deals', deals, [{ key: 'name', label: 'name' }, { key: 'amount', label: 'amount' }, { key: 'currency', label: 'currency' }, { key: 'probability', label: 'probability' }, { key: 'stage_id', label: 'stage id' }, { key: 'expected_close', label: 'expected close' }])} onImport={async (file) => {
         const fd = new FormData();
         fd.append('file', file);
         const res = await fetch('/api/v1/deals/import', { method: 'POST', body: fd });

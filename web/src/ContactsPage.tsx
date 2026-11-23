@@ -217,7 +217,7 @@ export function ContactsPage() {
 
   return (
     <div className="crm-area">
-      <CrmHeader title="Contacts" description="Keep the people behind every opportunity close." onCreate={handleCreate} busy={loading || !!loadError || !contacts.length} onExport={() => exportCrmPage('contacts', contacts, [{ key: 'first_name', label: 'first name' }, { key: 'last_name', label: 'last name' }, { key: 'email', label: 'email' }, { key: 'phone', label: 'phone' }, { key: 'company_id', label: 'company id' }, { key: 'status', label: 'status' }])} onImport={async (file) => {
+      <CrmHeader title="Contacts" description="Keep the people behind every opportunity close." onCreate={handleCreate} busy={loading || !!loadError} onExport={() => exportCrmPage('contacts', contacts, [{ key: 'first_name', label: 'first name' }, { key: 'last_name', label: 'last name' }, { key: 'email', label: 'email' }, { key: 'phone', label: 'phone' }, { key: 'company_id', label: 'company id' }, { key: 'status', label: 'status' }])} onImport={async (file) => {
         const fd = new FormData();
         fd.append('file', file);
         const res = await fetch('/api/v1/contacts/import', { method: 'POST', body: fd });
