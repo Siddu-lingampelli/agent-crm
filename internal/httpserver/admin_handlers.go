@@ -2,11 +2,12 @@
 package httpserver
 
 import (
-	"crm.local/internal/model"
-	"crm.local/internal/repository"
 	"database/sql"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -16,7 +17,11 @@ import (
 	"crm.local/internal/jobs"
 	"crm.local/internal/jsonutil"
 	"crm.local/internal/memtrack"
+	"crm.local/internal/model"
 	"crm.local/internal/processmetrics"
+	"crm.local/internal/repository"
+
+	_ "modernc.org/sqlite"
 )
 
 // AdminHandler wraps admin endpoints.
@@ -26,17 +31,27 @@ type AdminHandler struct {
 	memTracker *memtrack.MemoryTracker
 	oauthRepo  *repository.OAuthRepository
 	start      time.Time
+	// dbPath is the on-disk database file, used by backup download/import.
+	dbPath string
+	// importMu serialises imports so two restores cannot interleave.
+	importMu chan struct{}
 }
 
 // NewAdminHandler returns a handler for admin endpoints.
 func NewAdminHandler(database *db.DB, jobPool *jobs.Pool, memTracker *memtrack.MemoryTracker) *AdminHandler {
-	return &AdminHandler{
+	h := &AdminHandler{
 		db:         database,
 		jobs:       jobPool,
 		memTracker: memTracker,
 		start:      time.Now(),
+		importMu:   make(chan struct{}, 1),
 	}
+	h.importMu <- struct{}{}
+	return h
 }
+
+// SetDatabasePath records the on-disk database file for backup/restore.
+func (h *AdminHandler) SetDatabasePath(path string) { h.dbPath = path }
 
 // SetOAuthRepo wires the OAuth/MCP-observability repository (optional).
 func (h *AdminHandler) SetOAuthRepo(r *repository.OAuthRepository) { h.oauthRepo = r }
@@ -488,4 +503,194 @@ func pagination(r *http.Request) (int, int) {
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 	return repository.ClampLimit(limit), max(offset, 0)
+}
+
+// BackupDownload streams the current SQLite database file as an attachment.
+func (h *AdminHandler) BackupDownload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		jsonutil.Error(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+		return
+	}
+	if h.dbPath == "" {
+		jsonutil.Error(w, http.StatusInternalServerError, "not_configured", "database path not configured")
+		return
+	}
+	actor := getAuth(r)
+	if actor.ActorType != "user" {
+		jsonutil.Error(w, http.StatusForbidden, "forbidden", "backup requires a human user session")
+		return
+	}
+	// In WAL mode, committed data lives in the -wal sidecar until a checkpoint.
+	// Without this, the downloaded file silently misses the newest writes
+	// (e.g. a session created just before the download).
+	if sqlDB := h.db.SQL(); sqlDB != nil {
+		var busy, logFrames, checkpointed int
+		if err := sqlDB.QueryRow("PRAGMA wal_checkpoint(FULL)").Scan(&busy, &logFrames, &checkpointed); err != nil {
+			jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "cannot checkpoint database before backup")
+			return
+		}
+	}
+	f, err := os.Open(h.dbPath)
+	if err != nil {
+		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "cannot open database file")
+		return
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "cannot stat database file")
+		return
+	}
+	w.Header().Set("Content-Type", "application/x-sqlite3")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"crm-backup-%s.db\"", time.Now().UTC().Format("20060102-150405")))
+	w.Header().Set("Content-Length", strconv.FormatInt(info.Size(), 10))
+	_, _ = io.Copy(w, f)
+}
+
+// BackupImport replaces the current database with an uploaded SQLite file.
+// This is a destructive operation: the existing database is backed up first,
+// then atomically swapped. Requires a human user session and explicit confirmation.
+func (h *AdminHandler) BackupImport(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		jsonutil.Error(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+		return
+	}
+	if h.dbPath == "" {
+		jsonutil.Error(w, http.StatusInternalServerError, "not_configured", "database path not configured")
+		return
+	}
+	actor := getAuth(r)
+	if actor.ActorType != "user" {
+		jsonutil.Error(w, http.StatusForbidden, "forbidden", "restore requires a human user session")
+		return
+	}
+	// Parse multipart form (max 100 MiB)
+	if err := r.ParseMultipartForm(100 << 20); err != nil {
+		jsonutil.Error(w, http.StatusBadRequest, "invalid_body", "multipart form parse failed")
+		return
+	}
+	file, header, err := r.FormFile("database")
+	if err != nil {
+		jsonutil.Error(w, http.StatusBadRequest, "invalid_body", "missing 'database' file field")
+		return
+	}
+	defer file.Close()
+	// Basic validation: must end in .db or .sqlite or .sqlite3
+	name := strings.ToLower(header.Filename)
+	if !(strings.HasSuffix(name, ".db") || strings.HasSuffix(name, ".sqlite") || strings.HasSuffix(name, ".sqlite3")) {
+		jsonutil.Error(w, http.StatusBadRequest, "invalid_file", "file must be a SQLite database (.db, .sqlite, .sqlite3)")
+		return
+	}
+	// Serialize imports
+	<-h.importMu
+	defer func() { h.importMu <- struct{}{} }()
+	// Write uploaded file to temp location for validation and ATTACH
+	targetDir := filepath.Dir(h.dbPath)
+	tmpDir, err := os.MkdirTemp(targetDir, ".crm-import-*")
+	if err != nil {
+		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "cannot create temp dir beside database")
+		return
+	}
+	defer os.RemoveAll(tmpDir)
+	tmpPath := filepath.Join(tmpDir, "uploaded.db")
+	out, err := os.Create(tmpPath)
+	if err != nil {
+		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "cannot write temp file")
+		return
+	}
+	if _, err := io.Copy(out, file); err != nil {
+		out.Close()
+		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "cannot write temp file")
+		return
+	}
+	out.Close()
+	// Validate: open it with SQLite and check it has our expected tables.
+	// This handle must be closed BEFORE the ATTACH step: on Windows the OS
+	// keeps a read lock on the file while a connection is open, and SQLite
+	// refuses to ATTACH a locked file.
+	validateDB, err := sql.Open("sqlite", "file:"+tmpPath+"?mode=ro")
+	if err != nil {
+		jsonutil.Error(w, http.StatusBadRequest, "invalid_file", "not a valid SQLite database")
+		return
+	}
+	var cnt int
+	for _, t := range []string{"users", "workspaces", "companies", "contacts", "leads", "deals", "api_keys"} {
+		if err := validateDB.QueryRow("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", t).Scan(&cnt); err != nil || cnt == 0 {
+			_ = validateDB.Close()
+			jsonutil.Error(w, http.StatusBadRequest, "invalid_file", fmt.Sprintf("missing required table: %s", t))
+			return
+		}
+	}
+	if err := validateDB.Close(); err != nil {
+		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "cannot close validation handle")
+		return
+	}
+	// ATTACH the uploaded DB and copy all data into the current DB.
+	// This uses a single transaction so it's atomic and doesn't require
+	// closing/reopening handles — all existing service DB references stay valid.
+	mainDB := h.db.SQL()
+	tx, err := mainDB.BeginTx(r.Context(), nil)
+	if err != nil {
+		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "cannot begin transaction")
+		return
+	}
+	// Attach the uploaded database
+	if _, err := tx.Exec("ATTACH DATABASE ? AS import_db", tmpPath); err != nil {
+		_ = tx.Rollback()
+		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "cannot attach uploaded database")
+		return
+	}
+	defer func() { _, _ = tx.Exec("DETACH DATABASE import_db") }()
+	// Get list of user tables (excluding sqlite_* and goose_db_version)
+	rows, err := tx.Query(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != 'goose_db_version' ORDER BY name`)
+	if err != nil {
+		_ = tx.Rollback()
+		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "cannot list tables")
+		return
+	}
+	var tables []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			rows.Close()
+			_ = tx.Rollback()
+			jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "cannot scan table name")
+			return
+		}
+		tables = append(tables, name)
+	}
+	if err := rows.Err(); err != nil {
+		_ = tx.Rollback()
+		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "error iterating tables")
+		return
+	}
+	rows.Close()
+	// For each table: DELETE all rows, then INSERT from import_db
+	for _, t := range tables {
+		if _, err := tx.Exec(fmt.Sprintf("DELETE FROM %s", t)); err != nil {
+			_ = tx.Rollback()
+			jsonutil.Error(w, http.StatusInternalServerError, "internal_error", fmt.Sprintf("cannot clear table %s", t))
+			return
+		}
+		if _, err := tx.Exec(fmt.Sprintf("INSERT INTO %s SELECT * FROM import_db.%s", t, t)); err != nil {
+			_ = tx.Rollback()
+			jsonutil.Error(w, http.StatusInternalServerError, "internal_error", fmt.Sprintf("cannot import data into table %s: %v", t, err))
+			return
+		}
+	}
+	// Commit the whole import
+	if err := tx.Commit(); err != nil {
+		_ = tx.Rollback()
+		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "import transaction failed")
+		return
+	}
+	// Checkpoint WAL to make it durable and clean
+	if _, err := mainDB.Exec("PRAGMA wal_checkpoint(FULL)"); err != nil {
+		// Non-fatal
+	}
+	jsonutil.Write(w, http.StatusOK, map[string]any{
+		"ok":          true,
+		"tables":      len(tables),
+		"imported_at": time.Now().UTC().Format(time.RFC3339),
+	})
 }

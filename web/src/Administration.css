@@ -236,6 +236,20 @@ a.ad-overview-stat:hover { border-color: #cebfac; box-shadow: 0 3px 10px #392213
 .ad-settings-links > a > svg { color: #a28151; }
 .ad-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
 
+/* Backup & restore */
+.ad-backup-section { padding: 0 22px 22px; }
+.ad-backup-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding: 18px 0; }
+.ad-backup-row > div:first-child { flex: 1; min-width: 0; }
+.ad-backup-row h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 7px; font: 500 12px / 1.5 var(--font-family); color: #775334; }
+.ad-backup-row h4 svg { color: #b48347; flex-shrink: 0; }
+.ad-backup-row p { margin: 0; font-size: 10px; line-height: 1.9; color: #75695f; }
+.ad-backup-row .ad-warning-icon { display: inline-block; vertical-align: -2px; margin-right: 4px; color: #b8562e; }
+.ad-divider { height: 0; border-top: 1px solid #e8d6b9; }
+.ad-file-input { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 12px; border: 1px solid #e4d3b8; border-radius: 5px; background: #fff; font-size: 11px; color: #775334; }
+.ad-file-input:hover { background: #faf4e9; }
+.ad-file-name { font-size: 10px; color: #75695f; max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width:560px) { .ad-backup-section { padding: 0 16px 18px; } .ad-backup-row { flex-direction: column; gap: 14px; } .ad-backup-row .ad-button { width: 100%; } .ad-import-controls { width: 100%; } }
+
 /* Preserve existing access and webhook workflows within the new admin shell. */
 .admin-area > .space-y-6 > .ad-page-header { margin-bottom: 0; }
 .admin-area .text-neutral-900 { color: #302720; }

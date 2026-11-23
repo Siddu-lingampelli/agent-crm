@@ -28,3 +28,4 @@ cookies.txt
 dev_cookies.txt
 empty_cookies.txt
 crm.exe~
+crm.db.pre-import-*

@@ -263,6 +263,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	// Initialize MCP server with all services + per-tool observability
 	oauthRepo := repository.NewOAuthRepository(database.SQL())
 	app.adminHandler.SetOAuthRepo(oauthRepo)
+	app.adminHandler.SetDatabasePath(cfg.Database.Path)
 	app.oauthRepo = oauthRepo
 	app.mcpServer = mcp.NewServer(
 		mcp.NewCRMTools(
@@ -496,6 +497,10 @@ func (a *App) registerRoutes(srv *httpserver.Server) {
 	srv.HandleFunc("/api/v1/admin/audit", a.adminHandler.AuditLogs)
 	srv.HandleFunc("/api/v1/admin/workflows", a.adminHandler.Workflows)
 	srv.HandleFunc("/api/v1/admin/integrations", a.adminHandler.Integrations)
+
+	// Backup / Restore (requires human user session, CSRF-protected via session auth)
+	srv.HandleFunc("/api/v1/admin/backup/download", a.adminHandler.BackupDownload)
+	srv.HandleFunc("/api/v1/admin/backup/import", a.adminHandler.BackupImport)
 
 	// MCP connections: OAuth clients, issued access tokens, and per-tool activity.
 	srv.HandleFunc("/api/v1/mcp/clients", a.oauthHandler.ListClients)
