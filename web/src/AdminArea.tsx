@@ -12,7 +12,7 @@ export function AdminArea({ children }: { children: ReactNode }) {
   })}</nav>{children}</div>;
 }
 export function AdminTitle({ title, description }: { title: string; description: string }) {
-  return <div className="ad-title"><span className="ad-eyebrow">WORKSPACE ADMINISTRATION</span><h1>{title}</h1><p>{description}</p></div>;
+  return <div className="ad-title"><h1>{title}</h1><p>{description}</p></div>;
 }
 export function AdminHeader({ title, description, actions }: { title: string; description: string; actions?: ReactNode }) {
   return <header className="ad-page-header"><AdminTitle title={title} description={description} />{actions && <div className="ad-header-actions">{actions}</div>}</header>;

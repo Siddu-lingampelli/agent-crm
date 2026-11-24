@@ -233,7 +233,7 @@ interface KPIMetric {
 }
 
 interface DataTableToolbarProps {
-  title: string;
+  title?: string;
   description?: string;
   actions?: React.ReactNode;
   searchProps?: {
@@ -252,6 +252,7 @@ interface DataTableToolbarProps {
     currentView: string;
     views: { id: string; label: string; icon: React.ReactNode }[];
     onChange: (view: string) => void;
+    showLabels?: boolean;
   };
   bulkActions?: {
     selectedCount: number;
@@ -1185,11 +1186,11 @@ export function Breadcrumbs({ items, separator = <ChevronRightIcon className="w-
 
 export function DataTableToolbar({ title, description, actions, searchProps, filterProps, viewOptions, bulkActions }: DataTableToolbarProps) {
   return <div className="record-toolbar">
-    <div className="record-toolbar-head"><div><h2>{title}</h2>{description && <p>{description}</p>}</div>{actions}</div>
+    {(title || description || actions) && <div className="record-toolbar-head"><div>{title && <h2>{title}</h2>}{description && <p>{description}</p>}</div>{actions}</div>}
     <div className="record-toolbar-controls">
       {searchProps && <div className="search-input-wrapper"><Search className="search-icon" aria-hidden="true" /><input type="search" value={searchProps.query} onChange={event => searchProps.onChange(event.target.value)} placeholder={searchProps.placeholder || 'Search records...'} aria-label={searchProps.placeholder || 'Search records'} className="search-input" /></div>}
       {filterProps && <div className="record-filters">{filterProps.filters.map(filter => <select key={filter.value} value={filterProps.values[filter.value] || ''} onChange={event => filterProps.onChange(filter.value, event.target.value)} className="filter-select" aria-label={filter.label}><option value="">All {filter.label}</option>{filter.options.filter(option => option.value !== '').map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>)}{filterProps.hasActiveFilters && <button onClick={filterProps.onClear} className="btn btn-ghost btn-sm"><X size={13} />Clear</button>}</div>}
-      {viewOptions && <div className="btn-group" role="group" aria-label="View options">{viewOptions.views.map(view => <button key={view.id} onClick={() => viewOptions.onChange(view.id)} className={'btn ' + (viewOptions.currentView === view.id ? 'btn-primary' : 'btn-ghost')} aria-label={view.label} title={view.label} aria-pressed={viewOptions.currentView === view.id}>{view.icon}</button>)}</div>}
+      {viewOptions && <div className="btn-group" role="group" aria-label="View options">{viewOptions.views.map(view => <button key={view.id} onClick={() => viewOptions.onChange(view.id)} className={'btn ' + (viewOptions.currentView === view.id ? 'btn-primary' : 'btn-ghost')} aria-label={view.label} title={view.label} aria-pressed={viewOptions.currentView === view.id}>{viewOptions.showLabels && <span>{view.label}</span>}{view.icon}</button>)}</div>}
     </div>
     {bulkActions && bulkActions.selectedCount > 0 && <div className="record-bulk" role="region" aria-label="Selected record actions"><span>{bulkActions.selectedCount} selected</span>{bulkActions.actions.map(action => <button key={action.label} onClick={action.onClick} className={'btn btn-sm ' + (action.variant === 'danger' ? 'btn-danger' : action.variant === 'primary' ? 'btn-primary' : 'btn-secondary')}>{action.label}</button>)}</div>}
   </div>;

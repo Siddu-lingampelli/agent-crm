@@ -1,101 +1,45 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
-import { ArrowDownToLine, ArrowRight, ArrowUpFromLine, Building2, ChevronLeft, ChevronRight, Contact, DollarSign, Loader2, Plus, Users, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, Building2, ChevronLeft, ChevronRight, Loader2, Plus, Users, X } from 'lucide-react';
 import './Crm.css';
 import type { Company, Contact as ContactRecord } from './api';
 import { Badge, getStatusBadge } from './components';
 import { Briefcase, Globe, Mail, Pencil, Phone, Trash2 } from 'lucide-react';
 
-export function CrmHeader({
-  title,
-  description,
-  onCreate,
-  onExport,
-  onImport,
-  busy,
-}: { title: string; description: string; onCreate: () => void; onExport: () => void; onImport?: (file: File) => Promise<void>; busy: boolean }) {
+export function CrmHeader({ title, description, recordCount, onCreate, onExport, onImport, busy }: { title: string; description: string; recordCount?: number; onCreate: () => void; onExport: () => void; onImport?: (file: File) => Promise<void>; busy: boolean }) {
   const singular = title === 'Companies' ? 'company' : title.slice(0, -1).toLowerCase();
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const handleImport = async () => {
-    if (!importFile || importing) return;
-    if (!onImport) return;
-    setImporting(true);
-    setImportError(null);
-    setImportSuccess(null);
+    if (!importFile || importing || !onImport) return;
+    setImporting(true); setImportError(null); setImportSuccess(null);
     try {
-      await onImport(importFile);
-      setImportSuccess('Import complete — list refreshed.');
-      setImportFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    } catch (e) {
-      setImportError(e instanceof Error ? e.message : 'Import failed');
-    } finally {
-      setImporting(false);
-    }
+      await onImport(importFile); setImportSuccess('Import complete. List refreshed.');
+      setImportFile(null); if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (error) { setImportError(error instanceof Error ? error.message : 'Import failed'); }
+    finally { setImporting(false); }
   };
-
-  return (
-    <>
-      <nav className="crm-nav" aria-label="Sales navigation">
-        {[{ to: '/leads', name: 'Leads', icon: Users }, { to: '/deals', name: 'Deals', icon: DollarSign }, { to: '/contacts', name: 'Contacts', icon: Contact }, { to: '/companies', name: 'Companies', icon: Building2 }].map(({ to, name, icon: Icon }) => (
-          <NavLink key={to} to={to}>
-            <Icon size={14} />{name}
-          </NavLink>
-        ))}
-      </nav>
-      <header className="crm-heading">
-        <div>
-          <span className="crm-eyebrow">WORKSPACE / RELATIONSHIPS</span>
-          <h1>{title}</h1>
-          <p>{description}</p>
-        </div>
-        <div className="crm-heading-actions">
-          <button className="crm-button" onClick={onExport} disabled={busy}>
-            <ArrowDownToLine size={14} /> Export
-          </button>
-          {onImport && (
-            <>
-              <input type="file" ref={fileInputRef} accept=".csv" hidden onChange={e => setImportFile(e.target.files?.[0] || null)} disabled={importing} />
-              <button className="crm-button" onClick={() => fileInputRef.current?.click()} disabled={busy || importing}>
-                <ArrowUpFromLine size={14} /> Import
-              </button>
-              {importFile && (
-                <div className="crm-import-status" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#775334' }}>
-                  <span>{importFile.name}</span>
-                  <button className="crm-button" onClick={handleImport} disabled={importing} style={{ padding: '4px 8px', fontSize: 11, minHeight: 28 }}>
-                    {importing ? <Loader2 size={12} className="loading-spinner" /> : 'Upload'}
-                  </button>
-                  {importError && <span style={{ color: '#b8562e' }}>{importError}</span>}
-                  {importSuccess && <span style={{ color: '#46673a' }}>{importSuccess}</span>}
-                </div>
-              )}
-            </>
-          )}
-          <button className="crm-button crm-primary" onClick={onCreate} disabled={busy}>
-            <Plus size={15} /> New {singular}
-          </button>
-        </div>
-      </header>
-    </>
-  );
+  return <header className="crm-heading" aria-description={description}>
+    <div className="crm-page-title"><h1>{title}</h1>{recordCount !== undefined && <span>{recordCount.toLocaleString()} {recordCount === 1 ? 'record' : 'records'}</span>}</div>
+    <div className="crm-heading-actions">
+      <button className="crm-button" onClick={onExport} disabled={busy}><ArrowDownToLine size={14} />Export</button>
+      {onImport && <>
+        <input type="file" ref={fileInputRef} accept=".csv" hidden onChange={event => setImportFile(event.target.files?.[0] || null)} disabled={importing} />
+        <button className="crm-button" onClick={() => fileInputRef.current?.click()} disabled={busy || importing}><ArrowUpFromLine size={14} />Import</button>
+        {importFile && <div className="crm-import-status"><span>{importFile.name}</span><button className="crm-button" onClick={handleImport} disabled={importing}>{importing ? <Loader2 size={12} className="loading-spinner" /> : 'Upload'}</button>{importError && <span role="alert">{importError}</span>}{importSuccess && <span role="status">{importSuccess}</span>}</div>}
+      </>}
+      <button className="crm-button crm-primary" onClick={onCreate} disabled={busy}><Plus size={15} />New {singular}</button>
+    </div>
+  </header>;
 }
-
-export function CrmSummary({ items, loading }: { items: { label: string; value: ReactNode; note: string }[]; loading: boolean }) {
-  return <div className="crm-summary" aria-busy={loading}>{items.map(item => <div key={item.label}><span>{item.label}</span><strong>{loading ? '\u2014' : item.value}</strong><small>{item.note}</small></div>)}</div>;
-}
-
 export function CrmState({ loading, error, empty, onRetry, onCreate, noun, filtered, children }: { loading: boolean; error: string; empty: boolean; onRetry: () => void; onCreate: () => void; noun: string; filtered: boolean; children: ReactNode }) {
-  if (loading) return <div className="crm-state" role="status"><Loader2 size={22} className="loading-spinner" /><p>Loading {noun}...</p></div>;
-  if (error) return <div className="crm-state" role="alert"><Building2 size={27} /><h2>Could not load {noun}</h2><p>Your records could not be retrieved. Try connecting again.</p><button className="crm-button" onClick={onRetry}>Try again<ArrowRight size={14} /></button></div>;
-  if (empty) return <div className="crm-state"><span className="crm-empty-mark"><Users size={23} /></span><h2>{filtered ? 'No matching ' : 'Make room for new '}{noun}</h2><p>{filtered ? 'Try another search or clear your filters to see more records.' : 'Keep your relationships, details, and next opportunities together.'}</p>{!filtered && <button className="crm-button crm-primary" onClick={onCreate}><Plus size={14} />Add your first {noun === 'companies' ? 'company' : noun.slice(0, -1)}</button>}</div>;
+  if (loading) return <div className="crm-state" role="status"><Loader2 size={15} className="loading-spinner" />Loading {noun}...</div>;
+  if (error) return <div className="crm-state" role="alert"><span>Could not load {noun}. <button className="crm-inline-action" onClick={onRetry}>Retry</button></span></div>;
+  if (empty) return <div className="crm-state"><span>{filtered ? `No matching ${noun}.` : `No ${noun} yet.`}</span>{filtered ? <span>Adjust your search or filters.</span> : <button className="crm-inline-action" onClick={onCreate}><Plus size={13} /> Add {noun === 'companies' ? 'company' : noun.slice(0, -1)}</button>}</div>;
   return <>{children}</>;
 }
-
 export function CrmPagination({ page, pageSize, total, onPage, onSize, busy }: { page: number; pageSize: number; total: number; onPage: (page: number) => void; onSize: (size: number) => void; busy: boolean }) {
   const pages = Math.max(1, Math.ceil(total / pageSize));
   return <footer className="crm-pagination"><span>{total ? `${(page - 1) * pageSize + 1}\u2013${Math.min(page * pageSize, total)}` : '0'} of {total} records</span><label><span className="sr-only">Records per page</span><select aria-label="Records per page" value={pageSize} onChange={event => onSize(Number(event.target.value))} disabled={busy}>{[10, 25, 50, 100].map(size => <option key={size} value={size}>{size} per page</option>)}</select></label><div><button onClick={() => onPage(page - 1)} disabled={busy || page <= 1} aria-label="Previous page"><ChevronLeft size={16} /></button><span>Page {page} of {pages}</span><button onClick={() => onPage(page + 1)} disabled={busy || page >= pages} aria-label="Next page"><ChevronRight size={16} /></button></div></footer>;

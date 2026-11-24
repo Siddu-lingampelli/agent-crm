@@ -1,5 +1,5 @@
 import { exportCrmPage } from './crm-data';
-import { CrmCompanyCards, CrmHeader, CrmSummary, CrmState, CrmPagination, CrmDialog as Modal } from './CrmUI';
+import { CrmCompanyCards, CrmHeader, CrmState, CrmPagination, CrmDialog as Modal } from './CrmUI';
 import { workBatch, workDate } from './work-data';
 import { useRecordRoute } from './useRecordRoute';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -226,22 +226,21 @@ export function CompaniesPage() {
 
   return (
     <div className="crm-area">
-      <CrmHeader title="Companies" description="Every account, with the context to grow it." onCreate={handleCreate} busy={loading || !!loadError} onExport={() => exportCrmPage('companies', companies, [{ key: 'name', label: 'name' }, { key: 'domain', label: 'domain' }, { key: 'industry', label: 'industry' }, { key: 'status', label: 'status' }, { key: 'is_client', label: 'is client' }, { key: 'email', label: 'email' }])} onImport={async (file) => {
+      <CrmHeader title="Companies" recordCount={total} description="Every account, with the context to grow it." onCreate={handleCreate} busy={loading || !!loadError} onExport={() => exportCrmPage('companies', companies, [{ key: 'name', label: 'name' }, { key: 'domain', label: 'domain' }, { key: 'industry', label: 'industry' }, { key: 'status', label: 'status' }, { key: 'is_client', label: 'is client' }, { key: 'email', label: 'email' }])} onImport={async (file) => {
         const fd = new FormData();
         fd.append('file', file);
         const res = await fetch('/api/v1/companies/import', { method: 'POST', body: fd });
         if (!res.ok) { const j = await res.json().catch(() => null); throw new Error(j?.error?.message || 'Import failed'); }
-        fetchCompanies();
+        await fetchCompanies();
       }} />
-      <CrmSummary loading={loading || !!loadError} items={[{ label: 'Matching companies', value: total, note: 'With current filters' }, { label: 'Client accounts', value: companies.filter(c => c.is_client).length, note: 'On this page' }, { label: 'Active accounts', value: companies.filter(c => c.status === 'active').length, note: 'On this page' }]} />
+      <section className="crm-index" aria-label="companies records">
 
       <DataTableToolbar
-        title="All Companies"
-        description={`${companies.length} loaded on this page`}
         searchProps={{ query, onChange: (value: string) => { setQuery(value); setPage(1); }, placeholder: 'Search companies by name, domain, industry...' }}
         filterProps={{ filters, values: filterValues, onChange: handleFilterChange, onClear: clearFilters, hasActiveFilters }}
         viewOptions={{
           currentView: viewMode,
+          showLabels: true,
           views: [
             { id: 'table', label: 'Table', icon: <TableIcon className="w-4 h-4" /> },
             { id: 'cards', label: 'Cards', icon: <Grid className="w-4 h-4" /> },
@@ -256,7 +255,6 @@ export function CompaniesPage() {
           ]
         } : undefined}
       />
-
       <CrmState loading={loading} error={loadError} empty={!companies.length} onRetry={fetchCompanies} onCreate={handleCreate} noun="companies" filtered={!!query || hasActiveFilters}>
       {viewMode === 'table' ? (
         <>
@@ -279,6 +277,8 @@ export function CompaniesPage() {
 
       </CrmState>
       {!loadError && <CrmPagination page={page} pageSize={pageSize} total={total} onPage={setPage} onSize={size => { setPageSize(size); setPage(1); }} busy={loading || submitLoading} />}
+
+      </section>
 
       <Modal busy={submitLoading} isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingCompany ? 'Edit Company' : 'New Company'} size="lg">
         <div className="space-y-4 max-h-[70vh] overflow-y-auto">

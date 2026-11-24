@@ -150,6 +150,7 @@ export function MailInboxPage() {
   );
   const items = messages.data?.items ?? [];
   const conns = connections.data?.items ?? [];
+  const oauthProviders = oauth.providers ?? [];
   const selected = items.find(m => m.id === selectedId) ?? items[0];
 
   async function syncNow() {
@@ -181,10 +182,10 @@ export function MailInboxPage() {
     <CommunicationsHeader title="Inbox" description="Connected mailboxes, inbound messages, and sender replies linked to your CRM records.">
       <RefreshButton loading={messages.loading || connections.loading} onClick={() => { messages.refresh(); connections.refresh(); }} />
       <Button onClick={syncNow} disabled={busy}><RefreshCw size={15} className={busy ? 'au-spin' : ''} />Sync now</Button>
-      {oauth.providers?.map(p => (
+      {conns.length > 0 && oauthProviders.map(p => (
         <Button key={p.id} onClick={() => oauth.connect(p.id)} disabled={!p.configured || !!oauth.busyProvider}
           title={p.configured ? `Connect ${p.name} — you'll authorize on their site` : 'Not configured on this server (set CRM_MAIL_OAUTH_*_CLIENT_ID/SECRET)'}
-          className={oauth.busyProvider === p.id ? 'au-spin-wrap' : ''}>
+          className={`cm-oauth-connect${oauth.busyProvider === p.id ? ' au-spin-wrap' : ''}`}>
           <span className={`cm-oauth-mark is-${p.id}`} aria-hidden="true">{p.id === 'google' ? 'G' : 'M'}</span>{p.name.replace(' (', ' · ').replace(')', '')}{oauth.busyProvider === p.id ? '…' : ''}
         </Button>
       ))}
@@ -193,7 +194,8 @@ export function MailInboxPage() {
     {notice && <Message message={notice} onClose={() => setNotice('')} />}
     {(error || oauth.error) && <Message message={error || oauth.error} error onClose={() => { setError(''); oauth.clearError(); }} />}
 
-    {conns.length > 0 && <section className="au-panel" style={{ marginBottom: 16 }} aria-label="Mail connections">
+    {conns.length > 0 && <section className="au-panel cm-connections-panel" aria-label="Connected inboxes">
+      <header className="cm-connections-header"><div><h2>Connected inboxes</h2><p>Accounts that sync inbound mail into your workspace.</p></div><span>{conns.length} {conns.length === 1 ? 'mailbox' : 'mailboxes'}</span></header>
       <div className="cm-mail-connections">
         {conns.map(c => <div className="cm-connection-row" key={c.id}>
           <span className="cm-connection-icon"><Server size={18} /></span>
@@ -229,22 +231,18 @@ export function MailInboxPage() {
         </div>
         {messages.error && <Message message={messages.error} error onRetry={messages.refresh} />}
         {messages.loading && !messages.data ? <Loading /> : messages.error && !messages.data ? null : !items.length ? (
-          <CommunicationsEmpty icon={<Inbox size={29} />} title={query ? 'No matching messages' : conns.length ? 'No messages yet' : 'Connect your inbox to receive mail'} description={conns.length ? 'Run "Sync now" to fetch recent messages from your connected mailboxes.' : 'Click Google or Microsoft above — one click, you authorize on their site, and you are connected. No password is stored by us.'}>
-            {!conns.length && <div className="cm-oauth-providers">
-              {(oauth.providers ?? []).map(p => (
+          <CommunicationsEmpty icon={<Inbox size={29} />} title={query ? 'No matching messages' : conns.length ? 'No messages yet' : 'Connect your inbox to receive mail'} description={query ? 'Try another search or clear your filters.' : conns.length ? 'Run "Sync now" to fetch recent messages from your connected mailboxes.' : oauthProviders.some(provider => provider.configured) ? 'Choose an email provider below, or connect a mailbox manually.' : 'OAuth sign-in is not configured on this server. Connect an inbox manually with IMAP, or ask an administrator to configure Google or Microsoft OAuth.'}>
+            {!conns.length && oauthProviders.length > 0 && <div className="cm-oauth-providers">
+              {oauthProviders.map(p => (
                 <button key={p.id} className="cm-oauth-provider" disabled={!p.configured || !!oauth.busyProvider} onClick={() => oauth.connect(p.id)}>
                   <strong><span className={`cm-oauth-mark is-${p.id}`} aria-hidden="true">{p.id === 'google' ? 'G' : 'M'}</span>{p.name}</strong>
                   <span>{p.configured ? 'Click to connect — you will authorize on the provider site' : 'Not configured on this server'}</span>
                 </button>
               ))}
-              <button className="cm-oauth-provider" onClick={() => setEditor({})}>
-                <strong><span className="cm-oauth-mark is-imap" aria-hidden="true"><MailPlus size={15} /></span>IMAP manually</strong>
-                <span>Enter server, username and password (stored encrypted)</span>
-              </button>
             </div>}
           </CommunicationsEmpty>
         ) : <div className="cm-mail-columns">
-          <div className="cm-message-list" aria-label="Inbound messages">
+          <div className="cm-message-list" role="region" aria-label="Inbound messages">
             <div className="cm-message-list-heading"><span>{folder === 'all' ? 'All messages' : folder === 'unread' ? 'Unread' : 'Archived'}</span><small>{messages.data?.total} messages</small></div>
             {items.map(m => <button className={`cm-message-item${selected?.id === m.id ? ' is-selected' : ''}${m.is_read ? '' : ' is-unread'}`} aria-pressed={selected?.id === m.id} key={m.id} onClick={() => setSelectedId(m.id)}>
               <span className="cm-message-item-to">{m.from_name || m.from_addr}</span>
@@ -255,7 +253,7 @@ export function MailInboxPage() {
           </div>
           {selected && <InboundReader key={selected.id} message={selected} onBack={() => setSelectedId('')} onChanged={() => { messages.refresh(); }} />}
         </div>}
-        <Pagination page={page} size={size} total={messages.data?.total ?? 0} onPage={v => { setPage(v); setSelectedId(''); }} onSize={v => { setSize(v); setPage(1); setSelectedId(''); }} />
+        {!!messages.data?.total && <Pagination page={page} size={size} total={messages.data.total} onPage={v => { setPage(v); setSelectedId(''); }} onSize={v => { setSize(v); setPage(1); setSelectedId(''); }} />}
       </div>
     </section>
 
@@ -267,4 +265,4 @@ export function MailInboxPage() {
   </div>;
 }
 
-function StatusDot() { return <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: 'var(--au-accent, #4f46e5)', marginRight: 6 }} aria-label="Unread" />; }
+function StatusDot() { return <span className="cm-unread-dot" role="img" aria-label="Unread" title="Unread" />; }

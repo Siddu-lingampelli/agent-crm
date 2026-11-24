@@ -1,5 +1,5 @@
 import { crmMoney, exportCrmPage } from './crm-data';
-import { CrmHeader, CrmSummary, CrmState, CrmPagination, CrmDialog as Modal } from './CrmUI';
+import { CrmHeader, CrmState, CrmPagination, CrmDialog as Modal } from './CrmUI';
 import { workBatch, workDate, useWorkToday } from './work-data';
 import { useRecordRoute } from './useRecordRoute';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -301,22 +301,21 @@ export function LeadsPage() {
 
   return (
     <div className="crm-area">
-      <CrmHeader title="Leads" description="Turn the next conversation into a lasting relationship." onCreate={handleCreate} busy={loading || !!loadError} onExport={() => exportCrmPage('leads', leads, [{ key: 'display_name', label: 'display name' }, { key: 'email', label: 'email' }, { key: 'company_name', label: 'company name' }, { key: 'status', label: 'status' }, { key: 'source', label: 'source' }, { key: 'priority', label: 'priority' }, { key: 'estimated_value', label: 'estimated value' }, { key: 'currency', label: 'currency' }])} onImport={async (file) => {
+      <CrmHeader title="Leads" recordCount={total} description="Turn the next conversation into a lasting relationship." onCreate={handleCreate} busy={loading || !!loadError} onExport={() => exportCrmPage('leads', leads, [{ key: 'display_name', label: 'display name' }, { key: 'email', label: 'email' }, { key: 'company_name', label: 'company name' }, { key: 'status', label: 'status' }, { key: 'source', label: 'source' }, { key: 'priority', label: 'priority' }, { key: 'estimated_value', label: 'estimated value' }, { key: 'currency', label: 'currency' }])} onImport={async (file) => {
         const fd = new FormData();
         fd.append('file', file);
         const res = await fetch('/api/v1/leads/import', { method: 'POST', body: fd });
         if (!res.ok) { const j = await res.json().catch(() => null); throw new Error(j?.error?.message || 'Import failed'); }
-        fetchLeads();
+        await fetchLeads();
       }} />
-      <CrmSummary loading={loading || !!loadError} items={[{ label: 'Matching leads', value: total, note: 'With current filters' }, { label: 'Qualified leads', value: leads.filter(l => l.status === 'qualified').length, note: 'On this page' }, { label: 'Needs a follow-up', value: leads.filter(l => l.follow_up_date && l.follow_up_date.slice(0, 10) <= today && !['won', 'lost'].includes(l.status)).length, note: 'Due today or earlier, on this page' }]} />
+      <section className="crm-index" aria-label="leads records">
 
       <DataTableToolbar
-        title="All Leads"
-        description={`${leads.length} loaded on this page`}
         searchProps={{ query, onChange: (value: string) => { setQuery(value); setPage(1); }, placeholder: 'Search leads by name, email, company...' }}
         filterProps={{ filters, values: filterValues, onChange: handleFilterChange, onClear: clearFilters, hasActiveFilters }}
         viewOptions={{
           currentView: viewMode,
+          showLabels: true,
           views: [
             { id: 'table', label: 'Table', icon: <TableIcon className="w-4 h-4" /> },
             { id: 'kanban', label: 'Kanban', icon: <KanbanIcon className="w-4 h-4" /> },
@@ -331,7 +330,6 @@ export function LeadsPage() {
           ]
         } : undefined}
       />
-
       {viewMode === 'kanban' && !loading && !loadError && <p className="crm-board-note">Board shows the leads on this page. Use the page controls to see more. Drag a card or use its Move to menu.</p>}
       <CrmState loading={loading} error={loadError} empty={!leads.length} onRetry={fetchLeads} onCreate={handleCreate} noun="leads" filtered={!!query || hasActiveFilters}>
       {viewMode === 'table' ? (
@@ -393,6 +391,8 @@ export function LeadsPage() {
 
       </CrmState>
       {!loadError && <CrmPagination page={page} pageSize={pageSize} total={total} onPage={setPage} onSize={size => { setPageSize(size); setPage(1); }} busy={loading || submitLoading} />}
+
+      </section>
 
       <Modal busy={submitLoading} isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingLead ? 'Edit Lead' : 'New Lead'} size="lg">
         <div className="space-y-4 max-h-[70vh] overflow-y-auto">

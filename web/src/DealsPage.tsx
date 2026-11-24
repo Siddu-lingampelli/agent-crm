@@ -1,5 +1,5 @@
 import { crmMoney, crmValueSummary, exportCrmPage } from './crm-data';
-import { CrmHeader, CrmSummary, CrmState, CrmPagination, CrmDialog as Modal } from './CrmUI';
+import { CrmHeader, CrmState, CrmPagination, CrmDialog as Modal } from './CrmUI';
 import { workBatch, workDate } from './work-data';
 import { useSearchParams } from 'react-router-dom';
 import { useRecordRoute } from './useRecordRoute';
@@ -64,7 +64,7 @@ const [formData, setFormData] = useState<DealFormData>({
   const [submitLoading, setSubmitLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<Deal | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [viewMode, setViewMode] = useState<'table' | 'kanban'>('kanban');
+  const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
 
   useEffect(() => { setSelectedIds(new Set()); }, [query, stageFilter, page, pageSize]);
 
@@ -291,23 +291,22 @@ const [formData, setFormData] = useState<DealFormData>({
 
   return (
     <div className="crm-area">
-      <CrmHeader title="Deals" description="A clearer view of every opportunity in motion." onCreate={handleCreate} busy={loading || !!loadError} onExport={() => exportCrmPage('deals', deals, [{ key: 'name', label: 'name' }, { key: 'amount', label: 'amount' }, { key: 'currency', label: 'currency' }, { key: 'probability', label: 'probability' }, { key: 'stage_id', label: 'stage id' }, { key: 'expected_close', label: 'expected close' }])} onImport={async (file) => {
+      <CrmHeader title="Deals" recordCount={total} description="A clearer view of every opportunity in motion." onCreate={handleCreate} busy={loading || !!loadError} onExport={() => exportCrmPage('deals', deals, [{ key: 'name', label: 'name' }, { key: 'amount', label: 'amount' }, { key: 'currency', label: 'currency' }, { key: 'probability', label: 'probability' }, { key: 'stage_id', label: 'stage id' }, { key: 'expected_close', label: 'expected close' }])} onImport={async (file) => {
         const fd = new FormData();
         fd.append('file', file);
         const res = await fetch('/api/v1/deals/import', { method: 'POST', body: fd });
         if (!res.ok) { const j = await res.json().catch(() => null); throw new Error(j?.error?.message || 'Import failed'); }
-        fetchDeals();
+        await fetchDeals();
       }} />
-      <CrmSummary loading={loading || !!loadError || !!pipelineError} items={[{ label: 'Matching deals', value: total, note: 'With current filters' }, { label: 'Open pipeline', value: crmValueSummary(deals.filter(d => categoryFor(d) === 'open')), note: 'On this page, grouped by currency' }, { label: 'Weighted pipeline', value: crmValueSummary(deals.filter(d => categoryFor(d) === 'open').map(d => ({ ...d, amount: (d.amount || 0) * d.probability / 100 }))), note: 'Amount × probability, on this page' }]} />
+      <section className="crm-index" aria-label="deals records">
       {pipelineError && <p className="crm-notice" role="alert">{pipelineError} The table view is still available.</p>}
 
       <DataTableToolbar
-        title="Pipeline"
-        description={`${deals.length} loaded on this page`}
         searchProps={{ query, onChange: (value: string) => { setQuery(value); setPage(1); }, placeholder: 'Search deals by name...' }}
         filterProps={{ filters, values: filterValues, onChange: handleFilterChange, onClear: clearFilters, hasActiveFilters }}
         viewOptions={{
           currentView: viewMode,
+          showLabels: true,
           views: [
             { id: 'kanban', label: 'Kanban', icon: <KanbanIcon className="w-4 h-4" /> },
             { id: 'table', label: 'Table', icon: <TableIcon className="w-4 h-4" /> },
@@ -322,7 +321,6 @@ const [formData, setFormData] = useState<DealFormData>({
           ]
         } : undefined}
       />
-
       {viewMode === 'kanban' && !loading && !loadError && <p className="crm-board-note">Board shows the deals on this page. Use the page controls to see more. Drag a card or use its Move to menu.</p>}
       <CrmState loading={loading} error={loadError} empty={!deals.length} onRetry={fetchDeals} onCreate={handleCreate} noun="deals" filtered={!!query || hasActiveFilters}>
       {viewMode === 'kanban' ? (
@@ -391,6 +389,8 @@ const [formData, setFormData] = useState<DealFormData>({
 
       </CrmState>
       {!loadError && <CrmPagination page={page} pageSize={pageSize} total={total} onPage={setPage} onSize={size => { setPageSize(size); setPage(1); }} busy={loading || submitLoading} />}
+
+      </section>
 
       <Modal busy={submitLoading} isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingDeal ? 'Edit Deal' : 'New Deal'} size="lg">
         <div className="space-y-4 max-h-[70vh] overflow-y-auto">{pipelineError && <p className="form-error" role="alert">{pipelineError}</p>}

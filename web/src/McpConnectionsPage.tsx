@@ -142,41 +142,34 @@ export function McpConnectionsPage() {
         }
       />
 
-      <section className={styles.hero} aria-labelledby="mcp-overview-title">
-        <div className={styles.heroMain}>
-          <span className={styles.heroEyebrow}><Network size={13} /> MODEL CONTEXT PROTOCOL</span>
-          <h2 id="mcp-overview-title">Connect your AI tools to your CRM.</h2>
-          <p>Use one secured endpoint to let compatible agents work with this workspace through MCP.</p>
-          <div className={styles.endpointLabel}><span>Workspace endpoint</span><span className={styles.transport}><i /> Stateless HTTP</span></div>
-          <div className={styles.endpointValue}>
-            <code>/api/v1/mcp</code>
-            <button className="ad-icon-button" onClick={() => copyToClipboard('/api/v1/mcp')} aria-label="Copy MCP endpoint" title="Copy endpoint"><Copy size={14} /></button>
-          </div>
-          <div className={styles.heroLinks}>
-            <a href="/.well-known/oauth-protected-resource" target="_blank" rel="noopener noreferrer">Discovery document <ExternalLink size={12} /></a>
-            <Link to="/agent-console">Open agent console <ArrowUpRight size={12} /></Link>
-          </div>
+      <section className={styles.connectionSummary} aria-label="MCP connection details">
+        <div className={styles.endpointBlock}>
+          <span>Workspace endpoint</span>
+          <div><code>/api/v1/mcp</code><button className="ad-icon-button" onClick={() => copyToClipboard('/api/v1/mcp')} aria-label="Copy MCP endpoint" title="Copy endpoint"><Copy size={14} /></button></div>
         </div>
-        <aside className={styles.connectionGuide} aria-label="Connection requirements">
-          <div className={styles.guideHeader}><ShieldCheck size={17} /><span>Connection details</span></div>
-          <div className={styles.guideRow}><span>Authentication</span><strong>Bearer token</strong><code>OAuth JWT or crm_ API key</code></div>
-          <div className={styles.guideRow}><span>Protocol version</span><strong>2024-11-05</strong></div>
-          <div className={styles.guideNote}>Keep API keys private. You can generate a dedicated key for each agent.</div>
-        </aside>
+        <dl className={styles.connectionFacts}>
+          <div><dt>Transport</dt><dd><i /> Stateless HTTP</dd></div>
+          <div><dt>Authentication</dt><dd>Bearer token</dd><small>OAuth JWT or crm_ API key</small></div>
+          <div><dt>Protocol</dt><dd>2024-11-05</dd></div>
+        </dl>
+        <div className={styles.connectionLinks}>
+          <a href="/.well-known/oauth-protected-resource" target="_blank" rel="noopener noreferrer">Discovery document <ExternalLink size={12} /></a>
+          <Link to="/agent-console">Agent console <ArrowUpRight size={12} /></Link>
+        </div>
       </section>
 
       <section className={styles.metrics} aria-label="MCP connection summary" aria-busy={loading}>
-        <div className={styles.metric}><span><Network size={14} /> OAuth clients</span><strong>{loading ? '—' : clients.length}</strong><small>Registered with this workspace</small></div>
-        <div className={styles.metric}><span><ShieldCheck size={14} /> Active tokens</span><strong>{loading ? '—' : activeTokenCount}</strong><small>Not revoked or expired</small></div>
-        <div className={styles.metric}><span><History size={14} /> Tool calls</span><strong>{loading ? '—' : totalCalls.toLocaleString()}</strong><small>In the selected time window</small></div>
-        <div className={`${styles.metric} ${totalErrors ? styles.metricWarning : ''}`}><span><CircleAlert size={14} /> Errors</span><strong>{loading ? '—' : totalErrors.toLocaleString()}</strong><small>Across recorded tool calls</small></div>
+        <div className={styles.metric}><span>OAuth clients</span><strong>{loading ? '—' : clients.length}</strong></div>
+        <div className={styles.metric}><span>Active tokens</span><strong>{loading ? '—' : activeTokenCount}</strong></div>
+        <div className={styles.metric}><span>Tool calls</span><strong>{loading ? '—' : totalCalls.toLocaleString()}</strong></div>
+        <div className={`${styles.metric} ${totalErrors ? styles.metricWarning : ''}`}><span>Errors</span><strong>{loading ? '—' : totalErrors.toLocaleString()}</strong></div>
       </section>
 
       {/* OAuth Clients */}
       <AdminPanel
         title="OAuth clients"
         className={styles.dataPanel}
-        description="Registered OAuth 2.1 clients (dynamic client registration). Each client can request authorization codes and exchange them for JWT access tokens."
+        description="Registered OAuth 2.1 clients and their redirect URIs."
         action={
           <Link className="ad-button" to="/oauth/register" target="_blank" rel="noopener">
             Register client <ExternalLink size={12} />
@@ -258,7 +251,7 @@ export function McpConnectionsPage() {
       <AdminPanel
         title="Issued access tokens"
         className={styles.dataPanel}
-        description="JWT access tokens issued to OAuth clients. The raw token value is never stored — only a short hash prefix is shown for identification. Tokens are scoped to the client's registered scopes and expire automatically."
+        description="Issued credentials, scopes, and expiration status."
       >
         {loading && !tokens.length ? (
           <AdminLoading label="Loading tokens…" />

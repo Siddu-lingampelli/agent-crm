@@ -1,18 +1,11 @@
 ﻿import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { ScrollText, ArrowDownLeft, ArrowUpRight, Building2, CheckSquare, ChevronDown, ChevronRight, CircleAlert, Contact, DollarSign, Home, Loader2, LogOut, Menu, Plus, Search, Settings, Users, X } from 'lucide-react';
+import { ScrollText, ArrowDownLeft, ArrowUpRight, ChevronDown, CircleAlert, Loader2, LogOut, Menu, Search, Settings, X } from 'lucide-react';
 import { api, type SearchResult } from './api';
 import { recordUrl } from './dashboard-data';
 import './Workspace.css';
 
 type NavigationItem = { name: string; href: string; icon: ReactNode };
-const createItems = [
-  { name: 'Deal', href: '/deals?create=1', icon: DollarSign, note: 'Track a sales opportunity' },
-  { name: 'Lead', href: '/leads?create=1', icon: Users, note: 'Start a new relationship' },
-  { name: 'Contact', href: '/contacts?create=1', icon: Contact, note: 'Keep someone in your CRM' },
-  { name: 'Company', href: '/companies?create=1', icon: Building2, note: 'Add a company or account' },
-  { name: 'Task', href: '/tasks?create=1', icon: CheckSquare, note: 'Plan your next follow-up' },
-];
 
 export function WorkspaceShell({ children, navigation, adminNavigation }: { children: ReactNode; navigation: NavigationItem[]; adminNavigation: NavigationItem[] }) {
   const location = useLocation();
@@ -103,12 +96,11 @@ export function WorkspaceShell({ children, navigation, adminNavigation }: { chil
     <aside ref={sidebar} id="workspace-navigation" className={`ws-sidebar${sidebarOpen ? ' is-open' : ''}`} aria-label="Workspace navigation">
       <div className="ws-brand-row"><Link to="/dashboard" className="ws-brand" aria-label="TORQ dashboard"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M3 7h20v6H3zM9 19h20v6H9z" fill="currentColor" transform="rotate(-28 16 16)" /></svg>torq<span>.</span></Link><span className="ws-edition">CRM</span><button ref={closeButton} className="ws-icon-button ws-close" onClick={() => setSidebarOpen(false)} aria-label="Close navigation"><X size={19} /></button></div>
       <Link to="/settings" className="ws-workspace-label"><span className="ws-workspace-symbol">T</span><div>Your workspace<small>CRM workspace</small></div><ChevronDown size={13} /></Link>
-      <details className="ws-create-menu"><summary><Plus size={16} /><span>Create new</span><ChevronDown size={13} /></summary><div className="ws-create-options">{createItems.map(item => <Link key={item.name} to={item.href} onClick={event => { const details = event.currentTarget.closest('details'); if (details) details.open = false; navigateAway(); }}><item.icon size={16} /><span>{item.name}<small>{item.note}</small></span><Plus size={12} /></Link>)}</div></details>
       <nav className="ws-nav" aria-label="Main navigation">{groups.map((group, index) => <div className="ws-nav-group" key={group.label || index}>{group.label && <span className="ws-nav-label">{group.label}</span>}{group.items.map(navLink)}</div>)}<details className="ws-tools" key={current} open={tools.some(item => item.href === location.pathname) || undefined}><summary><Settings size={14} />Administration<ChevronDown size={12} /></summary><div>{tools.map(item => navLink(item.href === '/admin' ? { ...item, name: 'Overview' } : item))}</div></details></nav>
       <div className="ws-sidebar-bottom"><NavLink to="/settings" className={({ isActive }) => `ws-nav-link ws-settings${isActive ? ' is-active' : ''}`} onClick={navigateAway}><Settings size={16} /><span>Settings</span></NavLink><div className="ws-user"><span className="ws-avatar">{initials}</span><div><strong>{accountName}</strong><small>{user?.email || 'TORQ account'}</small></div><button className="ws-icon-button" aria-label="Sign out" title="Sign out" disabled={signingOut} onClick={signOut}><LogOut size={15} /></button></div>{error && <p className="ws-signout-error" role="alert">{error}</p>}</div>
     </aside>
     <div className="ws-body" inert={sidebarOpen}>
-      <header className="ws-header"><nav className="ws-header-location" aria-label="Breadcrumb"><button ref={menuButton} className="ws-icon-button ws-menu" aria-label="Open navigation" aria-expanded={sidebarOpen} aria-controls="workspace-navigation" onClick={() => setSidebarOpen(true)}><Menu size={21} /></button><Link to="/dashboard" aria-label="Workspace home"><Home size={14} /></Link><ChevronRight size={12} /><strong aria-current="page">{current}</strong></nav><div className="ws-header-actions"><button className="ws-search" aria-label="Search CRM records and pages" onClick={openSearch}><Search size={14} /><span>Search anything...</span><kbd>Ctrl K</kbd></button><span className="ws-header-divider" /><Link className="ws-icon-button" to="/audit" aria-label="Audit log" title="Audit log"><ScrollText size={17} /></Link><Link className="ws-avatar" to="/settings" aria-label="Your profile">{initials}</Link></div></header>
+      <header className="ws-header"><div className="ws-header-left"><button ref={menuButton} className="ws-icon-button ws-menu" aria-label="Open navigation" aria-expanded={sidebarOpen} aria-controls="workspace-navigation" onClick={() => setSidebarOpen(true)}><Menu size={19} /></button><button className="ws-search" aria-label="Search CRM records and pages" onClick={openSearch}><Search size={14} /><span>Search anything...</span><kbd>Ctrl K</kbd></button></div><div className="ws-header-actions"><Link className="ws-icon-button" to="/audit" aria-label="Audit log" title="Audit log"><ScrollText size={17} /></Link><Link className="ws-avatar" to="/settings" aria-label="Your profile">{initials}</Link></div></header>
       <main id="workspace-content" tabIndex={-1} className="ws-content">{children}</main>
     </div>
     <dialog ref={dialog} className="ws-command" aria-labelledby="ws-command-title" onClick={event => { if (event.target === event.currentTarget) dialog.current?.close(); }}>

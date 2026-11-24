@@ -1,7 +1,7 @@
-﻿import { useId, useRef, useState, type ReactNode } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowDownToLine, ArrowUpFromLine, CheckSquare, ChevronDown, FolderKanban, Loader2, Search } from 'lucide-react';
-import { api, type Project, type Task } from './api';
+import { ArrowDownToLine, ArrowUpFromLine, ChevronDown, Loader2, Search } from 'lucide-react';
+import { api } from './api';
 import { useAdminData } from './admin-data';
 import { useDebouncedSearch } from './automation-data';
 import './WorkManagement.css';
@@ -38,19 +38,9 @@ export function WorkHeader({
 
   return (
     <>
-      <nav className="au-section-nav" aria-label="Work management">
-        <Link to="/tasks" aria-current={title === 'Tasks' ? 'page' : undefined}>
-          <CheckSquare size={15} /> Tasks
-        </Link>
-        <Link to="/projects" aria-current={title === 'Projects' ? 'page' : undefined}>
-          <FolderKanban size={15} /> Projects
-        </Link>
-      </nav>
-      <header className="au-header">
+      <header className="au-header" aria-description={description}>
         <div>
-          <span className="au-eyebrow">WORK MANAGEMENT</span>
           <h1>{title}</h1>
-          <p>{description}</p>
         </div>
         <div className="au-header-actions">
           {onExport && (
@@ -82,7 +72,7 @@ export function WorkHeader({
     </>
   );
 }
-export function WorkEmpty({kind,title,description,children}:{kind:'project'|'task';title:string;description:string;children?:ReactNode}){const Icon=kind==='project'?FolderKanban:CheckSquare;return <div className="wm-empty"><span><Icon size={25}/></span><h3>{title}</h3><p>{description}</p>{children}</div>;}
+export function WorkEmpty({title,description,children}:{title:string;description:string;children?:ReactNode}){return <div className="wm-empty"><strong>{title}</strong><span>{description}</span>{children}</div>;}
 export function WorkPriority({value}:{value:string}){return <span className={`wm-priority wm-priority-${value}`}>{['high','urgent'].includes(value)&&<i/>}{value||'Not set'}</span>;}
 export function WorkProgress({value,label='Progress'}:{value:number;label?:string}){const safe=Number.isFinite(value)?Math.max(0,Math.min(100,value)):0;return <div className="wm-progress"><div><span>{label}</span><strong>{safe}%</strong></div><div role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={safe}><span style={{width:safe+'%'}}/></div></div>;}
 export function RecordPicker({kind,value,onChange,disabled=false,label}:{kind:'company'|'project';value:string;onChange:(id:string)=>void;disabled?:boolean;label:string}){
@@ -92,4 +82,3 @@ export function RecordPicker({kind,value,onChange,disabled=false,label}:{kind:'c
 }
 export function RecordFilter({kind,value,onChange}:{kind:'company'|'project';value:string;onChange:(value:string)=>void}){const ref=useRef<HTMLDetailsElement>(null);const label=kind==='company'?'Company':'Project';return <details ref={ref} className="wm-record-filter"><summary>{label}{value&&<i/>}<ChevronDown size={13}/></summary><div><RecordPicker kind={kind} value={value} onChange={id=>{onChange(id);if(ref.current)ref.current.open=false;}} label={label}/></div></details>;}
 export function WorkSelection({count,onClear,children}:{count:number;onClear:()=>void;children:ReactNode}){return <div className="wm-selection" role="status"><strong>{count} selected</strong><div>{children}<button onClick={onClear}>Clear selection</button></div></div>;}
-export function WorkSummary({items,kind,total}:{items:Project[]|Task[];kind:'project'|'task';total:number|null}){const active=items.filter(item=>kind==='project'?item.status==='active':['open','in_progress'].includes(item.status)).length;const complete=items.filter(item=>item.status==='completed').length;return <div className="wm-summary"><div><span>Matching {kind==='project'?'projects':'tasks'}</span><strong>{total??'\u2014'}</strong><small>With current filters</small></div><div><span>{kind==='project'?'Active':'Open / In progress'}</span><strong>{total===null?'\u2014':active}</strong><small>In the loaded records</small></div><div><span>Completed</span><strong>{total===null?'\u2014':complete}</strong><small>In the loaded records</small></div></div>;}

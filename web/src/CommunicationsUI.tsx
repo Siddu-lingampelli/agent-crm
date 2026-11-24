@@ -21,7 +21,7 @@ export function CommunicationsHeader({
     setImportSuccess(null);
     try {
       await onImport(importFile);
-      setImportSuccess('Import complete — list refreshed.');
+      setImportSuccess('Import complete. List refreshed.');
       setImportFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (e) {
@@ -34,30 +34,29 @@ export function CommunicationsHeader({
   return (
     <header className="au-header cm-header">
       <div>
-        <span className="au-eyebrow">WORKSPACE</span>
         <h1>{title}</h1>
         <p>{description}</p>
       </div>
       <div className="au-header-actions">
         {onExport && (
-          <button className="crm-button" onClick={onExport}>
+          <button className="au-button" onClick={onExport}>
             <ArrowDownToLine size={14} /> Export
           </button>
         )}
         {onImport && (
           <>
             <input type="file" ref={fileInputRef} accept=".csv" hidden onChange={e => setImportFile(e.target.files?.[0] || null)} disabled={importing} />
-            <button className="crm-button" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+            <button className="au-button" onClick={() => fileInputRef.current?.click()} disabled={importing}>
               <ArrowUpFromLine size={14} /> Import
             </button>
             {importFile && (
-              <div className="crm-import-status" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#775334' }}>
+              <div className="cm-import-status">
                 <span>{importFile.name}</span>
-                <button className="crm-button" onClick={handleImport} disabled={importing} style={{ padding: '4px 8px', fontSize: 11, minHeight: 28 }}>
+                <button className="au-button cm-upload-button" onClick={handleImport} disabled={importing}>
                   {importing ? <Loader2 size={12} className="loading-spinner" /> : 'Upload'}
                 </button>
-                {importError && <span style={{ color: '#b8562e' }}>{importError}</span>}
-                {importSuccess && <span style={{ color: '#46673a' }}>{importSuccess}</span>}
+                {importError && <span className="is-error">{importError}</span>}
+                {importSuccess && <span className="is-success">{importSuccess}</span>}
               </div>
             )}
           </>

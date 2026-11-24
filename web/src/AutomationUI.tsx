@@ -4,7 +4,7 @@ import { ArrowRight, ChevronLeft, ChevronRight, CircleAlert, GitBranch, Loader2,
 import './Automation.css';
 
 export function AutomationHeader({ section, description, children }: { section: 'Workflows' | 'Integrations'; description: string; children?: ReactNode }) {
-  return <><nav className="au-section-nav" aria-label="Automation pages"><Link to="/workflows" aria-current={section === 'Workflows' ? 'page' : undefined}><GitBranch size={15} />Workflows</Link><Link to="/integrations" aria-current={section === 'Integrations' ? 'page' : undefined}><Plug size={15} />Integrations</Link></nav><header className="au-header"><div><span className="au-eyebrow">AUTOMATION</span><h1>{section}</h1><p>{description}</p></div><div className="au-header-actions">{children}</div></header></>;
+  return <><nav className="au-section-nav" aria-label="Automation pages"><Link to="/workflows" aria-current={section === 'Workflows' ? 'page' : undefined}><GitBranch size={15} />Workflows</Link><Link to="/integrations" aria-current={section === 'Integrations' ? 'page' : undefined}><Plug size={15} />Integrations</Link></nav><header className="au-header"><div><h1>{section}</h1><p>{description}</p></div><div className="au-header-actions">{children}</div></header></>;
 }
 export function AutomationButton({ primary, children, className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { primary?: boolean }) {
   return <button type="button" className={`au-button${primary ? ' au-button-primary' : ''} ${className}`} {...props}>{children}</button>;
@@ -18,7 +18,7 @@ export function AutomationMessage({ message, error = false, onClose, onRetry }: 
 }
 export function AutomationLoading() { return <div className="au-loading" role="status"><Loader2 size={20} className="au-spin" />Loading records</div>; }
 export function AutomationEmpty({ title, description, children }: { title: string; description: string; children?: ReactNode }) {
-  return <div className="au-empty"><svg viewBox="0 0 210 65" fill="none" aria-hidden="true"><rect x="1" y="10" width="49" height="45" fill="#ff4f00" stroke="#000" /><path d="M16 24h19M16 32h19M16 40h12M51 32h29m-6-6 6 6-6 6" stroke="#000" /><rect x="81" y="10" width="49" height="45" stroke="#000" /><path d="M97 25h17v15H97zM131 32h29m-6-6 6 6-6 6" stroke="#000" /><circle cx="185" cy="32" r="23" stroke="#000" /><path d="m175 32 7 7 12-14" stroke="#000" /></svg><h3>{title}</h3><p>{description}</p>{children}</div>;
+  return <div className="au-empty"><h3>{title}</h3><p>{description}</p>{children}</div>;
 }
 export function AutomationSearch({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder: string }) {
   return <label className="au-search"><Search size={16} /><span className="au-sr-only">{placeholder}</span><input type="search" value={value} onChange={event => onChange(event.target.value)} placeholder={placeholder} /></label>;

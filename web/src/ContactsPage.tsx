@@ -1,5 +1,5 @@
 import { exportCrmPage } from './crm-data';
-import { CrmContactCards, CrmHeader, CrmSummary, CrmState, CrmPagination, CrmDialog as Modal } from './CrmUI';
+import { CrmContactCards, CrmHeader, CrmState, CrmPagination, CrmDialog as Modal } from './CrmUI';
 import { workBatch } from './work-data';
 import { useRecordRoute } from './useRecordRoute';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -217,22 +217,21 @@ export function ContactsPage() {
 
   return (
     <div className="crm-area">
-      <CrmHeader title="Contacts" description="Keep the people behind every opportunity close." onCreate={handleCreate} busy={loading || !!loadError} onExport={() => exportCrmPage('contacts', contacts, [{ key: 'first_name', label: 'first name' }, { key: 'last_name', label: 'last name' }, { key: 'email', label: 'email' }, { key: 'phone', label: 'phone' }, { key: 'company_id', label: 'company id' }, { key: 'status', label: 'status' }])} onImport={async (file) => {
+      <CrmHeader title="Contacts" recordCount={total} description="Keep the people behind every opportunity close." onCreate={handleCreate} busy={loading || !!loadError} onExport={() => exportCrmPage('contacts', contacts, [{ key: 'first_name', label: 'first name' }, { key: 'last_name', label: 'last name' }, { key: 'email', label: 'email' }, { key: 'phone', label: 'phone' }, { key: 'company_id', label: 'company id' }, { key: 'status', label: 'status' }])} onImport={async (file) => {
         const fd = new FormData();
         fd.append('file', file);
         const res = await fetch('/api/v1/contacts/import', { method: 'POST', body: fd });
         if (!res.ok) { const j = await res.json().catch(() => null); throw new Error(j?.error?.message || 'Import failed'); }
-        fetchContacts();
+        await fetchContacts();
       }} />
-      <CrmSummary loading={loading || !!loadError} items={[{ label: 'Matching contacts', value: total, note: 'With current filters' }, { label: 'Active relationships', value: contacts.filter(c => c.status === 'active').length, note: 'On this page' }, { label: 'Linked to a company', value: contacts.filter(c => c.company_id).length, note: 'On this page' }]} />
+      <section className="crm-index" aria-label="contacts records">
 
       <DataTableToolbar
-        title="All Contacts"
-        description={`${contacts.length} loaded on this page`}
         searchProps={{ query, onChange: (value: string) => { setQuery(value); setPage(1); }, placeholder: 'Search contacts by name or email...' }}
         filterProps={{ filters, values: filterValues, onChange: handleFilterChange, onClear: clearFilters, hasActiveFilters }}
         viewOptions={{
           currentView: viewMode,
+          showLabels: true,
           views: [
             { id: 'table', label: 'Table', icon: <TableIcon className="w-4 h-4" /> },
             { id: 'cards', label: 'Cards', icon: <Grid className="w-4 h-4" /> },
@@ -247,7 +246,6 @@ export function ContactsPage() {
           ]
         } : undefined}
       />
-
       <CrmState loading={loading} error={loadError} empty={!contacts.length} onRetry={fetchContacts} onCreate={handleCreate} noun="contacts" filtered={!!query || hasActiveFilters}>
       {viewMode === 'table' ? (
         <>
@@ -270,6 +268,8 @@ export function ContactsPage() {
 
       </CrmState>
       {!loadError && <CrmPagination page={page} pageSize={pageSize} total={total} onPage={setPage} onSize={size => { setPageSize(size); setPage(1); }} busy={loading || submitLoading} />}
+
+      </section>
 
       <Modal busy={submitLoading} isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingContact ? 'Edit Contact' : 'New Contact'} size="lg">
         <div className="space-y-4 max-h-[70vh] overflow-y-auto">
