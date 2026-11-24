@@ -44,3 +44,23 @@
 .uris code { max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 @media(max-width:850px) { .connectionSummary { grid-template-columns:minmax(0,1fr) auto; gap:12px; }.connectionFacts { grid-column:1/-1; grid-row:2; }.connectionLinks { grid-column:2; grid-row:1; } }
 @media(max-width:560px) { .connectionSummary { grid-template-columns:1fr; gap:12px; }.connectionFacts { grid-column:1; grid-row:auto; flex-wrap:wrap; gap:9px 0; }.connectionFacts>div { padding-inline:9px; }.connectionLinks { grid-column:1; grid-row:auto; align-items:flex-start; flex-direction:row; flex-wrap:wrap; }.metrics { flex-wrap:wrap; }.metric { flex:1 1 45%; padding:8px 10px; border-left:0; }.metric:nth-child(odd) { padding-left:0; }.table { min-width:720px; } }
+
+.page { gap:16px; }
+.page :global(.ad-page-header) { padding-bottom:13px; border-bottom:1px solid #e1e6ec; }
+.page :global(.ad-title h1) { color:#2f4358; font-size:25px; font-weight:650; letter-spacing:-.035em; }
+.page :global(.ad-title p) { color:#687c90; font-size:12px; }
+.page :global(.ad-panel) { border-top-color:#dce3ea; }
+.page :global(.ad-panel-header) { min-height:48px; border-bottom-color:#e5eaef; }
+.page :global(.ad-panel-header h2) { color:#344b61; font-size:14px; font-weight:650; }
+.page :global(.ad-panel-header p) { color:#718397; font-size:11px; }
+.connectionSummary { gap:20px; padding-block:14px; border-color:#e1e6ec; }
+.connectionFacts > div { border-color:#e5eaef; }
+.metrics { border-color:#e1e6ec; }
+.metric { border-color:#e5eaef; }
+.metric > span { color:#64798d; font-size:11px; }
+.metric > strong { color:#33475b; font-size:16px; }
+.tableWrapper { border-top-color:#dce3ea; border-bottom-color:#e1e6ec; }
+.table th { height:40px; padding:10px 12px; background:#f6f8fa; color:#53687d; font-size:11px; font-weight:650; }
+.table td { padding:11px 12px; border-bottom-color:#edf0f3; color:#33475b; font-size:12px; }
+.filterSelect { min-height:34px; border-color:#d2dbe4; border-radius:6px; color:#40566b; font-size:12px; }
+@media(max-width:560px) { .page :global(.ad-page-header) { align-items:flex-start; } .connectionSummary { padding-block:11px; } }

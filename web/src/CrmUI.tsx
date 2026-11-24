@@ -37,7 +37,7 @@ export function CrmHeader({ title, description, recordCount, onCreate, onExport,
 export function CrmState({ loading, error, empty, onRetry, onCreate, noun, filtered, children }: { loading: boolean; error: string; empty: boolean; onRetry: () => void; onCreate: () => void; noun: string; filtered: boolean; children: ReactNode }) {
   if (loading) return <div className="crm-state" role="status"><Loader2 size={15} className="loading-spinner" />Loading {noun}...</div>;
   if (error) return <div className="crm-state" role="alert"><span>Could not load {noun}. <button className="crm-inline-action" onClick={onRetry}>Retry</button></span></div>;
-  if (empty) return <div className="crm-state"><span>{filtered ? `No matching ${noun}.` : `No ${noun} yet.`}</span>{filtered ? <span>Adjust your search or filters.</span> : <button className="crm-inline-action" onClick={onCreate}><Plus size={13} /> Add {noun === 'companies' ? 'company' : noun.slice(0, -1)}</button>}</div>;
+  if (empty) return <>{children}<div className="crm-state crm-empty-state" role="status"><span className="crm-empty-title">{filtered ? `No matching ${noun}` : `No ${noun} yet`}</span><span>{filtered ? 'Try another search or clear your filters to see more records.' : 'Create your first record to start building this workspace.'}</span>{!filtered && <button className="crm-inline-action" onClick={onCreate}><Plus size={14} /> Add {noun === 'companies' ? 'company' : noun.slice(0, -1)}</button>}</div></>;
   return <>{children}</>;
 }
 export function CrmPagination({ page, pageSize, total, onPage, onSize, busy }: { page: number; pageSize: number; total: number; onPage: (page: number) => void; onSize: (size: number) => void; busy: boolean }) {
@@ -45,11 +45,11 @@ export function CrmPagination({ page, pageSize, total, onPage, onSize, busy }: {
   return <footer className="crm-pagination"><span>{total ? `${(page - 1) * pageSize + 1}\u2013${Math.min(page * pageSize, total)}` : '0'} of {total} records</span><label><span className="sr-only">Records per page</span><select aria-label="Records per page" value={pageSize} onChange={event => onSize(Number(event.target.value))} disabled={busy}>{[10, 25, 50, 100].map(size => <option key={size} value={size}>{size} per page</option>)}</select></label><div><button onClick={() => onPage(page - 1)} disabled={busy || page <= 1} aria-label="Previous page"><ChevronLeft size={16} /></button><span>Page {page} of {pages}</span><button onClick={() => onPage(page + 1)} disabled={busy || page >= pages} aria-label="Next page"><ChevronRight size={16} /></button></div></footer>;
 }
 
-export function CrmDialog({ isOpen, onClose, title, children, busy = false }: { isOpen: boolean; onClose: () => void; title: string; children: ReactNode; size?: string; busy?: boolean }) {
+export function CrmDialog({ isOpen, onClose, title, children, size = 'lg', busy = false }: { isOpen: boolean; onClose: () => void; title: string; children: ReactNode; size?: string; busy?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   useEffect(() => { const dialog = ref.current; if (isOpen && !dialog?.open) dialog?.showModal(); else if (!isOpen && dialog?.open) dialog.close(); }, [isOpen]);
-  return <dialog ref={ref} className="crm-dialog crm-area" aria-labelledby={titleId} onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}><div className="crm-dialog-heading"><div><span className="crm-eyebrow">RELATIONSHIP DETAILS</span><h2 id={titleId}>{title}</h2></div><button aria-label="Close dialog" onClick={onClose} disabled={busy}><X size={19} /></button></div>{isOpen && <div className="crm-dialog-body">{children}</div>}</dialog>;
+  return <dialog ref={ref} className={`crm-dialog crm-dialog-${size} crm-area`} aria-labelledby={titleId} onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}><div className="crm-dialog-heading"><div><span className="crm-eyebrow">RELATIONSHIP DETAILS</span><h2 id={titleId}>{title}</h2></div><button aria-label="Close dialog" onClick={onClose} disabled={busy}><X size={19} /></button></div>{isOpen && <div className="crm-dialog-body">{children}</div>}</dialog>;
 }
 
 type CardActions<T> = { items: T[]; selected: Set<string>; onSelect: (ids: Set<string>) => void; onEdit: (item: T) => void; onArchive: (item: T) => void };

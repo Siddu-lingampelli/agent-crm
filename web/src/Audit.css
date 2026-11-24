@@ -27,3 +27,32 @@
 @media(max-width:700px) { .al-context { gap:12px; }.al-toolbar { align-items:stretch; }.al-toolbar .au-search { max-width:none; flex-basis:100%; }.al-toolbar-actions { justify-content:space-between; width:100%; }.al-toolbar-actions .au-button { padding:8px 10px; }.al-filter-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }.al-filters { padding:16px; }.al-timeline { padding:12px 0; }.al-day-group li { padding-left:35px; }.al-timeline-icon { width:25px; height:25px; }.al-day-group li:not(:last-child)::before { left:12px; }.al-event-main { padding:12px; grid-template-columns:minmax(0,1fr) auto; gap:9px; }.al-event-title { gap:7px; }.al-event-title strong { font-size:11px; }.al-inspect-arrow { display:none; }.al-event-main time { font-size:10px; }.al-event-footer { padding:8px 12px; }.al-day-heading h3 { font-size:11px; }.al-day-heading>span { font-size:9px; }.al-detail-summary time { margin-left:0; width:100%; }.al-detail-grid { grid-template-columns:1fr; gap:18px; }.al-recorded-values>div { grid-template-columns:1fr; }.al-events-panel>.au-panel-heading { padding:17px 14px; } }
 @media(max-width:380px) { .al-filter-grid { grid-template-columns:1fr; }.al-context-divider { display:none; }.al-context>div>strong { margin-left:0; }.al-event-main { grid-template-columns:minmax(0,1fr); }.al-event-main time { grid-column:1; grid-row:4; text-align:left; display:flex; gap:5px; align-items:center; }.al-day-group li { padding-left:32px; }.al-toolbar-actions { gap:6px; }.al-toolbar-actions .au-select-label select { max-width:123px; }.al-view-switch button { width:27px; } }
 @media(prefers-reduced-motion:reduce) { .al-event-card { transition:none; } }
+
+/* Audit activity uses the shared CRM hierarchy while retaining its timeline view. */
+.audit-area .au-header { min-height:58px; margin:0 0 14px; padding-bottom:13px; border-bottom:1px solid #e1e6ec; }
+.audit-area .au-header h1 { color:#2f4358; font-size:25px; font-weight:650; letter-spacing:-.035em; }
+.audit-area .au-header p { color:#687c90; font-size:12px; }
+.audit-area .au-header-actions { gap:8px; }
+.audit-area .au-header-actions .au-button { min-height:37px; padding:0 12px; border-color:#cbd4de; border-radius:6px; color:#40566b; font-size:12px; }
+.audit-area .al-context { gap:12px; padding:11px 0; margin-bottom:13px; border-color:#e1e6ec; color:#61758a; font-size:11px; }
+.audit-area .al-context strong { color:#33475b; font-size:12px; }
+.audit-area .al-toolbar { margin-bottom:12px; }
+.audit-area .al-toolbar .au-search { min-height:38px; border:1px solid #cbd5df; border-radius:7px; background:#fff; }
+.audit-area .al-toolbar .au-search input { color:#33475b; font-size:13px; }
+.audit-area .al-view-switch { border-color:#d7dfe7; border-radius:7px; background:#eef2f5; }
+.audit-area .al-view-switch button { border-radius:5px; color:#66798c; }
+.audit-area .al-view-switch button.is-active { background:#fff; color:#33475b; box-shadow:0 1px 2px #263b5018; }
+.audit-area .al-filters { padding:15px; border-color:#dfe5eb; border-radius:7px; background:#f8fafb; }
+.audit-area .al-filter-grid :is(input,select) { min-height:36px; border-color:#cbd5df; border-radius:6px; color:#40566b; }
+.audit-area .al-event-card { border-color:#e5eaef; }
+.audit-area .al-event-main { background:#fff; }
+.audit-area .al-event-title strong { color:#33475b; font-size:13px; font-weight:600; }
+.audit-area .al-method { border-color:#d7dfe7; border-radius:4px; background:#f5f7f9; color:#53697f; }
+.audit-area .al-method-delete { border-color:#b93819; background:#b93819; color:#fff; }
+.audit-area .al-record-reference { color:#53697f; }
+.audit-area .al-event-footer { border-color:#e8edf1; color:#687c90; }
+.audit-area .al-table th { background:#f6f8fa; color:#53687d; font-size:11px; font-weight:650; }
+.audit-area .al-table td { color:#33475b; font-size:12px; }
+.audit-area .al-empty { align-items:center; min-height:170px; text-align:center; }
+.audit-area .al-empty > span { border-color:#f0d9cf; border-radius:10px; background:#fff8f4; color:#b94b27; }
+@media(max-width:700px) { .audit-area .au-header { align-items:flex-start; flex-wrap:wrap; gap:10px; }.audit-area .al-toolbar .au-search { max-width:none; }.audit-area .al-context { padding:9px 0; } }

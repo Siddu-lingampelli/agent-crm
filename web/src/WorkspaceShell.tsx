@@ -1,6 +1,6 @@
 ﻿import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { ScrollText, ArrowDownLeft, ArrowUpRight, ChevronDown, CircleAlert, Loader2, LogOut, Menu, Search, Settings, X } from 'lucide-react';
+import { ScrollText, ArrowDownLeft, ArrowUpRight, ChevronDown, CircleAlert, Loader2, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Search, Settings, X } from 'lucide-react';
 import { api, type SearchResult } from './api';
 import { recordUrl } from './dashboard-data';
 import './Workspace.css';
@@ -10,6 +10,7 @@ type NavigationItem = { name: string; href: string; icon: ReactNode };
 export function WorkspaceShell({ children, navigation, adminNavigation }: { children: ReactNode; navigation: NavigationItem[]; adminNavigation: NavigationItem[] }) {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -22,6 +23,9 @@ export function WorkspaceShell({ children, navigation, adminNavigation }: { chil
   const closeButton = useRef<HTMLButtonElement>(null);
   const sidebar = useRef<HTMLElement>(null);
   const previouslyOpen = useRef(false);
+  useEffect(() => {
+    try { setSidebarCollapsed(window.localStorage.getItem('torq-sidebar-collapsed') === 'true'); } catch { /* Storage may be unavailable. */ }
+  }, []);
   const pages = [...navigation, ...adminNavigation];
   const current = pages.find(page => page.href === location.pathname)?.name ?? 'Workspace';
   const accountName = user?.name || user?.email?.split('@')[0] || 'Your account';
@@ -82,22 +86,27 @@ export function WorkspaceShell({ children, navigation, adminNavigation }: { chil
     desktop.addEventListener('change', onResize); return () => desktop.removeEventListener('change', onResize);
   }, []);
   const navigateAway = () => { setSidebarOpen(false); dialog.current?.close(); };
+  const toggleSidebar = () => setSidebarCollapsed(collapsed => {
+    const next = !collapsed;
+    try { window.localStorage.setItem('torq-sidebar-collapsed', String(next)); } catch { /* Keep the in-memory preference. */ }
+    return next;
+  });
   const openSearch = () => { setQuery(''); setResults([]); setSearching(false); setSearchError(''); dialog.current?.showModal(); };
   const signOut = async () => {
     setSigningOut(true); setError('');
     try { await api.post('/auth/logout', {}); window.location.assign('/login'); }
     catch { setError('Could not sign out. Please try again.'); setSigningOut(false); }
   };
-  const navLink = (item: NavigationItem) => <NavLink key={item.href} to={item.href} onClick={navigateAway} className={({ isActive }) => `ws-nav-link${isActive ? ' is-active' : ''}`}>{item.icon}<span>{item.name}</span></NavLink>;
+  const navLink = (item: NavigationItem) => <NavLink key={item.href} to={item.href} title={item.name} onClick={navigateAway} className={({ isActive }) => `ws-nav-link${isActive ? ' is-active' : ''}`}>{item.icon}<span>{item.name}</span></NavLink>;
 
-  return <div className="workspace">
+  return <div className={`workspace${sidebarCollapsed ? ' is-collapsed' : ''}`}>
     <a className="ws-skip" href="#workspace-content">Skip to content</a>
     {sidebarOpen && <button className="ws-backdrop" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
     <aside ref={sidebar} id="workspace-navigation" className={`ws-sidebar${sidebarOpen ? ' is-open' : ''}`} aria-label="Workspace navigation">
       <div className="ws-brand-row"><Link to="/dashboard" className="ws-brand" aria-label="TORQ dashboard"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M3 7h20v6H3zM9 19h20v6H9z" fill="currentColor" transform="rotate(-28 16 16)" /></svg>torq<span>.</span></Link><span className="ws-edition">CRM</span><button ref={closeButton} className="ws-icon-button ws-close" onClick={() => setSidebarOpen(false)} aria-label="Close navigation"><X size={19} /></button></div>
       <Link to="/settings" className="ws-workspace-label"><span className="ws-workspace-symbol">T</span><div>Your workspace<small>CRM workspace</small></div><ChevronDown size={13} /></Link>
       <nav className="ws-nav" aria-label="Main navigation">{groups.map((group, index) => <div className="ws-nav-group" key={group.label || index}>{group.label && <span className="ws-nav-label">{group.label}</span>}{group.items.map(navLink)}</div>)}<details className="ws-tools" key={current} open={tools.some(item => item.href === location.pathname) || undefined}><summary><Settings size={14} />Administration<ChevronDown size={12} /></summary><div>{tools.map(item => navLink(item.href === '/admin' ? { ...item, name: 'Overview' } : item))}</div></details></nav>
-      <div className="ws-sidebar-bottom"><NavLink to="/settings" className={({ isActive }) => `ws-nav-link ws-settings${isActive ? ' is-active' : ''}`} onClick={navigateAway}><Settings size={16} /><span>Settings</span></NavLink><div className="ws-user"><span className="ws-avatar">{initials}</span><div><strong>{accountName}</strong><small>{user?.email || 'TORQ account'}</small></div><button className="ws-icon-button" aria-label="Sign out" title="Sign out" disabled={signingOut} onClick={signOut}><LogOut size={15} /></button></div>{error && <p className="ws-signout-error" role="alert">{error}</p>}</div>
+      <div className="ws-sidebar-bottom"><div className="ws-sidebar-controls"><NavLink to="/settings" title="Settings" className={({ isActive }) => `ws-nav-link ws-settings${isActive ? ' is-active' : ''}`} onClick={navigateAway}><Settings size={16} /><span>Settings</span></NavLink><button className="ws-collapse" onClick={toggleSidebar} aria-label={sidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'} title={sidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'} aria-expanded={!sidebarCollapsed}>{sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}</button></div><div className="ws-user"><span className="ws-avatar">{initials}</span><div><strong>{accountName}</strong><small>{user?.email || 'TORQ account'}</small></div><button className="ws-icon-button" aria-label="Sign out" title="Sign out" disabled={signingOut} onClick={signOut}><LogOut size={15} /></button></div>{error && <p className="ws-signout-error" role="alert">{error}</p>}</div>
     </aside>
     <div className="ws-body" inert={sidebarOpen}>
       <header className="ws-header"><div className="ws-header-left"><button ref={menuButton} className="ws-icon-button ws-menu" aria-label="Open navigation" aria-expanded={sidebarOpen} aria-controls="workspace-navigation" onClick={() => setSidebarOpen(true)}><Menu size={19} /></button><button className="ws-search" aria-label="Search CRM records and pages" onClick={openSearch}><Search size={14} /><span>Search anything...</span><kbd>Ctrl K</kbd></button></div><div className="ws-header-actions"><Link className="ws-icon-button" to="/audit" aria-label="Audit log" title="Audit log"><ScrollText size={17} /></Link><Link className="ws-avatar" to="/settings" aria-label="Your profile">{initials}</Link></div></header>

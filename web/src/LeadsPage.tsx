@@ -300,7 +300,7 @@ export function LeadsPage() {
   useRecordRoute({ getRecord: api.leads.get, onCreate: handleCreate, onRecord: handleEdit, onError: message => showToast('error', message) });
 
   return (
-    <div className="crm-area">
+    <div className="crm-area crm-leads">
       <CrmHeader title="Leads" recordCount={total} description="Turn the next conversation into a lasting relationship." onCreate={handleCreate} busy={loading || !!loadError} onExport={() => exportCrmPage('leads', leads, [{ key: 'display_name', label: 'display name' }, { key: 'email', label: 'email' }, { key: 'company_name', label: 'company name' }, { key: 'status', label: 'status' }, { key: 'source', label: 'source' }, { key: 'priority', label: 'priority' }, { key: 'estimated_value', label: 'estimated value' }, { key: 'currency', label: 'currency' }])} onImport={async (file) => {
         const fd = new FormData();
         fd.append('file', file);
@@ -395,31 +395,43 @@ export function LeadsPage() {
       </section>
 
       <Modal busy={submitLoading} isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingLead ? 'Edit Lead' : 'New Lead'} size="lg">
-        <div className="space-y-4 max-h-[70vh] overflow-y-auto">
-          <FormField label="Display Name" error={formErrors.display_name} required>
-            <Input value={formData.display_name} onChange={(e) => setFormData({ ...formData, display_name: e.target.value })} placeholder="Lead display name" />
-          </FormField>
-          <div className="form-row-2">
+        <div className="lead-dialog-form">
+          <section className="lead-dialog-section" aria-label="Contact information">
+            <div className="lead-dialog-section-heading"><h3>Contact information</h3><p>The person you are building a relationship with.</p></div>
+            <FormField label="Display Name" error={formErrors.display_name} required>
+              <Input value={formData.display_name} onChange={(e) => setFormData({ ...formData, display_name: e.target.value })} placeholder="Lead display name" />
+            </FormField>
+            <div className="form-row-2">
             <FormField label="First Name" error={formErrors.first_name} required>
               <Input value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} placeholder="First name" />
             </FormField>
             <FormField label="Last Name" error={formErrors.last_name} required>
               <Input value={formData.last_name} onChange={(e) => setFormData({ ...formData, last_name: e.target.value })} placeholder="Last name" />
             </FormField>
-          </div>
-          <FormField label="Email" error={formErrors.email} required>
-            <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="lead@example.com" />
-          </FormField>
-          <FormField label="Phone">
-            <Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="+1 (555) 123-4567" />
-          </FormField>
-          <FormField label="Company Name">
-            <Input value={formData.company_name} onChange={(e) => setFormData({ ...formData, company_name: e.target.value })} placeholder="Company name" />
-          </FormField>
-          <FormField label="Job Title">
-            <Input value={formData.job_title} onChange={(e) => setFormData({ ...formData, job_title: e.target.value })} placeholder="Job title" />
-          </FormField>
-          <div className="form-row-2">
+            </div>
+            <div className="form-row-2">
+              <FormField label="Email" error={formErrors.email} required>
+                <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="lead@example.com" />
+              </FormField>
+              <FormField label="Phone">
+                <Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="+1 (555) 123-4567" />
+              </FormField>
+            </div>
+          </section>
+          <section className="lead-dialog-section" aria-label="Company information">
+            <div className="lead-dialog-section-heading"><h3>Company</h3><p>Where this lead works and their role.</p></div>
+            <div className="form-row-2">
+              <FormField label="Company Name">
+                <Input value={formData.company_name} onChange={(e) => setFormData({ ...formData, company_name: e.target.value })} placeholder="Company name" />
+              </FormField>
+              <FormField label="Job Title">
+                <Input value={formData.job_title} onChange={(e) => setFormData({ ...formData, job_title: e.target.value })} placeholder="Job title" />
+              </FormField>
+            </div>
+          </section>
+          <section className="lead-dialog-section" aria-label="Lead qualification">
+            <div className="lead-dialog-section-heading"><h3>Qualification</h3><p>Track lead progress and potential value.</p></div>
+            <div className="form-row-2">
             <FormField label="Status">
               <Select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })}>
                 {statusOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
@@ -430,8 +442,8 @@ export function LeadsPage() {
                 {sourceOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
               </Select>
             </FormField>
-          </div>
-          <div className="form-row-2">
+            </div>
+            <div className="form-row-2">
             <FormField label="Priority">
               <Select value={formData.priority} onChange={(e) => setFormData({ ...formData, priority: e.target.value })}>
                 {priorityOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
@@ -440,8 +452,8 @@ export function LeadsPage() {
             <FormField label="Estimated Value">
               <Input type="number" value={String(formData.estimated_value)} onChange={(e) => setFormData({ ...formData, estimated_value: Number(e.target.value) || 0 })} placeholder="0" />
             </FormField>
-          </div>
-          <div className="form-row-2">
+            </div>
+            <div className="form-row-2">
             <FormField label="Currency">
               <Select value={formData.currency} onChange={(e) => setFormData({ ...formData, currency: e.target.value })}>
                 <option value="USD">USD</option>
@@ -460,13 +472,17 @@ export function LeadsPage() {
             <FormField label="Follow Up Date">
               <Input type="date" value={formData.follow_up_date} onChange={(e) => setFormData({ ...formData, follow_up_date: e.target.value })} />
             </FormField>
-          </div>
-          <FormField label="Description">
-            <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Lead description" rows={3} />
-          </FormField>
-          <FormField label="Qualification Notes">
-            <Textarea value={formData.qualification} onChange={(e) => setFormData({ ...formData, qualification: e.target.value })} placeholder="Qualification details" rows={2} />
-          </FormField>
+            </div>
+          </section>
+          <section className="lead-dialog-section" aria-label="Lead notes">
+            <div className="lead-dialog-section-heading"><h3>Notes</h3><p>Add context to help your team follow up.</p></div>
+            <FormField label="Description">
+              <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Lead description" rows={3} />
+            </FormField>
+            <FormField label="Qualification Notes">
+              <Textarea value={formData.qualification} onChange={(e) => setFormData({ ...formData, qualification: e.target.value })} placeholder="Qualification details" rows={2} />
+            </FormField>
+          </section>
         </div>
         <div className="modal-footer">
           {editingLead && !['won', 'lost'].includes(editingLead.status) && <Button variant="secondary" onClick={() => handleConvert(editingLead)} disabled={submitLoading || !pipelines.length}>Convert lead</Button>}

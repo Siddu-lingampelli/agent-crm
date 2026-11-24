@@ -82,6 +82,50 @@
 .cm-message-body > p { font-size:14px; line-height:1.8; }
 .cm-message-footer { color:#6b7c93; }
 
+/* Inbox, Outbox, and Calendar share the same compact CRM header and control finish. */
+.communications-area .cm-header { min-height:60px; margin:0 0 16px; padding-bottom:13px; border-bottom:1px solid #e1e6ec; }
+.communications-area .cm-header h1 { color:#2f4358; font-size:25px; font-weight:650; letter-spacing:-.035em; }
+.communications-area .cm-header p { color:#687c90; font-size:12px; }
+.communications-area .cm-header .au-header-actions { gap:8px; }
+.communications-area .cm-header .au-button { min-height:37px; padding:0 12px; border-color:#cbd4de; border-radius:6px; color:#40566b; font-size:12px; }
+.communications-area .cm-header .au-button-primary { border-color:#b93819; background:#b93819; color:#fff; }
+.communications-area .cm-header .au-button-primary:hover:not(:disabled) { border-color:#982f18; background:#982f18; color:#fff; }
+.communications-area .au-toolbar { gap:8px; padding:10px 0; border-bottom-color:#e1e6ec; }
+.communications-area .au-toolbar .au-search { min-height:38px; border:1px solid #cbd5df; border-radius:7px; background:#fff; box-shadow:0 1px 2px #263b5008; }
+.communications-area .au-toolbar .au-search input { color:#33475b; font-size:13px; }
+.communications-area .au-toolbar .au-select-label select { min-height:36px; border-color:#d2dbe4; border-radius:6px; color:#4a6075; font-size:12px; }
+.communications-area .cm-empty { justify-content:center; flex-wrap:wrap; gap:8px 10px; min-height:150px; padding:22px 18px; border:0; text-align:center; }
+.communications-area .cm-empty > span { width:36px; height:36px; border:1px solid #f0d9cf; border-radius:10px; background:#fff8f4; }
+.communications-area .cm-empty h3 { color:#33475b; font-size:14px; font-weight:650; }
+.communications-area .cm-empty p { max-width:370px; color:#687c90; font-size:12px; }
+.communications-area .cm-empty .au-button { margin:5px 0 0; }
+.communications-area .cm-calendar-toolbar { margin-bottom:14px; }
+.communications-area .cm-calendar-navigation h2 { color:#33475b; font-size:19px; font-weight:650; }
+.communications-area .cm-view-controls { padding:3px; border:1px solid #d7dfe7; border-radius:7px; background:#eef2f5; }
+.communications-area .cm-view-controls button { min-height:30px; border-radius:5px; color:#66798c; }
+.communications-area .cm-view-controls button.is-active { color:#33475b; box-shadow:0 1px 2px #263b5018; }
+.communications-area .cm-calendar-layout .au-panel { border-top-color:#dce3ea; }
+.communications-area .cm-month-cell { border-color:#e6ebf0; }
+.communications-area .cm-weekdays { border-color:#e1e6ec; background:#f7f9fb; }
+.communications-area .cm-weekdays span { color:#53687d; font-size:10px; font-weight:650; }
+.communications-area .cm-inbox-shell { border-top:1px solid #dce3ea; }
+.communications-area .cm-mail-folders { border-right-color:#e1e6ec; }
+.communications-area .cm-mail-folders nav > button { min-height:36px; border-radius:6px; color:#53697f; font-size:12px; }
+.communications-area .cm-mail-folders nav > button.is-active { border-radius:6px; background:#fff0e9; color:#a53b17; }
+.communications-area .cm-inbox-toolbar { padding:12px 14px; border-bottom:1px solid #e1e6ec; background:#f7f9fb; }
+.communications-area .cm-message-list { border-right-color:#e1e6ec; }
+.communications-area .cm-message-item { padding:14px 15px; border-bottom-color:#edf0f3; }
+.communications-area .cm-message-item.is-selected { background:#f7f9fb; box-shadow:inset 3px 0 #e45a2c; }
+.communications-area .cm-reader-actions { min-height:58px; padding:11px 15px; border-color:#e1e6ec; }
+.communications-area .cm-message-heading { padding:20px 22px 15px; }
+.communications-area .cm-message-heading h2 { color:#33475b; font-size:20px; font-weight:600; }
+@media(max-width:700px) {
+  .communications-area .cm-header { align-items:flex-start; flex-wrap:wrap; gap:10px; }
+  .communications-area .cm-header .au-header-actions { width:100%; flex-wrap:wrap; }
+  .communications-area .cm-calendar-toolbar { align-items:flex-start; gap:10px; }
+  .communications-area .cm-calendar-navigation { flex-wrap:wrap; }
+}
+
 @media(max-width:850px) {
   .communications-area .cm-header { flex-wrap:wrap; }
   .communications-area .cm-header .au-header-actions { width:100%; justify-content:flex-start; }

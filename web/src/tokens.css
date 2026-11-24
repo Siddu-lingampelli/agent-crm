@@ -197,9 +197,9 @@
   --bp-2xl: 1536px;
 
   /* ========================================
-     HALLMARK COMPATIBILITY ALIASES
+     LEGACY COMPATIBILITY ALIASES
      ======================================== */
-  /* Old Hallmark variable names mapped to new system */
+  /* Old variable names mapped to new system */
   --color-paper: var(--surface-bg);
   --color-paper-2: var(--surface-card-hover);
   --color-paper-3: var(--color-gray-100);

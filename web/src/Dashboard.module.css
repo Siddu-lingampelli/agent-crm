@@ -280,3 +280,23 @@
   .bottomBar { flex-direction: column; }
 }
 @media (prefers-reduced-motion: reduce) { .spinning { animation: none; } }
+
+/* Dashboard hierarchy: stronger headings and quieter, consistent data separators. */
+.pageHeader { min-height:62px; margin-bottom:14px; padding-bottom:13px; border-color:#dce3ea; }
+.pageHeader h1 { color:#2f4358; font-size:26px; font-weight:650; letter-spacing:-.035em; }
+.headerActions { gap:8px; }
+.primaryButton, .secondaryButton { min-height:37px; padding-inline:12px; border-radius:6px; font-size:12px; font-weight:600; }
+.primaryButton { border-color:#b93819; background:#b93819; color:#fff; }
+.primaryButton:hover { border-color:#982f18; background:#982f18; }
+.secondaryButton { border-color:#cbd4de; background:#fff; color:#40566b; }
+.secondaryButton:hover { border-color:#aab9c7; background:#f7f9fb; }
+.contextBar { color:#53697f; }
+.panel { border-top-color:#d8e0e8; }
+.panelHeader { border-bottom-color:#e4e9ef; }
+.panelHeader h2 { color:#344b61; font-weight:650; }
+.panelHeader p, .panelFooter { color:#6b7f92; }
+.dealsTable th { background:#f6f8fa; color:#53687d; font-size:11px; font-weight:650; }
+.dealsTable td { border-bottom-color:#edf0f3; }
+.chartTrack > i { background:#9eb7c5; }
+.chartTrack > i.currentBar { background:#d9582a; }
+@media (max-width:700px) { .pageHeader { align-items:flex-start; gap:11px; } .headerActions { justify-content:flex-start; } }
