@@ -1,5 +1,5 @@
-import { crmMoney, exportCrmPage } from './crm-data';
-import { CrmHeader, CrmState, CrmPagination, CrmDialog as Modal } from './CrmUI';
+import { crmActivityLabel, crmMoney, exportCrmPage } from './crm-data';
+import { CrmHeader, CrmState, CrmPagination, CrmViewTabs, CrmDialog as Modal } from './CrmUI';
 import { workBatch, workDate, useWorkToday } from './work-data';
 import { useRecordRoute } from './useRecordRoute';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -189,7 +189,6 @@ export function LeadsPage() {
   };
   const validateForm = () => {
     const errors: Partial<LeadCreateInput> = {};
-    if (!formData.display_name.trim()) errors.display_name = 'Display name is required';
     if (!formData.first_name.trim()) errors.first_name = 'First name is required';
     if (!formData.last_name.trim()) errors.last_name = 'Last name is required';
     if (!formData.email.trim()) errors.email = 'Email is required';
@@ -202,11 +201,15 @@ export function LeadsPage() {
     if (!validateForm()) return;
     setSubmitLoading(true);
     try {
+      const leadData = {
+        ...formData,
+        display_name: formData.display_name.trim() || `${formData.first_name.trim()} ${formData.last_name.trim()}`.trim(),
+      };
       if (editingLead) {
-        await api.leads.update(editingLead.id, formData);
+        await api.leads.update(editingLead.id, leadData);
         showToast('success', 'Lead updated successfully');
       } else {
-        await api.leads.create(formData);
+        await api.leads.create(leadData);
         showToast('success', 'Lead created successfully');
       }
       setModalOpen(false);
@@ -246,30 +249,26 @@ export function LeadsPage() {
         <Avatar name={l.display_name} size="sm" />
         <div>
           <button className="crm-table-name" onClick={e => { e.stopPropagation(); handleEdit(l); }}>{l.display_name}</button>
-          {l.job_title && <p className="text-xs text-tertiary">{l.job_title}</p>}
+          <p className="text-xs text-tertiary">{l.email || l.job_title || 'Lead'}</p>
         </div>
       </div>
     )},
-    { key: 'email', header: 'Email', render: (l: Lead) => <a href={`mailto:${l.email}`} onClick={event => event.stopPropagation()} className="text-link hover:underline">{l.email}</a> },
-    { key: 'company_name', header: 'Company' },
-    { key: 'status', header: 'Status', render: (l: Lead) => <Badge variant={getStatusBadge(l.status)} size="sm" dot>{l.status}</Badge> },
-    { key: 'priority', header: 'Priority', render: (l: Lead) => <Badge variant={getStatusBadge(l.priority)} size="sm">{l.priority}</Badge> },
-    { key: 'source', header: 'Source', render: (l: Lead) => <span className="text-secondary capitalize">{(l.source || 'Not specified').replaceAll('_', ' ')}</span> },
+    { key: 'company_name', header: 'Company', render: (l: Lead) => l.company_name || <span className="crm-table-muted">—</span> },
+    { key: 'status', header: 'Lead status', render: (l: Lead) => <Badge variant={getStatusBadge(l.status)} size="sm" dot>{l.status}</Badge> },
     { key: 'estimated_value', header: 'Est. Value', render: (l: Lead) => l.estimated_value != null ? (
       <span className="font-medium">{crmMoney(l.estimated_value, l.currency)}</span>
     ) : <span className="text-tertiary">—</span> },
-    { key: 'lead_score', header: 'Score', render: (l: Lead) => <span className="font-mono text-sm">{l.lead_score}</span> },
+    { key: 'source', header: 'Source', render: (l: Lead) => <span className="text-secondary capitalize">{(l.source || 'Not specified').replaceAll('_', ' ')}</span> },
     { key: 'follow_up_date', header: 'Follow Up', render: (l: Lead) => l.follow_up_date ? workDate(l.follow_up_date) : '—' },
-    { key: 'created_at', header: 'Created', render: (l: Lead) => workDate(l.created_at) },
+    { key: 'updated_at', header: 'Last activity', render: (l: Lead) => <time dateTime={l.updated_at}>{crmActivityLabel(l.updated_at)}</time> },
   ];
 
   const filters = [
-    { label: 'Status', value: 'status', options: statusOptions },
     { label: 'Source', value: 'source', options: sourceOptions },
     { label: 'Priority', value: 'priority', options: priorityOptions },
   ];
 
-  const filterValues = { status: statusFilter, source: sourceFilter, priority: priorityFilter };
+  const filterValues = { source: sourceFilter, priority: priorityFilter };
   const hasActiveFilters = !!statusFilter || !!sourceFilter || !!priorityFilter;
 
   const handleFilterChange = (key: string, value: string) => {
@@ -308,6 +307,7 @@ export function LeadsPage() {
         if (!res.ok) { const j = await res.json().catch(() => null); throw new Error(j?.error?.message || 'Import failed'); }
         await fetchLeads();
       }} />
+      <CrmViewTabs label="Lead views" current={statusFilter} onChange={value => { setStatusFilter(value); setPage(1); }} items={[{ value: '', label: 'All leads' }, ...statusOptions.map(option => ({ value: option.value, label: option.label }))]} />
       <section className="crm-index" aria-label="leads records">
 
       <DataTableToolbar
@@ -315,7 +315,7 @@ export function LeadsPage() {
         filterProps={{ filters, values: filterValues, onChange: handleFilterChange, onClear: clearFilters, hasActiveFilters }}
         viewOptions={{
           currentView: viewMode,
-          showLabels: true,
+          showLabels: false,
           views: [
             { id: 'table', label: 'Table', icon: <TableIcon className="w-4 h-4" /> },
             { id: 'kanban', label: 'Kanban', icon: <KanbanIcon className="w-4 h-4" /> },
@@ -394,12 +394,12 @@ export function LeadsPage() {
 
       </section>
 
-      <Modal busy={submitLoading} isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingLead ? 'Edit Lead' : 'New Lead'} size="lg">
+      <Modal busy={submitLoading} isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingLead ? 'Edit Lead' : 'Create Lead'} size="lg">
         <div className="lead-dialog-form">
           <section className="lead-dialog-section" aria-label="Contact information">
-            <div className="lead-dialog-section-heading"><h3>Contact information</h3><p>The person you are building a relationship with.</p></div>
-            <FormField label="Display Name" error={formErrors.display_name} required>
-              <Input value={formData.display_name} onChange={(e) => setFormData({ ...formData, display_name: e.target.value })} placeholder="Lead display name" />
+            <div className="lead-dialog-section-heading"><h3>Contact</h3></div>
+            <FormField label="Email" error={formErrors.email} required>
+              <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="name@company.com" />
             </FormField>
             <div className="form-row-2">
             <FormField label="First Name" error={formErrors.first_name} required>
@@ -410,16 +410,13 @@ export function LeadsPage() {
             </FormField>
             </div>
             <div className="form-row-2">
-              <FormField label="Email" error={formErrors.email} required>
-                <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="lead@example.com" />
-              </FormField>
               <FormField label="Phone">
                 <Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="+1 (555) 123-4567" />
               </FormField>
             </div>
           </section>
           <section className="lead-dialog-section" aria-label="Company information">
-            <div className="lead-dialog-section-heading"><h3>Company</h3><p>Where this lead works and their role.</p></div>
+            <div className="lead-dialog-section-heading"><h3>Company</h3></div>
             <div className="form-row-2">
               <FormField label="Company Name">
                 <Input value={formData.company_name} onChange={(e) => setFormData({ ...formData, company_name: e.target.value })} placeholder="Company name" />
@@ -430,7 +427,7 @@ export function LeadsPage() {
             </div>
           </section>
           <section className="lead-dialog-section" aria-label="Lead qualification">
-            <div className="lead-dialog-section-heading"><h3>Qualification</h3><p>Track lead progress and potential value.</p></div>
+            <div className="lead-dialog-section-heading"><h3>Lead details</h3></div>
             <div className="form-row-2">
             <FormField label="Status">
               <Select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })}>
@@ -475,7 +472,7 @@ export function LeadsPage() {
             </div>
           </section>
           <section className="lead-dialog-section" aria-label="Lead notes">
-            <div className="lead-dialog-section-heading"><h3>Notes</h3><p>Add context to help your team follow up.</p></div>
+            <div className="lead-dialog-section-heading"><h3>Notes</h3></div>
             <FormField label="Description">
               <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Lead description" rows={3} />
             </FormField>

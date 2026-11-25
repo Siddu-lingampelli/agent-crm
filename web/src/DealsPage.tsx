@@ -1,5 +1,5 @@
-import { crmMoney, crmValueSummary, exportCrmPage } from './crm-data';
-import { CrmHeader, CrmState, CrmPagination, CrmDialog as Modal } from './CrmUI';
+import { crmActivityLabel, crmMoney, crmValueSummary, exportCrmPage } from './crm-data';
+import { CrmHeader, CrmState, CrmPagination, CrmViewTabs, CrmDialog as Modal } from './CrmUI';
 import { workBatch, workDate } from './work-data';
 import { useSearchParams } from 'react-router-dom';
 import { useRecordRoute } from './useRecordRoute';
@@ -30,6 +30,7 @@ export function DealsPage() {
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [query, setQuery] = useState('');
   const [stageFilter, setStageFilter] = useState(routeParams.get('stage_id')??'');
+  const [categoryFilter, setCategoryFilter] = useState(routeParams.get('category')??'');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const requestSequence = useRef(0);
@@ -66,7 +67,7 @@ const [formData, setFormData] = useState<DealFormData>({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
 
-  useEffect(() => { setSelectedIds(new Set()); }, [query, stageFilter, page, pageSize]);
+  useEffect(() => { setSelectedIds(new Set()); }, [query, stageFilter, categoryFilter, page, pageSize]);
 
   const showToast = useCallback((type: Toast['type'], message: string) => {
     const id = Date.now() + Math.random();
@@ -82,6 +83,7 @@ const [formData, setFormData] = useState<DealFormData>({
       const response = await api.deals.list({
         q: query,
         stage_id: stageFilter || undefined,
+        category: categoryFilter || undefined,
         limit: pageSize,
         offset: (page - 1) * pageSize,
       });
@@ -96,7 +98,7 @@ const [formData, setFormData] = useState<DealFormData>({
     } finally {
       if (sequence === requestSequence.current) setLoading(false);
     }
-  }, [query, stageFilter, page, pageSize]);
+  }, [query, stageFilter, categoryFilter, page, pageSize]);
 
   const fetchCompanies = useCallback(async () => {
     try {
@@ -231,20 +233,17 @@ const [formData, setFormData] = useState<DealFormData>({
     { key: 'name', header: 'Deal Name', render: (d: Deal) => (
       <div className="flex items-center gap-3">
         <Avatar name={d.name} size="sm" />
-        <button className="crm-table-name" onClick={e => { e.stopPropagation(); handleEdit(d); }}>{d.name}</button>
+        <div><button className="crm-table-name" onClick={e => { e.stopPropagation(); handleEdit(d); }}>{d.name}</button><p className="text-xs text-tertiary">{companies.find(company => company.id === d.company_id)?.name || 'No company linked'}</p></div>
       </div>
     )},
-    { key: 'company_id', header: 'Company', render: (d: Deal) => {
-      const company = companies.find(c => c.id === d.company_id);
-      return company ? <span className="font-medium">{company.name}</span> : <span className="text-tertiary">—</span>;
-    }},
-    { key: 'primary_contact_id', header: 'Contact', render: (d: Deal) => {
-      const contact = contacts.find(c => c.id === d.primary_contact_id);
-      return contact ? <span>{contact.first_name} {contact.last_name}</span> : <span className="text-tertiary">—</span>;
+    { key: 'stage_id', header: 'Deal stage', render: (d: Deal) => {
+      const stage = pipelineStages.find(s => s.id === d.stage_id);
+      return stage ? <Badge variant={getStatusBadge(stage.category)} size="sm" dot>{stage.name}</Badge> : <Badge variant="neutral" size="sm">{d.stage_id}</Badge>;
     }},
     { key: 'amount', header: 'Amount', render: (d: Deal) => d.amount !== null ? (
       <span className="font-semibold">{crmMoney(d.amount, d.currency)}</span>
     ) : <span className="text-tertiary">—</span> },
+    { key: 'expected_close', header: 'Close date', render: (d: Deal) => d.expected_close ? workDate(d.expected_close) : '—' },
     { key: 'probability', header: 'Probability', render: (d: Deal) => (
       <div className="flex items-center gap-2">
         <div className="h-2 w-20 bg-border-primary rounded-full overflow-hidden">
@@ -253,13 +252,7 @@ const [formData, setFormData] = useState<DealFormData>({
         <span className="text-sm font-medium w-12">{d.probability}%</span>
       </div>
     )},
-    { key: 'expected_close', header: 'Close Date', render: (d: Deal) => d.expected_close ? workDate(d.expected_close) : '—' },
-    { key: 'stage_id', header: 'Stage', render: (d: Deal) => {
-      const stage = pipelineStages.find(s => s.id === d.stage_id);
-      return stage ? (
-        <Badge variant={getStatusBadge(d.stage_id)} size="sm" dot>{stage.name}</Badge>
-      ) : <Badge variant="neutral" size="sm">{d.stage_id}</Badge>;
-    }},
+    { key: 'updated_at', header: 'Last activity', render: (d: Deal) => <time dateTime={d.updated_at}>{crmActivityLabel(d.updated_at)}</time> },
   ];
 
   const filters = [
@@ -267,14 +260,14 @@ const [formData, setFormData] = useState<DealFormData>({
   ];
 
   const filterValues = { stage: stageFilter };
-  const hasActiveFilters = !!stageFilter;
+  const hasActiveFilters = !!stageFilter || !!categoryFilter;
 
   const handleFilterChange = (key: string, value: string) => {
-    if (key === 'stage') setStageFilter(value);
+    if (key === 'stage') { setStageFilter(value); setCategoryFilter(''); }
     setPage(1);
   };
 
-  const clearFilters = () => { setStageFilter(''); setPage(1); };
+  const clearFilters = () => { setStageFilter(''); setCategoryFilter(''); setPage(1); };
 
   const handleSelectionChange = (ids: Set<string>) => setSelectedIds(ids);
 
@@ -290,7 +283,7 @@ const [formData, setFormData] = useState<DealFormData>({
   useRecordRoute({ getRecord: api.deals.get, onCreate: handleCreate, onRecord: handleEdit, onError: message => showToast('error', message) });
 
   return (
-    <div className="crm-area">
+    <div className="crm-area crm-deals">
       <CrmHeader title="Deals" recordCount={total} description="A clearer view of every opportunity in motion." onCreate={handleCreate} busy={loading || !!loadError} onExport={() => exportCrmPage('deals', deals, [{ key: 'name', label: 'name' }, { key: 'amount', label: 'amount' }, { key: 'currency', label: 'currency' }, { key: 'probability', label: 'probability' }, { key: 'stage_id', label: 'stage id' }, { key: 'expected_close', label: 'expected close' }])} onImport={async (file) => {
         const fd = new FormData();
         fd.append('file', file);
@@ -298,6 +291,7 @@ const [formData, setFormData] = useState<DealFormData>({
         if (!res.ok) { const j = await res.json().catch(() => null); throw new Error(j?.error?.message || 'Import failed'); }
         await fetchDeals();
       }} />
+      <CrmViewTabs label="Deal views" current={categoryFilter} onChange={value => { setCategoryFilter(value); setStageFilter(''); setPage(1); }} items={[{ value: '', label: 'All deals' }, { value: 'open', label: 'Open deals' }, { value: 'won', label: 'Won deals' }, { value: 'lost', label: 'Lost deals' }]} />
       <section className="crm-index" aria-label="deals records">
       {pipelineError && <p className="crm-notice" role="alert">{pipelineError} The table view is still available.</p>}
 
@@ -306,7 +300,7 @@ const [formData, setFormData] = useState<DealFormData>({
         filterProps={{ filters, values: filterValues, onChange: handleFilterChange, onClear: clearFilters, hasActiveFilters }}
         viewOptions={{
           currentView: viewMode,
-          showLabels: true,
+          showLabels: false,
           views: [
             { id: 'kanban', label: 'Kanban', icon: <KanbanIcon className="w-4 h-4" /> },
             { id: 'table', label: 'Table', icon: <TableIcon className="w-4 h-4" /> },
@@ -392,12 +386,15 @@ const [formData, setFormData] = useState<DealFormData>({
 
       </section>
 
-      <Modal busy={submitLoading} isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingDeal ? 'Edit Deal' : 'New Deal'} size="lg">
-        <div className="space-y-4 max-h-[70vh] overflow-y-auto">{pipelineError && <p className="form-error" role="alert">{pipelineError}</p>}
-          <FormField label="Deal Name" error={formErrors.name} required>
-            <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Deal name" />
-          </FormField>
-          <div className="form-row-2">
+      <Modal busy={submitLoading} isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingDeal ? 'Edit Deal' : 'Create Deal'} size="lg">
+        <div className="deal-dialog-form">
+          {pipelineError && <p className="form-error deal-dialog-error" role="alert">{pipelineError}</p>}
+          <section className="deal-dialog-section" aria-label="Deal information">
+            <div className="deal-dialog-section-heading"><h3>Deal</h3></div>
+            <FormField label="Deal Name" error={formErrors.name} required>
+              <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Acme annual plan" />
+            </FormField>
+            <div className="form-row-2">
             <FormField label="Pipeline" error={formErrors.pipeline_id} required>
               <Select value={formData.pipeline_id} onChange={event => setFormData({ ...formData, pipeline_id: event.target.value, stage_id: pipelines.find(pipeline => pipeline.id === event.target.value)?.stages[0]?.id || '' })}><option value="">Select pipeline</option>{pipelines.map(pipeline => <option key={pipeline.id} value={pipeline.id}>{pipeline.name}</option>)}</Select>
             </FormField>
@@ -407,6 +404,9 @@ const [formData, setFormData] = useState<DealFormData>({
               </Select>
             </FormField>
           </div>
+          </section>
+          <section className="deal-dialog-section" aria-label="Deal value">
+            <div className="deal-dialog-section-heading"><h3>Value and timing</h3></div>
           <div className="form-row-3">
             <FormField label="Amount" error={formErrors.amount} required>
               <Input type="number" step="0.01" value={String(formData.amount ?? 0)} onChange={(e) => setFormData({ ...formData, amount: e.target.value })} placeholder="0" />
@@ -423,6 +423,9 @@ const [formData, setFormData] = useState<DealFormData>({
           <FormField label="Expected Close Date" error={formErrors.expected_close} required>
             <Input type="date" value={formData.expected_close} onChange={(e) => setFormData({ ...formData, expected_close: e.target.value })} />
           </FormField>
+          </section>
+          <section className="deal-dialog-section" aria-label="Associated records">
+            <div className="deal-dialog-section-heading"><h3>Associations</h3></div>
           <div className="form-row-2">
             <FormField label="Company">
               <Select value={formData.company_id} onChange={(e) => setFormData({ ...formData, company_id: e.target.value })}>
@@ -437,6 +440,9 @@ const [formData, setFormData] = useState<DealFormData>({
               </Select>
             </FormField>
           </div>
+          </section>
+          <section className="deal-dialog-section deal-dialog-notes" aria-label="Deal details">
+            <div className="deal-dialog-section-heading"><h3>Additional details</h3></div>
           <FormField label="Source">
             <Input value={formData.source} onChange={(e) => setFormData({ ...formData, source: e.target.value })} placeholder="Lead source" />
           </FormField>
@@ -446,6 +452,7 @@ const [formData, setFormData] = useState<DealFormData>({
           <FormField label="Lost Reason">
             <Textarea value={formData.lost_reason} onChange={(e) => setFormData({ ...formData, lost_reason: e.target.value })} placeholder="Reason if lost" rows={2} />
           </FormField>
+          </section>
         </div>
         <div className="modal-footer">
           <Button variant="secondary" onClick={() => setModalOpen(false)} disabled={submitLoading}>Cancel</Button>

@@ -320,3 +320,42 @@ a.ad-overview-stat:hover { background:#f8fafc; }
 .ad-ram-values dd { margin: 9px 0 0; color: #33475b; font-size: 19px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
 .ad-ram-sampled { margin-top: 20px; padding-top: 13px; border-top: 1px solid #f1f5f9; font-size: 9px; color: var(--color-gray-500); }
 @media (max-width:560px) { .ad-ram-panel { padding: 18px 16px; } .ad-ram-summary { flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 18px; } .ad-ram-summary strong { font-size: 34px; } .ad-ram-values { gap: 12px; } .ad-ram-values dt { font-size: 9px; } .ad-ram-values dd { font-size: 16px; } .ad-ram-values > div { padding-right: 7px; } .ad-ram-summary > div > span { font-size: 10px; } .ad-ram-section { margin-bottom: 18px; } }
+
+/* Agents, API keys, and webhook pages use the same sharp CRM hierarchy. */
+.admin-area :is(.ad-access-page,.ad-webhooks-page) .ad-page-header { margin-bottom:14px; padding-bottom:13px; border-bottom:2px solid #d5dde6; }
+.admin-area .ad-access-page > .border-b { border-color:#d5dde6; border-bottom-width:2px; }
+.admin-area .ad-access-page nav[aria-label='Tabs'] { gap:24px; padding:0; }
+.admin-area .ad-access-page nav[aria-label='Tabs'] button { min-height:42px; padding:8px 1px 9px; border:0; border-bottom:3px solid transparent; border-radius:0; background:transparent; color:#687c90; font-size:13px; font-weight:500; }
+.admin-area .ad-access-page nav[aria-label='Tabs'] button[aria-pressed='true'] { border-bottom-color:#e45a2c; background:transparent; color:#a53b17; font-weight:650; }
+.admin-area :is(.ad-access-page,.ad-webhooks-page) .search-filter-bar { gap:9px; padding:11px 0; border:0; border-bottom:2px solid #d5dde6; border-radius:0; background:transparent; }
+.admin-area :is(.ad-access-page,.ad-webhooks-page) .search-input-wrapper { min-height:40px; border:1px solid #c5d0db; border-radius:7px; background:#fff; }
+.admin-area :is(.ad-access-page,.ad-webhooks-page) .search-input { min-height:38px; color:#33475b; font-size:13px; }
+.admin-area :is(.ad-access-page,.ad-webhooks-page) .filter-select { min-height:38px; border:1px solid #c5d0db; border-radius:6px; background:#fff; color:#40566b; font-size:12px; }
+.admin-area :is(.ad-access-page,.ad-webhooks-page) .table-container { border:1px solid #d5dde6; border-radius:7px; overflow:hidden; }
+.admin-area :is(.ad-access-page,.ad-webhooks-page) .table th { height:43px; border-bottom:2px solid #cbd5df; background:#f6f8fa; color:#40566b; font-size:12px; font-weight:650; }
+.admin-area :is(.ad-access-page,.ad-webhooks-page) .table td { min-height:48px; border-bottom:1px solid #e1e6ec; color:#33475b; font-size:13px; }
+.admin-area :is(.ad-access-page,.ad-webhooks-page) .table tbody tr:hover { background:#f7f9fb; }
+.admin-area :is(.ad-access-page,.ad-webhooks-page) .pagination { border-top:1px solid #d5dde6; }
+
+/* Compact editors for API keys, agents, and webhooks. */
+.modal-overlay:has(.ad-admin-dialog-fields) { position:fixed; inset:0; z-index:10000; background:rgba(20,27,38,.48); backdrop-filter:none; }
+.modal-content:has(.ad-admin-dialog-fields) { width:min(560px,calc(100vw - 32px)); max-width:560px; max-height:calc(100dvh - 32px); border:1px solid #d5dde6; border-radius:10px; background:#fff; box-shadow:0 20px 60px rgba(20,31,48,.18); }
+.modal-content:has(.ad-admin-dialog-fields) .modal-header { min-height:58px; align-items:center; padding:12px 22px; border-bottom:1px solid #dfe5eb; background:#fff; }
+.modal-content:has(.ad-admin-dialog-fields) .modal-title { color:#1f2937!important; font-size:20px; font-weight:650; line-height:1.3; letter-spacing:-.025em; }
+.modal-body:has(.ad-admin-dialog-fields) { display:grid; min-height:0; grid-template-rows:minmax(0,1fr) auto; max-height:none; padding:0; overflow:hidden; background:#fff; }
+.ad-admin-dialog-fields { display:grid; min-height:0; align-content:start; gap:12px; max-height:min(66dvh,560px); padding:18px 22px; overflow:auto; scrollbar-gutter:stable; background:#fff; }
+.ad-admin-dialog-fields .form-group { min-width:0; margin:0; }
+.ad-admin-dialog-fields .form-label { margin-bottom:5px; color:#40566b; font-size:13px; font-weight:600; }
+.ad-admin-dialog-fields :is(.form-input,.form-select,.form-textarea) { min-height:40px; border:1px solid #c5d0db; border-radius:6px; background:#fff; color:#26394d; font-size:13px; }
+.ad-admin-dialog-fields :is(.form-input,.form-select,.form-textarea):focus { border-color:#7c98b3; outline:3px solid #607b9518; outline-offset:0; }
+.modal-body:has(.ad-admin-dialog-fields) > .modal-footer { min-height:57px; margin:0; padding:10px 22px; border-top:1px solid #dfe5eb; border-radius:0; background:#fff; }
+.modal-content:has(.ad-admin-dialog-fields) .modal-footer > button { min-height:36px; padding:0 14px; border-radius:6px; font-size:13px; font-weight:600; }
+.modal-content:has(.ad-admin-dialog-fields) .modal-footer > .btn-primary { border-color:var(--color-orange); background:var(--color-orange); color:#fff; }
+@media(max-width:600px) {
+  .modal-content:has(.ad-admin-dialog-fields) { width:calc(100vw - 24px); max-height:calc(100dvh - 24px); }
+  .modal-content:has(.ad-admin-dialog-fields) .modal-header { padding-inline:16px; }
+  .ad-admin-dialog-fields { padding-inline:16px; }
+  .modal-body:has(.ad-admin-dialog-fields) > .modal-footer { padding-inline:16px; }
+  .admin-area :is(.ad-access-page,.ad-webhooks-page) .search-filter-bar { align-items:stretch; flex-wrap:wrap; }
+  .admin-area :is(.ad-access-page,.ad-webhooks-page) .search-input-wrapper { width:100%; max-width:none; flex-basis:100%; }
+}

@@ -9,6 +9,19 @@ export function crmValueSummary(items: { amount: number | null; currency: string
   return values.size ? Array.from(values, ([currency, amount]) => crmMoney(amount, currency)).join(' / ') : '\u2014';
 }
 
+export function crmActivityLabel(value: string) {
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return '\u2014';
+  const minutes = Math.floor(Math.max(0, Date.now() - timestamp) / 60000);
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(timestamp);
+}
+
 export function exportCrmPage<T extends { id: string }>(noun: string, records: T[], fields: { key: keyof T; label: string }[]) {
   const cell = (value: unknown) => { const raw = String(value ?? ''); return `"${(/^[\s]*[=+@-]/.test(raw) ? "'" + raw : raw).replaceAll('"', '""')}"`; };
   const csv = '\uFEFF' + [fields.map(field => cell(field.label)).join(','), ...records.map(record => fields.map(field => cell(record[field.key])).join(','))].join('\r\n');

@@ -1,5 +1,5 @@
-import { exportCrmPage } from './crm-data';
-import { CrmCompanyCards, CrmHeader, CrmState, CrmPagination, CrmDialog as Modal } from './CrmUI';
+import { crmActivityLabel, exportCrmPage } from './crm-data';
+import { CrmCompanyCards, CrmHeader, CrmState, CrmPagination, CrmViewTabs, CrmDialog as Modal } from './CrmUI';
 import { workBatch, workDate } from './work-data';
 import { useRecordRoute } from './useRecordRoute';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -193,20 +193,18 @@ export function CompaniesPage() {
         </div>
       </div>
     )},
-    { key: 'domain', header: 'Domain' },
     { key: 'industry', header: 'Industry' },
-    { key: 'size_band', header: 'Size', render: (c: Company) => c.size_band || '—' },
+    { key: 'size_band', header: 'Company size', render: (c: Company) => c.size_band || <span className="crm-table-muted">—</span> },
     { key: 'is_client', header: 'Client', render: (c: Company) => <Badge variant={c.is_client ? 'success' : 'neutral'} size="sm" dot>{c.is_client ? 'Yes' : 'No'}</Badge> },
     { key: 'status', header: 'Status', render: (c: Company) => <Badge variant={getStatusBadge(c.status)} size="sm" dot>{c.status}</Badge> },
-    { key: 'created_at', header: 'Created', render: (c: Company) => workDate(c.created_at) },
+    { key: 'updated_at', header: 'Last activity', render: (c: Company) => <time dateTime={c.updated_at}>{crmActivityLabel(c.updated_at)}</time> },
   ];
 
   const filters = [
-    { label: 'Status', value: 'status', options: statusOptions },
     { label: 'Client', value: 'is_client', options: [{ value: '', label: 'All' }, { value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }] },
   ];
 
-  const filterValues = { status: statusFilter, is_client: isClientFilter };
+  const filterValues = { is_client: isClientFilter };
   const hasActiveFilters = !!statusFilter || !!isClientFilter;
 
   const handleFilterChange = (key: string, value: string) => {
@@ -225,7 +223,7 @@ export function CompaniesPage() {
   useRecordRoute({ getRecord: api.companies.get, onCreate: handleCreate, onRecord: handleEdit, onError: message => showToast('error', message) });
 
   return (
-    <div className="crm-area">
+    <div className="crm-area crm-companies">
       <CrmHeader title="Companies" recordCount={total} description="Every account, with the context to grow it." onCreate={handleCreate} busy={loading || !!loadError} onExport={() => exportCrmPage('companies', companies, [{ key: 'name', label: 'name' }, { key: 'domain', label: 'domain' }, { key: 'industry', label: 'industry' }, { key: 'status', label: 'status' }, { key: 'is_client', label: 'is client' }, { key: 'email', label: 'email' }])} onImport={async (file) => {
         const fd = new FormData();
         fd.append('file', file);
@@ -233,6 +231,7 @@ export function CompaniesPage() {
         if (!res.ok) { const j = await res.json().catch(() => null); throw new Error(j?.error?.message || 'Import failed'); }
         await fetchCompanies();
       }} />
+      <CrmViewTabs label="Company views" current={statusFilter} onChange={value => { setStatusFilter(value); setPage(1); }} items={[{ value: '', label: 'All companies' }, ...statusOptions.map(option => ({ value: option.value, label: option.label }))]} />
       <section className="crm-index" aria-label="companies records">
 
       <DataTableToolbar
@@ -240,7 +239,7 @@ export function CompaniesPage() {
         filterProps={{ filters, values: filterValues, onChange: handleFilterChange, onClear: clearFilters, hasActiveFilters }}
         viewOptions={{
           currentView: viewMode,
-          showLabels: true,
+          showLabels: false,
           views: [
             { id: 'table', label: 'Table', icon: <TableIcon className="w-4 h-4" /> },
             { id: 'cards', label: 'Cards', icon: <Grid className="w-4 h-4" /> },
@@ -280,8 +279,10 @@ export function CompaniesPage() {
 
       </section>
 
-      <Modal busy={submitLoading} isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingCompany ? 'Edit Company' : 'New Company'} size="lg">
-        <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+      <Modal busy={submitLoading} isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingCompany ? 'Edit Company' : 'Create Company'} size="lg">
+        <div className="company-dialog-form">
+          <section className="company-dialog-section" aria-label="Company information">
+            <div className="company-dialog-section-heading"><h3>Company</h3></div>
           <FormField label="Name" error={formErrors.name} required>
             <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Company name" />
           </FormField>
@@ -298,6 +299,9 @@ export function CompaniesPage() {
               {sizeBandOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
             </Select>
           </FormField>
+          </section>
+          <section className="company-dialog-section" aria-label="Contact information">
+            <div className="company-dialog-section-heading"><h3>Contact information</h3></div>
           <FormField label="Website">
             <Input type="url" value={formData.website} onChange={(e) => setFormData({ ...formData, website: e.target.value })} placeholder="https://example.com" />
           </FormField>
@@ -312,6 +316,9 @@ export function CompaniesPage() {
           <FormField label="Address">
             <Textarea value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} placeholder="Company address" rows={2} />
           </FormField>
+          </section>
+          <section className="company-dialog-section company-dialog-notes" aria-label="Relationship details">
+            <div className="company-dialog-section-heading"><h3>Relationship</h3></div>
           <div className="form-row-2">
             <FormField label="Status">
               <Select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })}>
@@ -328,6 +335,7 @@ export function CompaniesPage() {
           <FormField label="Notes">
             <Textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} placeholder="Internal notes" rows={3} />
           </FormField>
+          </section>
         </div>
         <div className="modal-footer">
           <Button variant="secondary" onClick={() => setModalOpen(false)} disabled={submitLoading}>Cancel</Button>

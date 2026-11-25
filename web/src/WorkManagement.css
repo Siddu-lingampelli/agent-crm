@@ -118,8 +118,8 @@
 .work-area .wm-empty::before { display:block; width:36px; height:36px; margin-bottom:4px; border:1px solid #f0d9cf; border-radius:10px; background:#fff8f4 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23b94b27' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 6h13M8 12h13M8 18h13'/%3E%3Cpath d='M3 6h.01M3 12h.01M3 18h.01'/%3E%3C/svg%3E") center / 19px no-repeat; content:""; }
 .work-area .wm-empty > strong { color:#33475b; font-size:16px; font-weight:650; letter-spacing:-.015em; }
 .work-area .wm-empty > span { max-width:380px; color:#687c90; font-size:12px; line-height:1.55; }
-.work-area .wm-empty .au-button { min-height:32px; margin:4px 0 0; padding-inline:2px; border:0; background:transparent; color:#c7441b; font-size:12px; font-weight:650; }
-.work-area .wm-empty .au-button:hover:not(:disabled) { text-decoration:underline; text-underline-offset:3px; }
+.work-area .wm-empty .au-button { min-height:40px; margin:8px 0 0; padding:0 16px; border:1px solid var(--color-orange); border-radius:7px; background:var(--color-orange); color:#fff; font-size:13px; font-weight:600; text-decoration:none; box-shadow:0 1px 2px rgba(31,41,55,.12); }
+.work-area .wm-empty .au-button:hover:not(:disabled) { border-color:var(--color-orange-hover); background:var(--color-orange-hover); color:#fff; text-decoration:none; }
 .work-area .wm-task-table { min-width:850px; }
 .work-area .wm-task-table th, .work-area .wm-project-table th { height:40px; padding:10px 14px; background:#f7f9fb; color:#53687d; font-size:11px; font-weight:650; letter-spacing:.025em; }
 .work-area .wm-task-table td, .work-area .wm-project-table td { height:51px; padding:10px 14px; border-bottom-color:#edf0f3; color:#33475b; font-size:13px; }
@@ -171,3 +171,61 @@ body:has(.work-area) .ws-nav-link.is-active::before { position:absolute; inset:6
   .work-area .wm-project-grid { grid-template-columns:1fr; }
   .work-area .wm-project-card { min-height:0; }
 }
+
+/* Tasks and Projects share the same CRM-style hierarchy and compact controls. */
+.work-area .au-header { min-height:52px; gap:18px; margin:0 0 7px; padding:0 0 10px; border-bottom:0; }
+.work-area .au-header > div:first-of-type { display:flex; align-items:baseline; gap:12px; }
+.work-area .au-header h1 { color:#26394d; font-size:26px; font-weight:700; letter-spacing:-.04em; }
+.work-area .wm-record-count { padding:4px 9px; border:1px solid #e0e6ec; border-radius:999px; background:#f5f7f9; color:#64788d; font-size:12px; font-weight:600; white-space:nowrap; }
+.work-area .au-header-actions { gap:8px; }
+.work-area .au-header-actions .crm-button, .work-area .au-header-actions .au-button { min-height:38px; padding:0 13px; border:1px solid #cbd4de; border-radius:7px; background:#fff; color:#40566b; font-size:12px; font-weight:600; }
+.work-area .au-header-actions .au-button-primary { padding-inline:16px; border-color:var(--color-orange); background:var(--color-orange); color:#fff; }
+.work-area .wm-status-tabs { display:flex; align-items:center; gap:4px; min-width:0; margin:0 0 13px; overflow-x:auto; border-bottom:2px solid #d6dee7; scrollbar-width:none; }
+.work-area .wm-status-tabs::-webkit-scrollbar { display:none; }
+.work-area .wm-status-tabs button { display:inline-flex; align-items:center; gap:8px; flex:0 0 auto; min-height:43px; padding:0 13px 1px; border:0; border-bottom:2px solid transparent; background:transparent; color:#53677c; font-size:13px; font-weight:600; white-space:nowrap; cursor:pointer; }
+.work-area .wm-status-tabs button:hover { color:#26394d; background:#f8fafb; }
+.work-area .wm-status-tabs button.is-active { border-bottom-width:4px; border-bottom-color:var(--color-orange); border-radius:7px 7px 0 0; background:#fff1eb; color:#27394c; font-weight:700; }
+.work-area .wm-status-tabs button > span { width:7px; height:7px; border:1px solid #99a7b5; border-radius:50%; }
+.work-area .wm-status-tabs button.is-active > span { border-color:var(--color-orange); background:var(--color-orange); }
+.work-area .wm-toolbar { grid-template-columns:minmax(220px,1fr) auto auto; grid-template-rows:auto; gap:0 12px; margin:0; padding:11px 0 13px; border-top:0; border-bottom:2px solid #d6dee7; }
+.work-area .wm-toolbar .au-search { min-height:40px; max-width:390px; border-color:#cbd3dd; border-radius:7px; box-shadow:none; }
+.work-area .wm-toolbar .au-search input { min-height:38px; font-size:13px; }
+.work-area .wm-toolbar .au-filter-group { gap:8px; }
+.work-area .wm-toolbar .au-select-label select, .work-area .wm-toolbar .wm-record-filter > summary { min-height:39px; max-width:175px; padding:5px 28px 5px 10px; border-color:#cbd3dd; border-radius:7px; color:#34495d; font-size:12px; }
+.work-area .wm-toolbar .wm-record-filter > summary { padding-right:10px; }
+.work-area .wm-toolbar .wm-view-switch { gap:2px; padding:3px; border:1px solid #d7dee6; border-radius:8px; background:#fff; }
+.work-area .wm-toolbar .wm-view-switch button { width:37px; height:34px; border-radius:5px; color:#5e7286; }
+.work-area .wm-toolbar .wm-view-switch button.is-active { background:#fff0e9; color:#b94119; box-shadow:inset 0 0 0 1px #ffd0bf; }
+.work-area .wm-task-scope { display:none; }
+.work-area .wm-task-table, .work-area .wm-project-table { min-width:950px; }
+.work-area .wm-task-table th, .work-area .wm-project-table th { height:45px; padding:12px 14px; border-bottom:1px solid #dce3ea; background:#f7f9fb; color:#52667a; font-size:12px; font-weight:700; letter-spacing:.02em; }
+.work-area .wm-task-table td, .work-area .wm-project-table td { height:59px; padding:11px 14px; border-bottom:1px solid #e4e9ee; color:#33475b; font-size:13px; font-weight:500; }
+.work-area .wm-task-table tbody tr:hover, .work-area .wm-project-table tbody tr:hover { background:#f8fafc; }
+.work-area .wm-task-title-cell .wm-table-title, .work-area .wm-project-table .wm-table-title { color:#26394d; font-size:13px; font-weight:700; }
+.work-area .wm-projects-panel.au-panel { border-top:0; }
+.work-area .au-panel:has(.wm-empty) { border-top:0; }
+@media(max-width:1200px) {
+  .work-area .wm-toolbar { grid-template-columns:minmax(200px,1fr) auto; grid-template-rows:auto auto; gap:9px 12px; }
+  .work-area .wm-toolbar .au-search { grid-column:1; grid-row:1; }
+  .work-area .wm-toolbar .au-filter-group { grid-column:1; grid-row:2; flex-wrap:wrap; }
+  .work-area .wm-toolbar .wm-view-switch { grid-column:2; grid-row:1; justify-self:end; }
+}
+@media(max-width:700px) {
+  .work-area .au-header { align-items:flex-start; flex-direction:column; gap:10px; }
+  .work-area .au-header-actions { width:100%; flex-wrap:wrap; }
+  .work-area .wm-status-tabs button { padding-inline:10px; }
+  .work-area .wm-toolbar { grid-template-columns:minmax(0,1fr) auto; grid-template-rows:auto auto auto; padding-block:10px; }
+  .work-area .wm-toolbar .au-search { grid-column:1/-1; grid-row:1; width:100%; max-width:none; }
+  .work-area .wm-toolbar .au-filter-group { grid-column:1/-1; grid-row:2; width:100%; }
+  .work-area .wm-toolbar .wm-view-switch { grid-column:1/-1; grid-row:3; justify-self:start; }
+  .work-area .wm-toolbar .au-select-label { flex:1 1 130px; }
+  .work-area .wm-toolbar .au-select-label select { max-width:none; width:100%; }
+  .work-area .au-header > div:first-of-type { flex-wrap:wrap; }
+}
+
+/* Inline create links match the lightweight Add contact action. */
+.work-area .wm-add-action { display:inline-flex; min-height:32px; align-items:center; justify-content:center; gap:5px; padding:0; border:0; background:transparent; color:#f4511e; font-family:inherit; font-size:14px; font-weight:600; line-height:1.3; cursor:pointer; }
+.work-area .wm-add-action svg { width:15px; height:15px; flex:none; }
+.work-area .wm-add-action:hover { color:#d94116; text-decoration:underline; text-underline-offset:3px; }
+.work-area .wm-add-action:focus-visible { outline:2px solid #f4511e; outline-offset:3px; border-radius:3px; }
+.work-area .wm-empty .wm-add-action { min-height:32px; margin:7px 0 0; }

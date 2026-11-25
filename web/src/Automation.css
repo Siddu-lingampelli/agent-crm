@@ -157,3 +157,89 @@
   .automation-area .au-dialog-body { max-height:calc(100dvh - 170px); padding:18px; }
   .automation-area .au-dialog-footer { flex-wrap:wrap; padding:12px 18px; }
 }
+
+/* Task and project editors keep their actions visible while the form scrolls. */
+.automation-area .au-dialog:has(.work-editor-form) { display:grid; grid-template-rows:auto minmax(0,1fr); width:min(680px,calc(100vw - 32px)); height:min(780px,calc(100dvh - 48px)); max-height:calc(100dvh - 32px); border:1px solid #e1e5eb; border-radius:12px; box-shadow:0 24px 70px rgba(20,31,48,.2); }
+.automation-area .au-dialog:has(.work-editor-form)::backdrop { background:rgba(20,27,38,.48); backdrop-filter:blur(2px); }
+.automation-area .au-dialog:has(.work-editor-form) .au-dialog-heading { align-items:center; min-height:68px; padding:16px 26px; background:#fff; }
+.automation-area .au-dialog:has(.work-editor-form) .au-dialog-heading h2 { color:var(--color-gray-900); font-size:21px; font-weight:650; letter-spacing:-.03em; }
+.automation-area .au-dialog:has(.work-editor-form) .au-dialog-heading p { margin-top:4px; color:#687c90; font-size:11px; }
+.automation-area .au-dialog:has(.work-editor-form) .au-dialog-heading>button { width:34px; height:34px; border:1px solid #e2e6eb; border-radius:50%; }
+.work-editor-form { display:grid; grid-template-rows:minmax(0,1fr) auto; min-height:0; }
+.automation-area .au-dialog:has(.work-editor-form) .au-dialog-body { min-height:0; max-height:none; padding:20px 26px; overflow:auto; }
+.automation-area .au-dialog:has(.work-editor-form) .au-dialog-footer { padding:14px 26px; border-top:1px solid #e8ebef; background:#fff; }
+.automation-area .au-dialog:has(.work-editor-form) .au-dialog-footer .au-button { min-height:40px; padding-inline:16px; border-radius:7px; font-size:13px; font-weight:600; }
+.automation-area .au-dialog:has(.work-editor-form) .au-dialog-footer .au-button-primary { border-color:var(--color-orange); background:var(--color-orange); color:#fff; }
+@media(max-width:600px) {
+  .automation-area .au-dialog:has(.work-editor-form) { width:calc(100vw - 20px); height:calc(100dvh - 24px); max-height:calc(100dvh - 24px); }
+  .automation-area .au-dialog:has(.work-editor-form) .au-dialog-heading { padding-inline:18px; }
+  .automation-area .au-dialog:has(.work-editor-form) .au-dialog-body { padding:18px; }
+  .automation-area .au-dialog:has(.work-editor-form) .au-dialog-footer { flex-wrap:nowrap; padding:12px 18px; }
+}
+
+/* Compact single-column task and project editors. */
+.automation-area .au-dialog:has(.work-editor-form) { width:min(560px,calc(100vw - 32px)); height:min(680px,calc(100dvh - 40px)); max-height:calc(100dvh - 32px); margin:auto; padding:0; overflow:hidden; border-radius:10px; background:#fff; color:var(--color-gray-900); box-shadow:0 20px 60px rgba(20,31,48,.18); }
+.automation-area .au-dialog:has(.work-editor-form) .au-dialog-heading { min-height:58px; padding:12px 22px; }
+.automation-area .au-dialog:has(.work-editor-form) .au-dialog-heading h2 { font-size:20px; letter-spacing:-.025em; }
+.automation-area .au-dialog:has(.work-editor-form) .au-dialog-heading p { display:none; }
+.automation-area .au-dialog:has(.work-editor-form) .au-dialog-heading>button { width:32px; height:32px; border:0; border-radius:6px; }
+.automation-area .au-dialog:has(.work-editor-form) .au-dialog-body { display:grid; align-content:start; gap:11px; padding:10px 22px 14px; }
+.automation-area .au-dialog:has(.work-editor-form) .au-dialog-footer { padding:10px 22px; }
+.automation-area .au-dialog:has(.work-editor-form) .au-dialog-footer .au-button { min-height:36px; padding-inline:14px; border-radius:6px; }
+.automation-area .work-editor-form .au-form-grid { grid-template-columns:minmax(0,1fr); gap:11px; }
+@media(max-width:600px) {
+  .automation-area .au-dialog:has(.work-editor-form) { width:calc(100vw - 20px); height:calc(100dvh - 24px); max-height:calc(100dvh - 24px); }
+  .automation-area .au-dialog:has(.work-editor-form) .au-dialog-heading { padding-inline:16px; }
+  .automation-area .au-dialog:has(.work-editor-form) .au-dialog-body { padding-inline:16px; }
+  .automation-area .au-dialog:has(.work-editor-form) .au-dialog-footer { padding-inline:16px; }
+}
+
+/* Archive confirmations match the compact CRM confirmation shell. */
+.automation-area .au-dialog:has(.wm-archive-confirmation) { width:min(480px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); margin:auto; padding:0; overflow:hidden; border:1px solid #e1e5eb; border-radius:10px; background:#fff; color:#1f2937; box-shadow:0 20px 60px rgba(20,31,48,.18); }
+.automation-area .au-dialog:has(.wm-archive-confirmation) .au-dialog-heading { min-height:58px; align-items:center; padding:12px 22px; background:#fff; }
+.automation-area .au-dialog:has(.wm-archive-confirmation) .au-dialog-heading h2 { color:#1f2937; font-size:20px; font-weight:650; letter-spacing:-.025em; }
+.automation-area .au-dialog:has(.wm-archive-confirmation) .au-dialog-heading p { display:none; }
+.automation-area .au-dialog:has(.wm-archive-confirmation) .au-dialog-heading>button { width:32px; height:32px; border:0; border-radius:6px; }
+.automation-area .au-dialog:has(.wm-archive-confirmation) .wm-archive-confirmation { max-height:none; padding:18px 22px; }
+.automation-area .au-dialog:has(.wm-archive-confirmation) .au-dialog-copy { margin:0!important; color:#526174; font-size:14px; line-height:1.55; }
+.automation-area .au-dialog:has(.wm-archive-confirmation) .au-dialog-footer { gap:8px; padding:10px 22px; border-top:1px solid #e8ebef; background:#fff; }
+.automation-area .au-dialog:has(.wm-archive-confirmation) .au-dialog-footer .au-button { min-height:36px; padding-inline:14px; border-radius:6px; font-size:13px; }
+.automation-area .au-dialog:has(.wm-archive-confirmation) .au-dialog-footer .wm-archive-confirm { border-color:#dc3d3d; background:#dc3d3d; color:#fff; }
+.automation-area .au-dialog:has(.wm-archive-confirmation) .au-dialog-footer .wm-archive-confirm:hover:not(:disabled) { border-color:#c93232; background:#c93232; }
+@media(max-width:600px) {
+  .automation-area .au-dialog:has(.wm-archive-confirmation) { width:calc(100vw - 32px); }
+  .automation-area .au-dialog:has(.wm-archive-confirmation) .au-dialog-heading,
+  .automation-area .au-dialog:has(.wm-archive-confirmation) .wm-archive-confirmation,
+  .automation-area .au-dialog:has(.wm-archive-confirmation) .au-dialog-footer { padding-inline:18px; }
+}
+
+/* Workflow and integration dialogs share one compact, readable shell. */
+.automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog { display:flex; width:min(560px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); flex-direction:column; margin:auto; padding:0; overflow:hidden; border:1px solid #d5dde6; border-radius:10px; background:#fff; color:#26394d; box-shadow:0 20px 60px rgba(20,31,48,.18); }
+.automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog.au-dialog-wide { width:min(760px,calc(100vw - 32px)); }
+.automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog:has(.au-workflow-editor-form) { height:min(780px,calc(100dvh - 40px)); }
+.automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog-heading { min-height:58px; flex-shrink:0; align-items:center; gap:14px; padding:12px 22px; border-bottom:1px solid #dfe5eb; background:#fff; }
+.automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog-heading h2 { color:#1f2937; font-size:20px; font-weight:650; line-height:1.3; letter-spacing:-.025em; }
+.automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog-heading p { margin-top:3px; color:#687c90; font-size:12px; line-height:1.45; }
+.automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog-heading>button { width:32px; height:32px; flex-shrink:0; border:0; border-radius:6px; color:#647589; }
+.automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog-heading>button:hover { background:#f1f4f7; color:#26394d; }
+.automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog > form { display:flex; min-height:0; max-height:calc(100dvh - 90px); flex:1; flex-direction:column; }
+.automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog > form > .au-dialog-body { min-height:0; max-height:none; flex:1; overflow:auto; padding:18px 22px; color:#26394d; }
+.automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog > .au-dialog-body { max-height:calc(100dvh - 150px); overflow:auto; padding:18px 22px; color:#26394d; }
+.automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog-footer { min-height:57px; flex-shrink:0; align-items:center; gap:8px; padding:10px 22px; border-top:1px solid #dfe5eb; background:#fff; }
+.automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog .au-button { min-height:36px; padding:0 14px; border:1px solid #cbd4de; border-radius:6px; background:#fff; color:#40566b; font-size:13px; font-weight:600; }
+.automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog .au-button-primary { border-color:var(--color-orange); background:var(--color-orange); color:#fff; }
+.automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog .au-button-primary:hover:not(:disabled) { border-color:var(--color-orange-hover); background:var(--color-orange-hover); color:#fff; }
+.automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog .au-dialog-danger-action { border-color:#dc3d3d; background:#dc3d3d; color:#fff; }
+.automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog .au-dialog-danger-action:hover:not(:disabled) { border-color:#c93232; background:#c93232; }
+.automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog .form-label { margin-bottom:5px; color:#40566b; font-size:12px; font-weight:600; }
+.automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog :is(.form-input,.form-select,.form-textarea) { min-height:40px; border:1px solid #c5d0db; border-radius:6px; background:#fff; color:#26394d; font-size:13px; }
+.automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog :is(.form-input,.form-select,.form-textarea):focus { border-color:#7c98b3; outline:3px solid #607b9518; outline-offset:0; }
+@media(max-width:600px) {
+  .automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog,
+  .automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog.au-dialog-wide { width:calc(100vw - 24px); max-height:calc(100dvh - 24px); }
+  .automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog:has(.au-workflow-editor-form) { height:calc(100dvh - 24px); }
+  .automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog-heading { padding-inline:16px; }
+  .automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog > form > .au-dialog-body,
+  .automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog > .au-dialog-body { padding-inline:16px; }
+  .automation-area:not(.communications-area):not(.work-area):not(.audit-area) .au-dialog-footer { padding-inline:16px; }
+}

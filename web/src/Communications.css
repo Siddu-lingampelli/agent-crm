@@ -133,6 +133,33 @@
   .cm-connection-info { flex-basis:calc(100% - 52px); }
   .cm-connection-actions { width:100%; padding-left:48px; flex-wrap:wrap; }
 }
+
+/* Sharper, slightly heavier mail workspace finish for Inbox and Outbox. */
+.communications-area .cm-header { border-bottom:2px solid #d5dde6; }
+.communications-area .cm-header .au-button { min-height:39px; border-width:1.5px; border-color:#c4cfda; font-size:13px; font-weight:600; }
+.communications-area .cm-header .au-button-primary { border-color:var(--color-orange); }
+.communications-area .cm-inbox-shell { border:1px solid #cbd5df; border-top:2px solid #cbd5df; border-radius:8px; background:#fff; box-shadow:0 1px 2px rgba(38,59,80,.05); }
+.communications-area .cm-mail-folders { border-right:2px solid #d5dde6; background:#fff; }
+.communications-area .cm-mail-folders nav { gap:6px; }
+.communications-area .cm-mail-folders nav > button { min-height:40px; border:1px solid transparent; border-left:3px solid transparent; font-size:13px; font-weight:550; }
+.communications-area .cm-mail-folders nav > button.is-active { border-color:#ffe0d3; border-left-color:#f4511e; background:#fff3ed; color:#b94119; font-weight:650; }
+.communications-area .cm-inbox-toolbar { min-height:62px; padding:11px 15px; border-bottom:2px solid #d5dde6; background:#f7f9fb; }
+.communications-area .cm-inbox-toolbar .au-search { min-height:42px; border-width:1.5px; border-color:#c4cfda; }
+.communications-area .cm-message-list { border-right:2px solid #d5dde6; }
+.communications-area .cm-message-list-heading { min-height:46px; padding:12px 15px; border-bottom:1.5px solid #d5dde6; background:#fbfcfd; color:#40566b; font-weight:650; }
+.communications-area .cm-message-item { padding:15px; border-bottom:1.5px solid #e1e6ec; }
+.communications-area .cm-message-item.is-selected { background:#fff8f4; box-shadow:inset 3px 0 #f4511e; }
+.communications-area .cm-message-item-to { color:#53687d; font-size:12px; font-weight:550; }
+.communications-area .cm-message-item > strong { color:#26394d; font-size:14px; font-weight:600; }
+.communications-area .cm-message-snippet { color:#687c90; font-size:12px; }
+@media(max-width:1100px) {
+  .communications-area .cm-mail-folders { border-right:0; border-bottom:2px solid #d5dde6; }
+}
+@media(max-width:700px) {
+  .communications-area .cm-inbox-shell { border-radius:7px; }
+  .communications-area .cm-mail-folders { border-bottom-width:2px; }
+  .communications-area .cm-message-list { border-right:0; }
+}
 @media(max-width:600px) {
   .communications-area .cm-header h1 { font-size:22px; }
   .cm-mail-workspace > .cm-empty { min-height:280px; padding:26px 16px; }

@@ -9,10 +9,11 @@ import './WorkManagement.css';
 export function WorkHeader({
   title,
   description,
+  recordCount,
   children,
   onExport,
   onImport,
-}: { title: 'Projects' | 'Tasks'; description: string; children: ReactNode; onExport?: () => void; onImport?: (file: File) => Promise<void> }) {
+}: { title: 'Projects' | 'Tasks'; description: string; recordCount?: number; children: ReactNode; onExport?: () => void; onImport?: (file: File) => Promise<void> }) {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -42,18 +43,19 @@ export function WorkHeader({
         <span id="wm-header-desc" className="sr-only">{description}</span>
         <div>
           <h1>{title}</h1>
+          {recordCount !== undefined && <span className="wm-record-count">{recordCount.toLocaleString()} {recordCount === 1 ? 'record' : 'records'}</span>}
         </div>
         <div className="au-header-actions">
           {onExport && (
             <button className="crm-button" onClick={onExport}>
-              <ArrowDownToLine size={14} /> Export
+              <ArrowDownToLine size={16} /> Export
             </button>
           )}
           {onImport && (
             <>
               <input type="file" ref={fileInputRef} accept=".csv" hidden onChange={e => setImportFile(e.target.files?.[0] || null)} disabled={importing} />
               <button className="crm-button" onClick={() => fileInputRef.current?.click()} disabled={importing}>
-                <ArrowUpFromLine size={14} /> Import
+                <ArrowUpFromLine size={16} /> Import
               </button>
               {importFile && (
                 <div className="wm-import-status">
@@ -73,6 +75,7 @@ export function WorkHeader({
     </>
   );
 }
+export function WorkViewTabs({items,current,onChange,label}:{items:{value:string;label:string}[];current:string;onChange:(value:string)=>void;label:string}){return <nav className="wm-status-tabs" aria-label={label}>{items.map(item=><button type="button" key={item.value||'all'} className={current===item.value?'is-active':''} aria-current={current===item.value?'page':undefined} onClick={()=>onChange(item.value)}><span/>{item.label}</button>)}</nav>;}
 export function WorkEmpty({title,description,children}:{title:string;description:string;children?:ReactNode}){return <div className="wm-empty"><strong>{title}</strong><span>{description}</span>{children}</div>;}
 export function WorkPriority({value}:{value:string}){return <span className={`wm-priority wm-priority-${value}`}>{['high','urgent'].includes(value)&&<i/>}{value||'Not set'}</span>;}
 export function WorkProgress({value,label='Progress'}:{value:number;label?:string}){const safe=Number.isFinite(value)?Math.max(0,Math.min(100,value)):0;return <div className="wm-progress"><div><span>{label}</span><strong>{safe}%</strong></div><div role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={safe}><span style={{width:`${safe}%`}}/></div></div>;}

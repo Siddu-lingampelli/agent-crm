@@ -339,7 +339,7 @@ export function AgentsPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="ad-access-page space-y-6">
       <div className="ad-page-header">
         <AdminTitle title="Access & agents" description="Manage agents, API keys, and the permissions they use." />
         <button className="btn-primary" onClick={activeTab === 'keys' ? handleCreateKey : handleCreateAgent}>
@@ -445,8 +445,8 @@ export function AgentsPage() {
         </>
       )}
 
-      <Modal isOpen={modalOpen} onClose={() => { setModalOpen(false); setGeneratedKey(null); }} title={activeTab === 'keys' ? (editingKey ? 'Edit API Key' : 'New API Key') : (editingAgent ? 'Edit Agent' : 'New Agent')}>
-        <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+      <Modal isOpen={modalOpen} onClose={() => { setModalOpen(false); setGeneratedKey(null); }} title={activeTab === 'keys' ? (editingKey ? 'Edit API Key' : 'New API Key') : (editingAgent ? 'Edit Agent' : 'New Agent')} size="lg" portal>
+        <div className="ad-admin-dialog-fields ad-access-dialog-fields">
           <FormField label="Name" error={formErrors.name} required>
             <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder={activeTab === 'keys' ? 'API Key name' : 'Agent name'} />
           </FormField>

@@ -18,7 +18,7 @@
 .page :is(button, a, select, summary):focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
 .panel > div[aria-busy] { display: flex; min-width: 0; min-height: 0; flex: 1; flex-direction: column; }
 
-.pageHeader { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 12px; padding-bottom: 13px; border-bottom: 1px solid var(--border); }
+.pageHeader { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 12px; padding-bottom: 13px; border-bottom: 2px solid #d5dde6; }
 .pageHeader h1 { font-size: 24px; font-weight: 600; line-height: 1.25; letter-spacing: -.025em; }
 .headerActions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .primaryButton, .secondaryButton { display: inline-flex; min-height: 35px; align-items: center; justify-content: center; gap: 7px; padding: 6px 11px; border: 1px solid var(--color-gray-300); border-radius: var(--radius-button); background: #fff; color: var(--color-gray-900); font-size: 13px; font-weight: 500; line-height: 1.35; white-space: nowrap; }
@@ -35,7 +35,7 @@
 .currencySelect { display: flex; align-items: center; gap: 8px; padding-left: 12px; border-left: 1px solid var(--border); font-size: 12px; }
 .currencySelect select { min-height: 30px; max-width: 100px; padding: 4px 24px 4px 9px; border: 1px solid #cbd3dd; border-radius: 5px; background: #fff; color: #33475b; font-size: 12px; }
 
-.attentionBar { display: grid; grid-template-columns: auto repeat(4, minmax(0, 1fr)); align-items: stretch; min-width: 0; margin-bottom: var(--gap); border-block: 1px solid var(--border); }
+.attentionBar { display: grid; grid-template-columns: auto repeat(4, minmax(0, 1fr)); align-items: stretch; min-width: 0; margin-bottom: var(--gap); border-block: 2px solid #d5dde6; }
 .attentionTitle { display: flex; align-items: center; gap: 7px; padding: 10px 14px 10px 0; font-size: 13px; font-weight: 600; white-space: nowrap; }
 .attentionTitle svg { color: #ba5c24; }
 .attentionBar > :is(button, a) { display: flex; min-width: 0; align-items: center; justify-content: center; gap: 8px; padding: 9px 12px; border: 0; border-left: 1px solid var(--border); background: transparent; color: #516579; font-size: 12px; text-align: left; }
@@ -48,7 +48,7 @@
 .mainGrid > .panel:nth-child(1) { grid-column: 1; grid-row: 2; }
 .mainGrid > #dashboard-tasks { grid-column: 2; grid-row: 2; }
 .mainGrid > #dashboard-revenue { grid-column: 1 / -1; grid-row: 3; }
-.panel { display: flex; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; border: 0; border-top: 1px solid var(--border); border-radius: 0; background: transparent; scroll-margin-top: 16px; }
+.panel { display: flex; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; border: 0; border-top: 2px solid #d5dde6; border-radius: 0; background: transparent; scroll-margin-top: 16px; }
 .panelHeader { display: flex; min-height: 57px; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 0; border-bottom: 1px solid var(--border); }
 .panelHeader h2 { font-size: 16px; font-weight: 600; line-height: 1.35; letter-spacing: -.015em; }
 .panelHeader p { margin-top: 3px; color: #6b7c93; font-size: 12px; line-height: 1.45; }
@@ -87,8 +87,8 @@
 .stageValue > svg { flex-shrink: 0; opacity: 0; }
 .pipelineRow:hover .stageValue > svg { opacity: 1; }
 
-.taskTabs, .dealTabs { display: flex; align-items: stretch; gap: 20px; padding: 0; border-bottom: 1px solid var(--border); overflow-x: auto; }
-.taskTabs > button, .dealTabs > button { display: inline-flex; min-height: 37px; flex-shrink: 0; align-items: center; gap: 6px; padding: 8px 0 7px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #516579; font-size: 12px; white-space: nowrap; }
+.taskTabs, .dealTabs { display: flex; align-items: stretch; gap: 20px; padding: 0; border-bottom: 2px solid #d5dde6; overflow-x: auto; }
+.taskTabs > button, .dealTabs > button { display: inline-flex; min-height: 37px; flex-shrink: 0; align-items: center; gap: 6px; padding: 8px 0 7px; border: 0; border-bottom: 3px solid transparent; background: transparent; color: #516579; font-size: 12px; white-space: nowrap; }
 .taskTabs > button.activeTab, .dealTabs > button.activeTab { border-bottom-color: var(--orange); color: #33475b; font-weight: 600; }
 .taskTabs button > span { padding: 1px 6px; border-radius: 999px; background: #eef2f6; color: #516579; font-size: 11px; font-variant-numeric: tabular-nums; }
 .taskList { display: flex; min-height: 0; flex: 1; flex-direction: column; padding: 0; }
@@ -178,7 +178,7 @@
 .historyList code { font-size: 10px; }
 .historyList time { max-width: 76px; flex-shrink: 0; color: #6b7c93; font-size: 10px; line-height: 1.4; text-align: right; }
 
-.relationshipBar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-block: 1px solid var(--border); flex-wrap: wrap; }
+.relationshipBar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-block: 2px solid #d5dde6; flex-wrap: wrap; }
 .relationshipBar > div:first-child { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
 .relationshipBar > div:first-child svg { color: #6b7c93; }
 .relationshipBar > a { display: flex; align-items: baseline; gap: 7px; color: #516579; font-size: 12px; }

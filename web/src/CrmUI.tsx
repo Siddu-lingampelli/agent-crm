@@ -24,15 +24,18 @@ export function CrmHeader({ title, description, recordCount, onCreate, onExport,
   return <header className="crm-heading" aria-describedby="crm-heading-desc"><span id="crm-heading-desc" className="sr-only">{description}</span>
     <div className="crm-page-title"><h1>{title}</h1>{recordCount !== undefined && <span>{recordCount.toLocaleString()} {recordCount === 1 ? 'record' : 'records'}</span>}</div>
     <div className="crm-heading-actions">
-      <button className="crm-button" onClick={onExport} disabled={busy}><ArrowDownToLine size={14} />Export</button>
+      <button className="crm-button" onClick={onExport} disabled={busy}><ArrowDownToLine size={16} />Export</button>
       {onImport && <>
         <input type="file" ref={fileInputRef} accept=".csv" hidden onChange={event => setImportFile(event.target.files?.[0] || null)} disabled={importing} />
-        <button className="crm-button" onClick={() => fileInputRef.current?.click()} disabled={busy || importing}><ArrowUpFromLine size={14} />Import</button>
+        <button className="crm-button" onClick={() => fileInputRef.current?.click()} disabled={busy || importing}><ArrowUpFromLine size={16} />Import</button>
         {importFile && <div className="crm-import-status"><span>{importFile.name}</span><button className="crm-button" onClick={handleImport} disabled={importing}>{importing ? <Loader2 size={12} className="loading-spinner" /> : 'Upload'}</button>{importError && <span role="alert">{importError}</span>}{importSuccess && <span role="status">{importSuccess}</span>}</div>}
       </>}
       <button className="crm-button crm-primary" onClick={onCreate} disabled={busy}><Plus size={15} />New {singular}</button>
     </div>
   </header>;
+}
+export function CrmViewTabs({ items, current, onChange, label }: { items: { value: string; label: string }[]; current: string; onChange: (value: string) => void; label: string }) {
+  return <nav className="crm-view-tabs" aria-label={label}>{items.map(item => <button key={item.value || 'all'} className={current === item.value ? 'is-active' : ''} aria-current={current === item.value ? 'page' : undefined} onClick={() => onChange(item.value)}><span className="crm-view-indicator" />{item.label}</button>)}</nav>;
 }
 export function CrmState({ loading, error, empty, onRetry, onCreate, noun, filtered, children }: { loading: boolean; error: string; empty: boolean; onRetry: () => void; onCreate: () => void; noun: string; filtered: boolean; children: ReactNode }) {
   if (loading) return <div className="crm-state" role="status"><Loader2 size={15} className="loading-spinner" />Loading {noun}...</div>;

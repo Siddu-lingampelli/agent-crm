@@ -220,7 +220,7 @@ export function WebhooksPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="ad-webhooks-page space-y-6">
       <div className="ad-page-header">
         <AdminTitle title="Webhooks" description="Connect CRM events to your services and monitor deliveries." />
         <button className="btn-primary" onClick={handleCreate}>
@@ -257,8 +257,8 @@ export function WebhooksPage() {
             showPageSize
           />
 
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingWebhook ? 'Edit Webhook' : 'New Webhook'}>
-        <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingWebhook ? 'Edit Webhook' : 'New Webhook'} size="lg" portal>
+        <div className="ad-admin-dialog-fields ad-webhook-dialog-fields">
           <FormField label="Name" error={formErrors.name} required>
             <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Webhook name" />
           </FormField>

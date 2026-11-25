@@ -9,6 +9,7 @@ import {
   Home, ChevronRight as ChevronRightIcon, AlertTriangle, Info, Briefcase, Grid, Table as TableIcon, Kanban as KanbanIcon, CheckCircle2, Calendar as CalendarIcon, Flag as FlagIcon, AlertCircle, CheckCircle, Inbox
 } from 'lucide-react';
 import { api } from './api';
+import { createPortal } from 'react-dom';
 
 // ============================================
 // TYPES & INTERFACES
@@ -57,6 +58,7 @@ interface ModalProps {
   showCloseButton?: boolean;
   closeOnOverlayClick?: boolean;
   closeOnEscape?: boolean;
+  portal?: boolean;
 }
 
 interface FormFieldProps {
@@ -487,6 +489,7 @@ export function Modal({
   showCloseButton = true,
   closeOnOverlayClick = true,
   closeOnEscape = true,
+  portal = false,
 }: ModalProps) {
   if (!isOpen) return null;
 
@@ -501,7 +504,7 @@ export function Modal({
     full: 'modal-full',
   };
 
-  return (
+  const modal = (
     <div
       className="modal-overlay"
       onClick={closeOnOverlayClick ? onClose : undefined}
@@ -527,6 +530,8 @@ export function Modal({
       </div>
     </div>
   );
+
+  return portal ? createPortal(modal, document.body) : modal;
 }
 
 // ============================================
@@ -887,10 +892,7 @@ export function ConfirmDialog({ isOpen, onClose, onConfirm, title, message, conf
     <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="confirm-title">
       <div className={`modal-content confirm-dialog${destructive ? ' is-destructive' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <div className="confirm-dialog-heading">
-            <span className="confirm-dialog-icon" aria-hidden="true"><AlertTriangle size={18} /></span>
-            <div><span className="confirm-dialog-eyebrow">{destructive ? 'PLEASE CONFIRM' : 'CONFIRM ACTION'}</span><h2 id="confirm-title" className="modal-title">{title}</h2></div>
-          </div>
+          <div className="confirm-dialog-heading"><h2 id="confirm-title" className="modal-title">{title}</h2></div>
           <button onClick={onClose} disabled={loading} className="modal-close" aria-label="Close confirmation"><X className="w-5 h-5" /></button>
         </div>
         <div className="modal-body">

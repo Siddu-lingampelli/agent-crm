@@ -1,5 +1,5 @@
-import { exportCrmPage } from './crm-data';
-import { CrmContactCards, CrmHeader, CrmState, CrmPagination, CrmDialog as Modal } from './CrmUI';
+import { crmActivityLabel, exportCrmPage } from './crm-data';
+import { CrmContactCards, CrmHeader, CrmState, CrmPagination, CrmViewTabs, CrmDialog as Modal } from './CrmUI';
 import { workBatch } from './work-data';
 import { useRecordRoute } from './useRecordRoute';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -176,11 +176,10 @@ export function ContactsPage() {
         <Avatar name={`${c.first_name} ${c.last_name}`} size="sm" />
         <div>
           <button className="crm-table-name" onClick={e => { e.stopPropagation(); handleEdit(c); }}>{c.first_name} {c.last_name}</button>
-          {c.job_title && <p className="text-xs text-tertiary">{c.job_title}</p>}
+          <p className="text-xs text-tertiary">{c.email || c.job_title || 'Contact'}</p>
         </div>
       </div>
     )},
-    { key: 'email', header: 'Email', render: (c: Contact) => <a href={`mailto:${c.email}`} onClick={event => event.stopPropagation()} className="text-link hover:underline">{c.email}</a> },
     { key: 'phone', header: 'Phone', render: (c: Contact) => c.phone ? <a href={`tel:${c.phone}`} onClick={event => event.stopPropagation()} className="text-link hover:underline">{c.phone}</a> : '—' },
     { key: 'company_id', header: 'Company', render: (c: Contact) => {
       const company = companies.find(co => co.id === c.company_id);
@@ -189,14 +188,14 @@ export function ContactsPage() {
       ) : <span className="text-tertiary">—</span>;
     }},
     { key: 'status', header: 'Status', render: (c: Contact) => <Badge variant={getStatusBadge(c.status)} size="sm" dot>{c.status}</Badge> },
+    { key: 'updated_at', header: 'Last activity', render: (c: Contact) => <time dateTime={c.updated_at}>{crmActivityLabel(c.updated_at)}</time> },
   ];
 
   const filters = [
-    { label: 'Status', value: 'status', options: statusOptions },
     { label: 'Company', value: 'company', options: [{ value: '', label: 'All' }, ...companies.map(c => ({ value: c.id, label: c.name }))] },
   ];
 
-  const filterValues = { status: statusFilter, company: companyFilter };
+  const filterValues = { company: companyFilter };
   const hasActiveFilters = !!statusFilter || !!companyFilter;
 
   const handleFilterChange = (key: string, value: string) => {
@@ -216,7 +215,7 @@ export function ContactsPage() {
   useRecordRoute({ getRecord: api.contacts.get, onCreate: handleCreate, onRecord: handleEdit, onError: message => showToast('error', message) });
 
   return (
-    <div className="crm-area">
+    <div className="crm-area crm-contacts">
       <CrmHeader title="Contacts" recordCount={total} description="Keep the people behind every opportunity close." onCreate={handleCreate} busy={loading || !!loadError} onExport={() => exportCrmPage('contacts', contacts, [{ key: 'first_name', label: 'first name' }, { key: 'last_name', label: 'last name' }, { key: 'email', label: 'email' }, { key: 'phone', label: 'phone' }, { key: 'company_id', label: 'company id' }, { key: 'status', label: 'status' }])} onImport={async (file) => {
         const fd = new FormData();
         fd.append('file', file);
@@ -224,6 +223,7 @@ export function ContactsPage() {
         if (!res.ok) { const j = await res.json().catch(() => null); throw new Error(j?.error?.message || 'Import failed'); }
         await fetchContacts();
       }} />
+      <CrmViewTabs label="Contact views" current={statusFilter} onChange={value => { setStatusFilter(value); setPage(1); }} items={[{ value: '', label: 'All contacts' }, ...statusOptions.map(option => ({ value: option.value, label: option.label }))]} />
       <section className="crm-index" aria-label="contacts records">
 
       <DataTableToolbar
@@ -231,7 +231,7 @@ export function ContactsPage() {
         filterProps={{ filters, values: filterValues, onChange: handleFilterChange, onClear: clearFilters, hasActiveFilters }}
         viewOptions={{
           currentView: viewMode,
-          showLabels: true,
+          showLabels: false,
           views: [
             { id: 'table', label: 'Table', icon: <TableIcon className="w-4 h-4" /> },
             { id: 'cards', label: 'Cards', icon: <Grid className="w-4 h-4" /> },
@@ -272,7 +272,7 @@ export function ContactsPage() {
       </section>
 
       <Modal busy={submitLoading} isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingContact ? 'Edit Contact' : 'New Contact'} size="lg">
-        <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+        <div className="contact-dialog-form">
           <div className="form-row-2">
             <FormField label="First Name" error={formErrors.first_name} required>
               <Input value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} placeholder="First name" />
