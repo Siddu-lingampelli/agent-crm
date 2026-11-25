@@ -97,13 +97,13 @@ export function SignupPage() {
 
 function WorkspaceDrawing() {
   return <svg className="tl-drawing" viewBox="0 0 520 340" fill="none" role="img" aria-labelledby="tl-drawing-title"><title id="tl-drawing-title">Contacts, deals, and tasks in one workspace</title>
-    <path d="M53 38h331v242H53z" fill="#ff4f00" stroke="#000" strokeWidth="1.5" /><path d="M81 63h331v242H81z" fill="#fff" stroke="#000" strokeWidth="1.5" />
-    <path d="M81 106h331" stroke="#000" /><circle cx="99" cy="85" r="3" fill="#ff4f00" /><text x="114" y="89" fontSize="10" letterSpacing="1" fill="#000">TORQ / WORKSPACE</text><path d="M374 81h18m-18 7h18" stroke="#000" />
+    <path d="M53 38h331v242H53z" fill="#FF5A1F" stroke="#000" strokeWidth="1.5" /><path d="M81 63h331v242H81z" fill="#fff" stroke="#000" strokeWidth="1.5" />
+    <path d="M81 106h331" stroke="#000" /><circle cx="99" cy="85" r="3" fill="#FF5A1F" /><text x="114" y="89" fontSize="10" letterSpacing="1" fill="#000">TORQ / WORKSPACE</text><path d="M374 81h18m-18 7h18" stroke="#000" />
     <g className="tl-drawing-row tl-drawing-row-1"><circle cx="114" cy="142" r="12" stroke="#000" /><circle cx="114" cy="139" r="3" fill="#000" /><path d="M108 150c0-9 12-9 12 0" fill="#000" /><text x="144" y="147" fontSize="15" fill="#000">Contacts</text><path d="M349 142h40m-6-6 6 6-6 6" stroke="#000" /></g>
     <path d="M101 168h291" stroke="#000" />
-    <g className="tl-drawing-row tl-drawing-row-2"><path d="M104 204v-13h6v13m4 0v-19h6v19m4 0v-26h6v26" fill="#ff4f00" stroke="#000" /><text x="144" y="200" fontSize="15" fill="#000">Deals</text><path d="M349 195h40m-6-6 6 6-6 6" stroke="#000" /></g>
+    <g className="tl-drawing-row tl-drawing-row-2"><path d="M104 204v-13h6v13m4 0v-19h6v19m4 0v-26h6v26" fill="#FF5A1F" stroke="#000" /><text x="144" y="200" fontSize="15" fill="#000">Deals</text><path d="M349 195h40m-6-6 6 6-6 6" stroke="#000" /></g>
     <path d="M101 221h291" stroke="#000" />
-    <g className="tl-drawing-row tl-drawing-row-3"><rect x="103" y="240" width="23" height="23" fill="#ff4f00" stroke="#000" /><path d="m108 251 5 5 9-11" stroke="#000" strokeWidth="1.5" /><text x="144" y="256" fontSize="15" fill="#000">Tasks</text></g>
+    <g className="tl-drawing-row tl-drawing-row-3"><rect x="103" y="240" width="23" height="23" fill="#FF5A1F" stroke="#000" /><path d="m108 251 5 5 9-11" stroke="#000" strokeWidth="1.5" /><text x="144" y="256" fontSize="15" fill="#000">Tasks</text></g>
     <circle cx="419" cy="267" r="42" fill="#000" /><path d="M400 267h38m-17-17 17 17-17 17" stroke="#fff" strokeWidth="2" /><path d="M32 319h69m364-281v40m-20-20h40" stroke="#000" />
   </svg>;
 }

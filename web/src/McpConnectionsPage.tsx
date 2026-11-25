@@ -474,6 +474,7 @@ export function McpConnectionsPage() {
                   <div>
                     <label className="block text-sm font-medium mb-1">Agent</label>
                     <select value={genAgent} onChange={e => setGenAgent(e.target.value)} className="w-full px-3 py-2 border border-neutral-300 rounded bg-white text-sm">
+                      <option value="">Select agent</option>
                       {agents.filter(a => a.enabled).map(a => <option key={a.id} value={a.id}>{a.name} ({a.provider})</option>)}
                     </select>
                   </div>

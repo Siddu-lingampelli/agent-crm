@@ -289,12 +289,12 @@ export function LeadsPage() {
   const handleSelectionChange = (ids: Set<string>) => setSelectedIds(ids);
 
   const kanbanColumns = [
-    { id: 'new', title: 'New', color: '#695be8', items: leads.filter(l => l.status === 'new') },
-    { id: 'qualified', title: 'Qualified', color: '#503ebd', items: leads.filter(l => l.status === 'qualified') },
-    { id: 'proposal', title: 'Proposal', color: '#ff4f00', items: leads.filter(l => l.status === 'proposal') },
-    { id: 'negotiation', title: 'Negotiation', color: '#201515', items: leads.filter(l => l.status === 'negotiation') },
-    { id: 'won', title: 'Won', color: '#156123', items: leads.filter(l => l.status === 'won') },
-    { id: 'lost', title: 'Lost', color: '#503ebd', items: leads.filter(l => l.status === 'lost') },
+    { id: 'new', title: 'New', color: 'var(--color-info)', items: leads.filter(l => l.status === 'new') },
+    { id: 'qualified', title: 'Qualified', color: 'var(--color-orange)', items: leads.filter(l => l.status === 'qualified') },
+    { id: 'proposal', title: 'Proposal', color: 'var(--color-warning)', items: leads.filter(l => l.status === 'proposal') },
+    { id: 'negotiation', title: 'Negotiation', color: 'var(--color-muted-2)', items: leads.filter(l => l.status === 'negotiation') },
+    { id: 'won', title: 'Won', color: 'var(--color-success)', items: leads.filter(l => l.status === 'won') },
+    { id: 'lost', title: 'Lost', color: 'var(--color-error)', items: leads.filter(l => l.status === 'lost') },
   ];
 
   useRecordRoute({ getRecord: api.leads.get, onCreate: handleCreate, onRecord: handleEdit, onError: message => showToast('error', message) });
@@ -362,7 +362,7 @@ export function LeadsPage() {
               <div className="flex items-center gap-2 text-xs text-secondary">
                 <span className="truncate">{lead.email}</span>
                 {lead.estimated_value && (
-                  <span className="font-medium text-black">{crmMoney(lead.estimated_value, lead.currency)}</span>
+                   <span className="font-medium text-primary">{crmMoney(lead.estimated_value, lead.currency)}</span>
                 )}
               </div>
               {lead.follow_up_date && (

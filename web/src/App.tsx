@@ -89,7 +89,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!authChecked) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-bg">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <Loader2 className="loading-spinner w-8 h-8 text-black" />
       </div>
     );

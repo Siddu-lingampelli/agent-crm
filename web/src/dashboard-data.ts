@@ -1,6 +1,6 @@
 import type { Deal, PipelineStageMetric, Task } from './api';
 
-export const stageColors = ['#ff4f00', '#ff9c66', '#d6c3ad', '#6e9b75', '#b7ab9e'];
+export const stageColors = ['#FF5A1F', '#ff9c66', '#d6c3ad', '#6e9b75', '#b7ab9e'];
 
 export function money(value: number | null | undefined, currency = 'USD') {
   try { return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value ?? 0); }

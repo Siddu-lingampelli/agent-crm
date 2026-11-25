@@ -277,7 +277,7 @@ export function WebhooksPage() {
           <FormField label="Secret" error={formErrors.secret} required>
             <Input value={formData.secret} onChange={(e) => setFormData({ ...formData, secret: e.target.value })} placeholder="Webhook secret for signature verification" type="password" />
           </FormField>
-          <FormField label="Status">
+          <FormField label="Status" required>
             <Select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })}>
               {statusOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
             </Select>

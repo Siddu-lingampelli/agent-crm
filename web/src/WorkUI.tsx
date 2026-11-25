@@ -38,7 +38,8 @@ export function WorkHeader({
 
   return (
     <>
-      <header className="au-header" aria-description={description}>
+      <header className="au-header" aria-describedby="wm-header-desc">
+        <span id="wm-header-desc" className="sr-only">{description}</span>
         <div>
           <h1>{title}</h1>
         </div>
@@ -55,13 +56,13 @@ export function WorkHeader({
                 <ArrowUpFromLine size={14} /> Import
               </button>
               {importFile && (
-                <div className="crm-import-status" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#775334' }}>
+                <div className="wm-import-status">
                   <span>{importFile.name}</span>
-                  <button className="crm-button" onClick={handleImport} disabled={importing} style={{ padding: '4px 8px', fontSize: 11, minHeight: 28 }}>
+                  <button className="wm-import-upload crm-button" onClick={handleImport} disabled={importing}>
                     {importing ? <Loader2 size={12} className="loading-spinner" /> : 'Upload'}
                   </button>
-                  {importError && <span style={{ color: '#b8562e' }}>{importError}</span>}
-                  {importSuccess && <span style={{ color: '#46673a' }}>{importSuccess}</span>}
+                  {importError && <span className="wm-import-error">{importError}</span>}
+                  {importSuccess && <span className="wm-import-success">{importSuccess}</span>}
                 </div>
               )}
             </>
@@ -74,7 +75,7 @@ export function WorkHeader({
 }
 export function WorkEmpty({title,description,children}:{title:string;description:string;children?:ReactNode}){return <div className="wm-empty"><strong>{title}</strong><span>{description}</span>{children}</div>;}
 export function WorkPriority({value}:{value:string}){return <span className={`wm-priority wm-priority-${value}`}>{['high','urgent'].includes(value)&&<i/>}{value||'Not set'}</span>;}
-export function WorkProgress({value,label='Progress'}:{value:number;label?:string}){const safe=Number.isFinite(value)?Math.max(0,Math.min(100,value)):0;return <div className="wm-progress"><div><span>{label}</span><strong>{safe}%</strong></div><div role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={safe}><span style={{width:safe+'%'}}/></div></div>;}
+export function WorkProgress({value,label='Progress'}:{value:number;label?:string}){const safe=Number.isFinite(value)?Math.max(0,Math.min(100,value)):0;return <div className="wm-progress"><div><span>{label}</span><strong>{safe}%</strong></div><div role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={safe}><span style={{width:`${safe}%`}}/></div></div>;}
 export function RecordPicker({kind,value,onChange,disabled=false,label}:{kind:'company'|'project';value:string;onChange:(id:string)=>void;disabled?:boolean;label:string}){
  const id=useId();const [query,setQuery]=useState('');const search=useDebouncedSearch(query);const path=kind==='company'?'companies':'projects';
  const records=useAdminData(()=>api.get<{items:{id:string;name:string}[];total:number}>(`/${path}`,{params:{q:search,limit:50,sort:'name',order:'asc'}}),`picker:${path}:${search}`);const selected=useAdminData<{id:string;name:string}|null>(()=>value?api.get(`/${path}/${encodeURIComponent(value)}`):Promise.resolve(null),`picker-selected:${path}:${value}`);const items=records.data?.items??[];

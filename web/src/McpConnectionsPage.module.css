@@ -20,13 +20,13 @@
 .connectionFacts small { color:#6b7c93; font-size:9px; }
 .connectionLinks { display:flex; flex-direction:column; gap:7px; align-items:flex-end; }
 .connectionLinks a { display:inline-flex; align-items:center; gap:5px; color:#516579; font-size:10px; white-space:nowrap; }
-.connectionLinks a:hover { color:#ff4f00; }
+.connectionLinks a:hover { color:var(--color-orange); }
 .metrics { display:flex; align-items:center; border-bottom:1px solid #dfe3eb; }
 .metric { display:flex; align-items:baseline; gap:9px; padding:0 15px 10px; border-left:1px solid #dfe3eb; }
 .metric:first-child { padding-left:0; border:0; }
 .metric>span { color:#6b7c93; font-size:10px; }
 .metric>strong { color:#33475b; font:600 15px/1.2 var(--font-family); font-variant-numeric:tabular-nums; }
-.metricWarning>strong { color:#b93819; }
+.metricWarning>strong { color:var(--color-orange); }
 .tableWrapper { overflow-x:auto; border:0; border-block:1px solid #dfe3eb; border-radius:0; background:transparent; }
 .table { width:100%; border-collapse:collapse; font-size:13px; background:transparent; }
 .table th,.table td { padding:9px 12px; border-bottom:1px solid #e9edf2; text-align:left; vertical-align:middle; }

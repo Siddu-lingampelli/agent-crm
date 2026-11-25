@@ -22,7 +22,7 @@ export function DealsPage() {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [pipelines, setPipelines] = useState<PipelineChoice[]>([]);
   const [pipelineError, setPipelineError] = useState('');
-  const pipelineStages = pipelines.flatMap(pipeline => pipeline.stages.map(stage => ({ ...stage, pipeline_id: pipeline.id, color: stage.category === 'won' ? '#4d805a' : stage.category === 'lost' ? '#ae6355' : '#dd6b35' })));
+  const pipelineStages = pipelines.flatMap(pipeline => pipeline.stages.map(stage => ({ ...stage, pipeline_id: pipeline.id, color: stage.category === 'won' ? 'var(--color-success)' : stage.category === 'lost' ? 'var(--color-error)' : 'var(--color-accent)' })));
   const [companies, setCompanies] = useState<Company[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [total, setTotal] = useState(0);

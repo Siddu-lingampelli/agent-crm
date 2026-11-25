@@ -38,7 +38,7 @@
 .summaryGrid strong.serverName { font-size:13px; line-height:1.4; letter-spacing:-.01em; margin-top:0; }
 .pageTabs { display: flex; align-items: center; gap:21px; border-bottom:1px solid #dfe3eb; margin-bottom:15px; }
 .pageTabs > button { display: flex; align-items: center; gap: 7px; padding:0 0 10px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #6b7c93; cursor: pointer; font-size: 11px; white-space: nowrap; margin-bottom: -1px; }
-.pageTabs > button.pageTabActive { color: #bf3c0b; border-bottom-color: #ff4f00; font-weight: 500; }
+.pageTabs > button.pageTabActive { color: #bf3c0b; border-bottom-color: var(--color-orange); font-weight: 500; }
 .pageTabs > button > span { display: grid; place-items: center; min-width: 17px; height: 17px; padding-inline: 4px; background: #f8fafc; border-radius: 3px; color: #33475b; font-size: 9px; }
 .protocol { margin-left: auto; color: #6b7c93; font-family: var(--font-mono); font-size: 9px; padding-bottom: 14px; }
 .runnerGrid { display:grid; grid-template-columns:290px minmax(0,1fr); gap:16px; align-items:start; margin-bottom:16px; }
@@ -66,7 +66,7 @@
 .toolItem code { display: block; font-family: var(--font-mono); font-size: 10px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .toolItem small { display: block; margin-top: 5px; font-size: 9px; line-height: 1.5; color: #6b7c93; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .toolItem > svg { color: #6b7c93; flex-shrink: 0; }
-.selectedTool { border-left-color:#ff4f00; background:#f8fafc !important; color:#33475b; }
+.selectedTool { border-left-color:var(--color-orange); background:#f8fafc !important; color:#33475b; }
 .selectedTool .toolIcon { background: #f8fafc; border-color: #f1f5f9; color: #b75721; }
 .catalogFooter { display:flex; align-items:center; justify-content:space-between; padding:9px 5px; border-top:1px solid #dfe3eb; background:transparent; color: #6b7c93; font-size: 9px; }
 .catalogEmpty { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 12px; min-height:110px; padding:14px 8px; color: #6b7c93; }
@@ -170,7 +170,7 @@
 /* Match the Dashboard: cream work surfaces, crisp black structure, orange actions. */
 .page { --console-ink:#000; --console-muted:#516579; --console-border:rgba(0,0,0,.14); --console-surface:#fff; color:#000; }
 .page :is(.pageHeader h1,.summaryGrid strong,.toolTitle h2,.sectionHeader h2,.empty h3) { color:#000; }
-.page :is(.primaryButton,.primaryButton:hover:not(:disabled)) { background:#ff4f00; border-color:#ff4f00; color:#000 !important; }
+.page :is(.primaryButton,.primaryButton:hover:not(:disabled)) { background:var(--color-orange); border-color:var(--color-orange); color:#000 !important; }
 .page .primaryButton:hover:not(:disabled) { background:#e34700; border-color:#e34700; }
 .page :is(.secondaryButton,.filterRow select,.historyActions select) { background:#fff; border-color:rgba(0,0,0,.14); }
 .page :is(.catalog,.editorPanel,.resultPanel,.historyPanel,.rawPanel,.toolSearch,.codeEditor) { border-color:rgba(0,0,0,.14); }
@@ -178,9 +178,9 @@
 .page :is(.editorToolbar,.historyTable th) { background:#f1f5f9; }
 .page :is(.toolSearch,.filterRow select,.historyActions select,.codeEditor) { background:#fff; color:#000; }
 .page :is(.toolSearch input,.codeEditor textarea,.connectionBar code,.toolDetailMeta,.parameter code,.schemaView pre,.resultCode,.historyTable td,.historyName,.toolTitle h2) { color:#000; }
-.page :is(.pageTabs > button.pageTabActive,.editorTabs button.editorTabActive,.historyName:hover,.formatButton:hover:not(:disabled),.footer > a,.footer > a:hover,.catalogEmpty button) { color:#ff4f00 !important; }
-.page :is(.selectedTool,.selectedTool .toolIcon) { border-color:#ff4f00; background:#f1f5f9 !important; color:#000; }
-.page .toolSearch:focus-within { outline-color:#ff4f00; }
+.page :is(.pageTabs > button.pageTabActive,.editorTabs button.editorTabActive,.historyName:hover,.formatButton:hover:not(:disabled),.footer > a,.footer > a:hover,.catalogEmpty button) { color:var(--color-orange) !important; }
+.page :is(.selectedTool,.selectedTool .toolIcon) { border-color:var(--color-orange); background:#f1f5f9 !important; color:#000; }
+.page .toolSearch:focus-within { outline-color:var(--color-orange); }
 .spinning { animation: consoleSpin 1s linear infinite; }
 @keyframes consoleSpin { to { transform: rotate(360deg); } }
 @media (min-width: 1600px) { .runnerGrid { grid-template-columns: 310px minmax(0, 1fr); } }
@@ -270,7 +270,7 @@
 .pageHeader p { color:#687c90; font-size:12px; }
 .headerActions { gap:8px; }
 .primaryButton, .secondaryButton { min-height:37px; padding-inline:12px; border-radius:6px; font-size:12px; font-weight:600; }
-.primaryButton { border-color:#b93819; background:#b93819; }
+.primaryButton { border-color:var(--color-orange); background:var(--color-orange); }
 .primaryButton:hover:not(:disabled) { border-color:#982f18; background:#982f18; }
 .secondaryButton { border-color:#cbd4de; background:#fff; }
 .secondaryButton:hover:not(:disabled) { border-color:#aab9c7; background:#f7f9fb; }

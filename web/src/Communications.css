@@ -29,7 +29,7 @@
 
 /* Mail empty states should read as a clear workspace, not compressed inline copy. */
 .cm-mail-workspace > .cm-empty { display:flex; min-height:340px; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:32px 24px; border:0; text-align:center; }
-.cm-mail-workspace > .cm-empty > span { width:46px; height:46px; color:#b93819; background:#fff3ed; }
+.cm-mail-workspace > .cm-empty > span { width:46px; height:46px; color:var(--color-orange); background:#fff3ed; }
 .cm-mail-workspace > .cm-empty > span svg { width:21px; height:21px; }
 .cm-mail-workspace > .cm-empty h3 { color:#33475b; font-size:18px; font-weight:600; line-height:1.35; }
 .cm-mail-workspace > .cm-empty p { max-width:520px; color:#516579; font-size:13px; line-height:1.6; }
@@ -74,7 +74,7 @@
 .cm-message-item-meta { color:#6b7c93; margin-top:10px; }
 .cm-message-item-meta time { font-size:10px; }
 .cm-message-item-meta .cm-linked { display:inline-flex; align-items:center; gap:4px; color:#516579; font-size:10px; }
-.cm-unread-dot { width:8px; height:8px; flex:0 0 auto; border-radius:50%; background:#b93819; }
+.cm-unread-dot { width:8px; height:8px; flex:0 0 auto; border-radius:50%; background:var(--color-orange); }
 .cm-message-heading { padding-top:22px; }
 .cm-message-heading h2 { font-size:20px; font-weight:600; }
 .cm-message-address > div > span { font-size:12px; }
@@ -88,8 +88,8 @@
 .communications-area .cm-header p { color:#687c90; font-size:12px; }
 .communications-area .cm-header .au-header-actions { gap:8px; }
 .communications-area .cm-header .au-button { min-height:37px; padding:0 12px; border-color:#cbd4de; border-radius:6px; color:#40566b; font-size:12px; }
-.communications-area .cm-header .au-button-primary { border-color:#b93819; background:#b93819; color:#fff; }
-.communications-area .cm-header .au-button-primary:hover:not(:disabled) { border-color:#982f18; background:#982f18; color:#fff; }
+.communications-area .cm-header .au-button-primary { border-color:var(--color-orange); background:var(--color-orange); color:#fff; }
+.communications-area .cm-header .au-button-primary:hover:not(:disabled) { border-color:var(--color-orange-hover); background:var(--color-orange-hover); color:#fff; }
 .communications-area .au-toolbar { gap:8px; padding:10px 0; border-bottom-color:#e1e6ec; }
 .communications-area .au-toolbar .au-search { min-height:38px; border:1px solid #cbd5df; border-radius:7px; background:#fff; box-shadow:0 1px 2px #263b5008; }
 .communications-area .au-toolbar .au-search input { color:#33475b; font-size:13px; }

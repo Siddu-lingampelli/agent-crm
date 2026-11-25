@@ -260,7 +260,7 @@ export function AgentsPage() {
         }
         fetchAgents();
       }
-      if (activeTab !== 'keys' || editingKey) setModalOpen(false);
+      setModalOpen(false);
     } catch (error: any) {
       if (error.status === 400) {
         showToast('error', error.message || 'Validation failed');

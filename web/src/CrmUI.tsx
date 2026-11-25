@@ -21,7 +21,7 @@ export function CrmHeader({ title, description, recordCount, onCreate, onExport,
     } catch (error) { setImportError(error instanceof Error ? error.message : 'Import failed'); }
     finally { setImporting(false); }
   };
-  return <header className="crm-heading" aria-description={description}>
+  return <header className="crm-heading" aria-describedby="crm-heading-desc"><span id="crm-heading-desc" className="sr-only">{description}</span>
     <div className="crm-page-title"><h1>{title}</h1>{recordCount !== undefined && <span>{recordCount.toLocaleString()} {recordCount === 1 ? 'record' : 'records'}</span>}</div>
     <div className="crm-heading-actions">
       <button className="crm-button" onClick={onExport} disabled={busy}><ArrowDownToLine size={14} />Export</button>
@@ -49,7 +49,7 @@ export function CrmDialog({ isOpen, onClose, title, children, size = 'lg', busy 
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   useEffect(() => { const dialog = ref.current; if (isOpen && !dialog?.open) dialog?.showModal(); else if (!isOpen && dialog?.open) dialog.close(); }, [isOpen]);
-  return <dialog ref={ref} className={`crm-dialog crm-dialog-${size} crm-area`} aria-labelledby={titleId} onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}><div className="crm-dialog-heading"><div><span className="crm-eyebrow">RELATIONSHIP DETAILS</span><h2 id={titleId}>{title}</h2></div><button aria-label="Close dialog" onClick={onClose} disabled={busy}><X size={19} /></button></div>{isOpen && <div className="crm-dialog-body">{children}</div>}</dialog>;
+  return <dialog ref={ref} className={`crm-dialog crm-dialog-${size}`} aria-labelledby={titleId} onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}><div className="crm-dialog-heading"><div><span className="crm-eyebrow">RELATIONSHIP DETAILS</span><h2 id={titleId}>{title}</h2></div><button aria-label="Close dialog" onClick={onClose} disabled={busy}><X size={19} /></button></div>{isOpen && <div className="crm-dialog-body">{children}</div>}</dialog>;
 }
 
 type CardActions<T> = { items: T[]; selected: Set<string>; onSelect: (ids: Set<string>) => void; onEdit: (item: T) => void; onArchive: (item: T) => void };
