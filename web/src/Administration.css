@@ -1,6 +1,7 @@
 /* Administration uses the CRM workspace's palette, spacing, and typography. */
 .admin-area { color: #33475b; max-width: 1440px; margin-inline: auto; }
-.mcp-key-modal { width: min(520px, calc(100vw - 32px)); }
+.mcp-key-modal { width: min(520px, calc(100vw - 32px)); background:#fff!important; color:#33475b; color-scheme:light; }
+.mcp-key-modal .modal-body, .mcp-key-modal .modal-header, .mcp-key-modal .modal-footer { background:#fff!important; color:#33475b; }
 .mcp-key-modal .modal-header { align-items: flex-start; }
 .mcp-key-modal .modal-header h3 { margin: 0; color: #33475b; font: 600 20px/1.3 var(--font-family); letter-spacing: -.03em; }
 .mcp-key-subtitle { margin: 5px 0 0; color: var(--color-gray-500); font-size: 11px; line-height: 1.6; }
@@ -351,6 +352,16 @@ a.ad-overview-stat:hover { background:#f8fafc; }
 .modal-body:has(.ad-admin-dialog-fields) > .modal-footer { min-height:57px; margin:0; padding:10px 22px; border-top:1px solid #dfe5eb; border-radius:0; background:#fff; }
 .modal-content:has(.ad-admin-dialog-fields) .modal-footer > button { min-height:36px; padding:0 14px; border-radius:6px; font-size:13px; font-weight:600; }
 .modal-content:has(.ad-admin-dialog-fields) .modal-footer > .btn-primary { border-color:var(--color-orange); background:var(--color-orange); color:#fff; }
+/* Keep these admin forms readable even when the workspace is in dark mode. */
+.modal-overlay:has(.ad-admin-dialog-fields) .modal-content,
+.modal-overlay:has(.ad-admin-dialog-fields) .modal-body,
+.modal-overlay:has(.ad-admin-dialog-fields) .ad-admin-dialog-fields { background:#fff!important; color:#26394d; color-scheme:light; }
+.modal-overlay:has(.ad-admin-dialog-fields) .modal-header,
+.modal-overlay:has(.ad-admin-dialog-fields) .modal-footer { background:#fff!important; color:#26394d; }
+.modal-overlay:has(.ad-admin-dialog-fields) .ad-admin-dialog-fields :is(input,select,textarea) { background:#fff!important; color:#26394d!important; border-color:#c5d0db; color-scheme:light; }
+.modal-overlay:has(.ad-admin-dialog-fields) .ad-admin-dialog-fields :is(label,.form-label,.text-neutral-500,.text-neutral-600) { color:#40566b!important; }
+.modal-overlay:has(.ad-admin-dialog-fields) .modal-footer > button:not(.btn-primary) { background:#fff!important; color:#40566b!important; border-color:#c5d0db; }
+.modal-overlay:has(.ad-admin-dialog-fields) .agent-scope-option { background:#f1f5f9!important; color:#33475b!important; }
 @media(max-width:600px) {
   .modal-content:has(.ad-admin-dialog-fields) { width:calc(100vw - 24px); max-height:calc(100dvh - 24px); }
   .modal-content:has(.ad-admin-dialog-fields) .modal-header { padding-inline:16px; }

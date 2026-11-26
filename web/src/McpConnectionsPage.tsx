@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef, useId } from 'react';
 import { Link } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import {
   ArrowRight,
   ArrowUpRight,
@@ -42,6 +43,30 @@ export function McpConnectionsPage() {
   const [genKey, setGenKey] = useState<string | null>(null);
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
+  const keyDialogRef = useRef<HTMLDivElement>(null);
+  const keyDialogTitleId = useId();
+  const keyDialogDescriptionId = useId();
+  const agentFieldId = useId();
+  const keyNameFieldId = useId();
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!genOpen) return;
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const frame = requestAnimationFrame(() => keyDialogRef.current?.querySelector<HTMLElement>('select:not([disabled]),input:not([disabled]),button:not([disabled])')?.focus());
+    return () => {
+      cancelAnimationFrame(frame);
+      returnFocusRef.current?.focus();
+      returnFocusRef.current = null;
+    };
+  }, [genOpen]);
+
+  const closeKeyDialog = () => {
+    if (genLoading) return;
+    setGenOpen(false);
+    setGenKey(null);
+    setGenError(null);
+  };
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -452,12 +477,21 @@ export function McpConnectionsPage() {
         </Link>
       </footer>
 
-      {genOpen && (
-        <div className="modal-overlay" onClick={() => { setGenOpen(false); setGenKey(null); setGenError(null); }}>
-          <div className="modal-content modal-md mcp-key-modal" onClick={e => e.stopPropagation()}>
+      {genOpen && createPortal(
+        <div className="modal-overlay" onClick={closeKeyDialog}>
+          <div ref={keyDialogRef} className="modal-content modal-md mcp-key-modal" onClick={e => e.stopPropagation()} onKeyDown={event => {
+            if (event.key === 'Escape') { event.preventDefault(); closeKeyDialog(); }
+            if (event.key === 'Tab') {
+              const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'));
+              if (!focusable.length) { event.preventDefault(); return; }
+              const first = focusable[0]; const last = focusable[focusable.length - 1];
+              if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+              else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+            }
+          }} role="dialog" aria-modal="true" aria-labelledby={keyDialogTitleId} aria-describedby={keyDialogDescriptionId} aria-busy={genLoading || undefined} tabIndex={-1}>
             <div className="modal-header">
-              <div><span className="ad-eyebrow">MCP ACCESS</span><h3>Generate API key</h3><p className="mcp-key-subtitle">Create a credential for an enabled agent to connect to this workspace.</p></div>
-              <button className="modal-close" onClick={() => { setGenOpen(false); setGenKey(null); setGenError(null); }}><X size={16} /></button>
+              <div><span className="ad-eyebrow">MCP ACCESS</span><h3 id={keyDialogTitleId}>Generate API key</h3><p id={keyDialogDescriptionId} className="mcp-key-subtitle">Create a credential for an enabled agent to connect to this workspace.</p></div>
+              <button className="modal-close" onClick={closeKeyDialog} disabled={genLoading} aria-label="Close dialog"><X size={16} /></button>
             </div>
             {genKey ? (
               <div className="modal-body">
@@ -472,15 +506,15 @@ export function McpConnectionsPage() {
               <div className="modal-body">
                 <div className="mcp-key-form">
                   <div>
-                    <label className="block text-sm font-medium mb-1">Agent</label>
-                    <select value={genAgent} onChange={e => setGenAgent(e.target.value)} className="w-full px-3 py-2 border border-neutral-300 rounded bg-white text-sm">
+                    <label htmlFor={agentFieldId} className="block text-sm font-medium mb-1">Agent</label>
+                    <select id={agentFieldId} value={genAgent} onChange={e => setGenAgent(e.target.value)} className="w-full px-3 py-2 border border-neutral-300 rounded bg-white text-sm">
                       <option value="">Select agent</option>
                       {agents.filter(a => a.enabled).map(a => <option key={a.id} value={a.id}>{a.name} ({a.provider})</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">Key name</label>
-                    <input value={genName} onChange={e => setGenName(e.target.value)} className="w-full px-3 py-2 border border-neutral-300 rounded bg-white text-sm" placeholder="MCP agent key" />
+                    <label htmlFor={keyNameFieldId} className="block text-sm font-medium mb-1">Key name</label>
+                    <input id={keyNameFieldId} value={genName} onChange={e => setGenName(e.target.value)} className="w-full px-3 py-2 border border-neutral-300 rounded bg-white text-sm" placeholder="MCP agent key" />
                   </div>
                   {genError && <p className="text-sm text-red-600 dark:text-red-400">{genError}</p>}
                 </div>
@@ -488,7 +522,7 @@ export function McpConnectionsPage() {
             )}
             {!genKey && (
               <div className="modal-footer">
-                <button onClick={() => { setGenOpen(false); setGenError(null); }} className="ad-button">Cancel</button>
+                <button onClick={closeKeyDialog} className="ad-button" disabled={genLoading}>Cancel</button>
                 <button onClick={async () => {
                   setGenLoading(true);
                   setGenError(null);
@@ -506,7 +540,7 @@ export function McpConnectionsPage() {
               </div>
             )}
           </div>
-        </div>
+        </div>, document.body
       )}
     </div>
   );

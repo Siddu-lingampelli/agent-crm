@@ -323,7 +323,12 @@ export function AgentsPage() {
   const keyColumns = [
     { key: 'name', header: 'Name', render: (k: ApiKey) => <span className="font-medium">{k.name}</span> },
     { key: 'key_prefix', header: 'Key', render: (k: ApiKey) => <code className="text-xs" title="Only the prefix is stored in plaintext — use the copy/reveal action for the full key">{k.prefix}…</code> },
-    { key: 'scopes', header: 'Scopes', render: (k: ApiKey) => <span className="text-sm">{k.scopes.join(', ')}</span> },
+    { key: 'scopes', header: 'Scopes', width: '420px', render: (k: ApiKey) => {
+      const visibleScopes = k.scopes.slice(0, 3);
+      const remaining = k.scopes.length - visibleScopes.length;
+      const fullScopes = k.scopes.join(', ');
+      return <span className="text-sm" title={fullScopes}>{visibleScopes.join(', ')}{remaining > 0 ? ` +${remaining} more` : ''}</span>;
+    } },
     { key: 'rate_limit', header: 'Rate Limit', render: (k: ApiKey) => `${k.rate_limit}/min` },
     { key: 'active', header: 'Status', render: (k: ApiKey) => <Badge variant={(!k.revoked_at && (!k.expires_at || new Date(k.expires_at).getTime() > Date.now())) ? 'success' : 'neutral'}>{k.revoked_at ? 'Revoked' : (!k.expires_at || new Date(k.expires_at).getTime() > Date.now()) ? 'Active' : 'Expired'}</Badge> },
     { key: 'last_used_at', header: 'Last Used', render: (k: ApiKey) => k.last_used_at ? new Date(k.last_used_at).toLocaleString() : 'Never' },
@@ -334,7 +339,12 @@ export function AgentsPage() {
     { key: 'name', header: 'Name', render: (a: Agent) => <span className="font-medium">{a.name}</span> },
     { key: 'provider', header: 'Type', render: (a: Agent) => <Badge>{a.provider}</Badge> },
     { key: 'enabled', header: 'Status', render: (a: Agent) => <Badge variant={a.enabled ? 'success' : 'neutral'}>{a.enabled ? 'Active' : 'Disabled'}</Badge> },
-    { key: 'scopes', header: 'Scopes', render: (a: Agent) => a.scopes.join(', ') },
+    { key: 'scopes', header: 'Scopes', width: '420px', render: (a: Agent) => {
+      const visibleScopes = a.scopes.slice(0, 3);
+      const remaining = a.scopes.length - visibleScopes.length;
+      const fullScopes = a.scopes.join(', ');
+      return <span title={fullScopes}>{visibleScopes.join(', ')}{remaining > 0 ? ` +${remaining} more` : ''}</span>;
+    } },
     { key: 'last_used_at', header: 'Last Used', render: (a: Agent) => a.last_used_at ? new Date(a.last_used_at).toLocaleString() : 'Never' },
   ];
 
@@ -445,7 +455,7 @@ export function AgentsPage() {
         </>
       )}
 
-      <Modal isOpen={modalOpen} onClose={() => { setModalOpen(false); setGeneratedKey(null); }} title={activeTab === 'keys' ? (editingKey ? 'Edit API Key' : 'New API Key') : (editingAgent ? 'Edit Agent' : 'New Agent')} size="lg" portal>
+      <Modal isOpen={modalOpen} onClose={() => { setModalOpen(false); setGeneratedKey(null); }} title={activeTab === 'keys' ? (editingKey ? 'Edit API Key' : 'New API Key') : (editingAgent ? 'Edit Agent' : 'New Agent')} size="lg" portal busy={submitLoading}>
         <div className="ad-admin-dialog-fields ad-access-dialog-fields">
           <FormField label="Name" error={formErrors.name} required>
             <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder={activeTab === 'keys' ? 'API Key name' : 'Agent name'} />

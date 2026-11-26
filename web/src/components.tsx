@@ -58,6 +58,7 @@ interface ModalProps {
   showCloseButton?: boolean;
   closeOnOverlayClick?: boolean;
   closeOnEscape?: boolean;
+  busy?: boolean;
   portal?: boolean;
 }
 
@@ -489,8 +490,28 @@ export function Modal({
   showCloseButton = true,
   closeOnOverlayClick = true,
   closeOnEscape = true,
-  portal = false,
+  busy = false,
+  portal = true,
 }: ModalProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const frame = requestAnimationFrame(() => {
+      const content = modalRef.current;
+      const target = content?.querySelector<HTMLElement>('input:not([disabled]),select:not([disabled]),textarea:not([disabled]),button:not([disabled]),[tabindex]:not([tabindex="-1"])');
+      target?.focus();
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      returnFocusRef.current?.focus();
+      returnFocusRef.current = null;
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const sizeClasses = {
@@ -507,19 +528,40 @@ export function Modal({
   const modal = (
     <div
       className="modal-overlay"
-      onClick={closeOnOverlayClick ? onClose : undefined}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="modal-title"
+      onClick={closeOnOverlayClick && !busy ? onClose : undefined}
     >
-      <div className={`modal-content ${sizeClasses[size]}`} onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={modalRef}
+        className={`modal-content ${sizeClasses[size]}`}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            if (closeOnEscape && !busy) onClose();
+          }
+          if (event.key === 'Tab') {
+            const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'));
+            if (!focusable.length) { event.preventDefault(); return; }
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+          }
+        }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-busy={busy || undefined}
+        tabIndex={-1}
+      >
         <div className="modal-header">
-          <h2 id="modal-title" className="modal-title">{title}</h2>
+          <h2 id={titleId} className="modal-title">{title}</h2>
           {showCloseButton && (
             <button
               onClick={onClose}
               className="modal-close"
               aria-label="Close"
+              disabled={busy}
             >
               <X className="w-5 h-5" />
             </button>
@@ -880,6 +922,19 @@ export function ToastContainer({ toasts, onRemove }: ToastContainerProps) {
 // ============================================
 
 export function ConfirmDialog({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', cancelText = 'Cancel', variant = 'danger', loading = false, destructive = true }: ConfirmDialogProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!isOpen) return;
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const frame = requestAnimationFrame(() => dialogRef.current?.querySelector<HTMLElement>('button:not([disabled])')?.focus());
+    return () => {
+      cancelAnimationFrame(frame);
+      returnFocusRef.current?.focus();
+      returnFocusRef.current = null;
+    };
+  }, [isOpen]);
   if (!isOpen) return null;
 
   const variantClasses = {
@@ -888,15 +943,24 @@ export function ConfirmDialog({ isOpen, onClose, onConfirm, title, message, conf
     warning: 'btn-warning',
   };
 
-  return (
-    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-      <div className={`modal-content confirm-dialog${destructive ? ' is-destructive' : ''}`} onClick={(e) => e.stopPropagation()}>
+  const dialog = (
+    <div className="modal-overlay" onClick={!loading ? onClose : undefined}>
+      <div ref={dialogRef} className={`modal-content confirm-dialog${destructive ? ' is-destructive' : ''}`} onClick={(e) => e.stopPropagation()} onKeyDown={event => {
+        if (event.key === 'Escape') { event.preventDefault(); if (!loading) onClose(); }
+        if (event.key === 'Tab') {
+          const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])'));
+          if (!focusable.length) { event.preventDefault(); return; }
+          const first = focusable[0]; const last = focusable[focusable.length - 1];
+          if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+          else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+        }
+      }} role="alertdialog" aria-modal="true" aria-labelledby={titleId} aria-describedby="confirm-message" tabIndex={-1}>
         <div className="modal-header">
-          <div className="confirm-dialog-heading"><h2 id="confirm-title" className="modal-title">{title}</h2></div>
+          <div className="confirm-dialog-heading"><h2 id={titleId} className="modal-title">{title}</h2></div>
           <button onClick={onClose} disabled={loading} className="modal-close" aria-label="Close confirmation"><X className="w-5 h-5" /></button>
         </div>
         <div className="modal-body">
-          <p className="confirm-dialog-message">{message}</p>
+          <p id="confirm-message" className="confirm-dialog-message">{message}</p>
         </div>
         <div className="modal-footer">
           <button onClick={onClose} disabled={loading} className="btn-secondary">{cancelText}</button>
@@ -918,6 +982,7 @@ export function ConfirmDialog({ isOpen, onClose, onConfirm, title, message, conf
       </div>
     </div>
   );
+  return createPortal(dialog, document.body);
 }
 
 // ============================================

@@ -257,7 +257,7 @@ export function WebhooksPage() {
             showPageSize
           />
 
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingWebhook ? 'Edit Webhook' : 'New Webhook'} size="lg" portal>
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingWebhook ? 'Edit Webhook' : 'New Webhook'} size="lg" portal busy={submitLoading}>
         <div className="ad-admin-dialog-fields ad-webhook-dialog-fields">
           <FormField label="Name" error={formErrors.name} required>
             <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Webhook name" />

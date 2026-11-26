@@ -947,12 +947,13 @@
   }
 
   /* Compact archive confirmation shared by CRM records. */
-  .confirm-dialog { width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); border: 1px solid #e1e5eb; border-radius: 10px; box-shadow: 0 20px 60px rgba(20,31,48,.18); }
+  .confirm-dialog { width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); border: 1px solid #e1e5eb; border-radius: 10px; background:#fff!important; color:#33475b; color-scheme:light; box-shadow: 0 20px 60px rgba(20,31,48,.18); }
   .confirm-dialog .modal-header { min-height: 58px; align-items: center; padding: 12px 22px; background: #fff; }
   .confirm-dialog-heading { display: flex; min-width: 0; align-items: center; }
   .confirm-dialog .modal-title { color: #1f2937 !important; font-size: 20px; font-weight: 650; line-height: 1.3; letter-spacing: -.025em; }
   .confirm-dialog .modal-close { width: 32px; height: 32px; }
-  .confirm-dialog .modal-body { flex: initial; padding: 18px 22px; }
+  .confirm-dialog .modal-body { flex: initial; padding: 18px 22px; background:#fff; }
+  .confirm-dialog .modal-footer { background:#fff; }
   .confirm-dialog-message { margin: 0; color: #526174; font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; }
   .confirm-dialog .modal-footer { gap: 8px; padding: 10px 22px; border-radius: 0; background: #fff; }
   .confirm-dialog .modal-footer > button { min-height: 36px; padding: 0 14px; border-radius: 6px; font-size: 13px; font-weight: 600; }
