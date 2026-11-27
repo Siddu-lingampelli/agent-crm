@@ -23,7 +23,9 @@ export function crmActivityLabel(value: string) {
 }
 
 export function exportCrmPage<T extends { id: string }>(noun: string, records: T[], fields: { key: keyof T; label: string }[]) {
-  const cell = (value: unknown) => { const raw = String(value ?? ''); return `"${(/^[\s]*[=+@-]/.test(raw) ? "'" + raw : raw).replaceAll('"', '""')}"`; };
+  // Matches the Go export's spreadsheetSafeCSVCell: leading whitespace then
+  // = + @ - (numeric +/- stay usable), otherwise prefix with '.
+  const cell = (value: unknown) => { const raw = String(value ?? ''); const trimmed = raw.replace(/^[ \t\r\n\v\f]+/, ''); const dangerous = trimmed !== '' && '=+@-'.includes(trimmed[0]) && !(/^[+-]/.test(trimmed) && !Number.isNaN(Number(trimmed))); return `"${(dangerous ? "'" + raw : raw).replaceAll('"', '""')}"`; };
   const csv = '\uFEFF' + [fields.map(field => cell(field.label)).join(','), ...records.map(record => fields.map(field => cell(record[field.key])).join(','))].join('\r\n');
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
   const anchor = document.createElement('a'); anchor.href = url; anchor.download = `torq-${noun}-${new Date().toISOString().slice(0, 10)}.csv`; document.body.appendChild(anchor); anchor.click(); anchor.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);

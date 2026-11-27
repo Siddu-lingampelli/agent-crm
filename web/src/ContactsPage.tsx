@@ -217,10 +217,7 @@ export function ContactsPage() {
   return (
     <div className="crm-area crm-contacts">
       <CrmHeader title="Contacts" recordCount={total} description="Keep the people behind every opportunity close." onCreate={handleCreate} busy={loading || !!loadError} onExport={() => exportCrmPage('contacts', contacts, [{ key: 'first_name', label: 'first name' }, { key: 'last_name', label: 'last name' }, { key: 'email', label: 'email' }, { key: 'phone', label: 'phone' }, { key: 'company_id', label: 'company id' }, { key: 'status', label: 'status' }])} onImport={async (file) => {
-        const fd = new FormData();
-        fd.append('file', file);
-        const res = await fetch('/api/v1/contacts/import', { method: 'POST', body: fd });
-        if (!res.ok) { const j = await res.json().catch(() => null); throw new Error(j?.error?.message || 'Import failed'); }
+        await api.upload('/contacts/import', file);
         await fetchContacts();
       }} />
       <CrmViewTabs label="Contact views" current={statusFilter} onChange={value => { setStatusFilter(value); setPage(1); }} items={[{ value: '', label: 'All contacts' }, ...statusOptions.map(option => ({ value: option.value, label: option.label }))]} />

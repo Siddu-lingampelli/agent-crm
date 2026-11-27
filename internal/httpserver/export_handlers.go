@@ -2,6 +2,8 @@
 package httpserver
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/csv"
 	"encoding/json"
@@ -11,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"crm.local/internal/jsonutil"
 	"crm.local/internal/permissions"
@@ -75,13 +78,33 @@ func (h *ExportHandler) ExportCSV(w http.ResponseWriter, r *http.Request) {
 		record := make([]string, len(h.fields))
 		for i, field := range h.fields {
 			v := m[field]
-			record[i] = fmt.Sprintf("%v", v)
+			record[i] = spreadsheetSafeCSVCell(fmt.Sprintf("%v", v))
 		}
 		if err := cw.Write(record); err != nil {
 			jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "cannot write CSV row")
 			return
 		}
 	}
+}
+
+// spreadsheetSafeCSVCell prevents untrusted CRM text from being interpreted as
+// a formula when a CSV export is opened in spreadsheet software.
+func spreadsheetSafeCSVCell(value string) string {
+	trimmed := strings.TrimLeft(value, " \t\r\n\v\f")
+	if trimmed == "" {
+		return value
+	}
+	switch trimmed[0] {
+	case '=', '@':
+		return "'" + value
+	case '+', '-':
+		// Keep numeric values usable in spreadsheets while neutralizing formula
+		// expressions such as +HYPERLINK(...) and -cmd|'...'.
+		if _, err := strconv.ParseFloat(trimmed, 64); err != nil {
+			return "'" + value
+		}
+	}
+	return value
 }
 
 // ImportCSV reads a CSV upload and creates each row via the service.
@@ -112,45 +135,64 @@ func (h *ExportHandler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Read and parse CSV
-	cr := csv.NewReader(file)
+	reader := bufio.NewReader(file)
+	if prefix, err := reader.Peek(3); err == nil && bytes.Equal(prefix, []byte{0xEF, 0xBB, 0xBF}) {
+		_, _ = reader.Discard(3)
+	}
+	cr := csv.NewReader(reader)
 	headerRow, err := cr.Read()
 	if err != nil {
 		jsonutil.Error(w, http.StatusBadRequest, "invalid_csv", "cannot read CSV header: "+err.Error())
 		return
 	}
-	// Build column index
-	colIndex := make(map[string]int)
+	// Map the uploaded columns by their normalized names. Users often import
+	// files exported from the CRM, whose headers use readable labels like
+	// "first name" rather than API field names like "first_name".
+	headerFields := make([]string, len(headerRow))
+	seenFields := make(map[string]struct{}, len(headerRow))
 	for i, name := range headerRow {
-		colIndex[strings.TrimSpace(name)] = i
-	}
-	// Validate required fields are present
-	for _, field := range h.fields {
-		if _, ok := colIndex[field]; !ok {
-			jsonutil.Error(w, http.StatusBadRequest, "invalid_csv", fmt.Sprintf("missing column: %s", field))
+		field := normalizeCSVField(name)
+		if field == "" {
+			jsonutil.Error(w, http.StatusBadRequest, "invalid_csv", fmt.Sprintf("column %d has an empty header", i+1))
 			return
 		}
+		if _, exists := seenFields[field]; exists {
+			jsonutil.Error(w, http.StatusBadRequest, "invalid_csv", fmt.Sprintf("duplicate column: %s", field))
+			return
+		}
+		seenFields[field] = struct{}{}
+		headerFields[i] = field
 	}
 	var imported, skipped int
 	var lastErr error
+	rowNumber := 1
 	for {
 		record, err := cr.Read()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			lastErr = fmt.Errorf("CSV row parse error: %w", err)
+			lastErr = fmt.Errorf("CSV row %d parse error: %w", rowNumber+1, err)
 			break
 		}
-		// Build map from record
+		rowNumber++
+		// Build each record from the columns actually present in the file.
 		row := make(map[string]any)
-		for i, field := range h.fields {
+		blank := true
+		for i, field := range headerFields {
 			if i < len(record) {
 				row[field] = record[i]
+				if strings.TrimSpace(record[i]) != "" {
+					blank = false
+				}
 			}
+		}
+		if blank {
+			continue
 		}
 		// Create via service
 		if err := h.createFn(r.Context(), actor, row); err != nil {
-			lastErr = fmt.Errorf("failed to create row: %w", err)
+			lastErr = fmt.Errorf("failed to create row %d: %w", rowNumber, err)
 			skipped++
 			continue
 		}
@@ -197,19 +239,19 @@ func NewCompaniesExportHandler(companySvc *companies.Service) *ExportHandler {
 		},
 		func(ctx context.Context, actor permissions.AuthContext, row map[string]any) error {
 			_, err := companySvc.Create(ctx, actor, companies.CreateInput{
-				Name:        getString(row, "name"),
-				Domain:      getString(row, "domain"),
-				Industry:    getString(row, "industry"),
-				SizeBand:    getString(row, "size_band"),
-				Website:     getString(row, "website"),
-				Phone:       getString(row, "phone"),
-				Email:       getString(row, "email"),
-				Address:     getString(row, "address"),
-				IsClient:    getBool(row, "is_client"),
-				Status:      getString(row, "status"),
-				OwnerID:     getString(row, "owner_id"),
-				Tags:        getSlice(row, "tags"),
-				Notes:       getString(row, "notes"),
+				Name:     getString(row, "name"),
+				Domain:   getString(row, "domain"),
+				Industry: getString(row, "industry"),
+				SizeBand: getString(row, "size_band"),
+				Website:  getString(row, "website"),
+				Phone:    getString(row, "phone"),
+				Email:    getString(row, "email"),
+				Address:  getString(row, "address"),
+				IsClient: getBool(row, "is_client"),
+				Status:   getString(row, "status"),
+				OwnerID:  getString(row, "owner_id"),
+				Tags:     getSlice(row, "tags"),
+				Notes:    getString(row, "notes"),
 			})
 			return err
 		},
@@ -278,6 +320,7 @@ func NewLeadsExportHandler(leadSvc *leads.Service) *ExportHandler {
 				Source:         getString(row, "source"),
 				OwnerID:        getString(row, "owner_id"),
 				Priority:       getString(row, "priority"),
+				EstimatedValue: getInt64Ptr(row, "estimated_value"),
 				Currency:       getString(row, "currency"),
 				ExpectedClose:  getString(row, "expected_close"),
 				FollowUpDate:   getString(row, "follow_up_date"),
@@ -287,7 +330,7 @@ func NewLeadsExportHandler(leadSvc *leads.Service) *ExportHandler {
 			})
 			return err
 		},
-		[]string{"display_name", "first_name", "last_name", "email", "phone", "company_name", "company_id", "job_title", "status", "source", "owner_id", "priority", "currency", "expected_close", "follow_up_date", "tags", "description", "qualification"},
+		[]string{"display_name", "first_name", "last_name", "email", "phone", "company_name", "company_id", "job_title", "status", "source", "owner_id", "priority", "estimated_value", "currency", "expected_close", "follow_up_date", "tags", "description", "qualification"},
 	)
 }
 
@@ -426,12 +469,43 @@ func NewCalendarExportHandler(calendarSvc *calendar.Service) *ExportHandler {
 	)
 }
 
+func normalizeCSVField(name string) string {
+	name = strings.TrimPrefix(name, "\ufeff")
+	name = strings.ToLower(strings.TrimSpace(name))
+	var normalized strings.Builder
+	separator := false
+	for _, char := range name {
+		if unicode.IsLetter(char) || unicode.IsDigit(char) {
+			if separator && normalized.Len() > 0 {
+				normalized.WriteByte('_')
+			}
+			separator = false
+			normalized.WriteRune(char)
+		} else {
+			separator = true
+		}
+	}
+	return strings.Trim(normalized.String(), "_")
+}
+
 // Helper functions for extracting values from row maps.
 func getString(row map[string]any, field string) string {
 	if v, ok := row[field]; ok {
 		return fmt.Sprintf("%v", v)
 	}
 	return ""
+}
+
+func getInt64Ptr(row map[string]any, field string) *int64 {
+	value := strings.TrimSpace(getString(row, field))
+	if value == "" {
+		return nil
+	}
+	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return nil
+	}
+	return &parsed
 }
 
 func getBool(row map[string]any, field string) bool {

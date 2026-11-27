@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -275,6 +276,53 @@ func ValidateOutboundHost(ctx context.Context, host string, blockPrivate bool, a
 	return nil
 }
 
+// DialOutboundContext resolves a host once, validates every resulting address,
+// then dials one of those exact addresses. This prevents DNS rebinding between
+// SSRF validation and the network connection.
+func DialOutboundContext(ctx context.Context, network, host string, port int, blockPrivate bool, allowedCIDRs []string, timeout time.Duration) (net.Conn, error) {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return nil, errors.New("host required")
+	}
+	if port < 1 || port > 65535 {
+		return nil, errors.New("port must be between 1 and 65535")
+	}
+	var addresses []net.IPAddr
+	if ip := net.ParseIP(host); ip != nil {
+		addresses = []net.IPAddr{{IP: ip}}
+	} else {
+		resolved, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+		if err != nil {
+			return nil, fmt.Errorf("resolve host: %w", err)
+		}
+		addresses = resolved
+	}
+	if len(addresses) == 0 {
+		return nil, errors.New("hostname resolved to no addresses")
+	}
+	for _, address := range addresses {
+		if blockPrivate && isPrivateIP(address.IP.String()) && !cidrAllowed(address.IP, allowedCIDRs) {
+			return nil, fmt.Errorf("host %s resolves to blocked address %s", host, address.IP)
+		}
+	}
+	if timeout <= 0 {
+		timeout = 10 * time.Second
+	}
+	dialer := &net.Dialer{Timeout: timeout, KeepAlive: 30 * time.Second}
+	var lastErr error
+	for _, address := range addresses {
+		conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(address.IP.String(), strconv.Itoa(port)))
+		if err == nil {
+			return conn, nil
+		}
+		lastErr = err
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+	}
+	return nil, lastErr
+}
+
 func cidrAllowed(ip net.IP, cidrs []string) bool {
 	for _, c := range cidrs {
 		if _, n, err := net.ParseCIDR(c); err == nil && n.Contains(ip) {
@@ -405,9 +453,9 @@ func CrossOriginMiddleware(origins []string) func(http.Handler) http.Handler {
 // CSRFConfig holds double-submit cookie CSRF settings.
 type CSRFConfig struct {
 	Enabled      bool
-	HeaderName   string   // expected request header carrying the token
-	CookieName   string   // cookie holding the token (readable by the SPA)
-	TokenBytes   int      // random bytes behind each token
+	HeaderName   string // expected request header carrying the token
+	CookieName   string // cookie holding the token (readable by the SPA)
+	TokenBytes   int    // random bytes behind each token
 	CookieSecure bool
 	// ExemptPaths are exact paths that may issue state-changing requests
 	// before any CSRF cookie exists (e.g. the initial login). They must be

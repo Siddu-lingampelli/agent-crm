@@ -160,6 +160,12 @@ func (r *MailRepository) UpdateConnectionSync(ctx context.Context, id string, sy
 	return err
 }
 
+// ClearConnectionError removes a stale poll error after a successful manual test.
+func (r *MailRepository) ClearConnectionError(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE mail_connections SET last_error = '', updated_at = ? WHERE id = ?`, time.Now().UTC(), id)
+	return err
+}
+
 // UpdateConnectionOAuth stores sealed OAuth tokens and clears the pending state.
 func (r *MailRepository) UpdateConnectionOAuth(ctx context.Context, id, oauthSealed, provider, emailAddress string) error {
 	_, err := r.db.ExecContext(ctx, `

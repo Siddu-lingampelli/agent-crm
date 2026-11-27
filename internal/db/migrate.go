@@ -40,12 +40,56 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 	if err := goose.UpContext(ctx, db, "."); err != nil {
 		return fmt.Errorf("run migrations: %w", err)
 	}
+	if err := ensureMailConnectionColumns(ctx, db); err != nil {
+		return fmt.Errorf("repair mail connection schema: %w", err)
+	}
 
 	// After migrations, ensure FTS triggers exist (goose doesn't handle triggers well)
 	if err := createFTS5Triggers(ctx, db); err != nil {
 		return fmt.Errorf("create FTS triggers: %w", err)
 	}
 
+	return nil
+}
+
+// ensureMailConnectionColumns repairs databases imported from older builds
+// where the goose version was newer than the actual mail_connections schema.
+func ensureMailConnectionColumns(ctx context.Context, db *sql.DB) error {
+	rows, err := db.QueryContext(ctx, "PRAGMA table_info(mail_connections)")
+	if err != nil {
+		return err
+	}
+	columns := make(map[string]struct{})
+	for rows.Next() {
+		var cid, notNull, primaryKey int
+		var name, columnType string
+		var defaultValue sql.NullString
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			rows.Close()
+			return err
+		}
+		columns[strings.ToLower(name)] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	for _, column := range []struct{ name, declaration string }{
+		{"auth_mode", `TEXT NOT NULL DEFAULT 'password'`},
+		{"oauth_provider", `TEXT NOT NULL DEFAULT ''`},
+		{"oauth_sealed", `TEXT NOT NULL DEFAULT ''`},
+		{"oauth_state", `TEXT NOT NULL DEFAULT ''`},
+	} {
+		if _, exists := columns[column.name]; exists {
+			continue
+		}
+		if _, err := db.ExecContext(ctx, "ALTER TABLE mail_connections ADD COLUMN "+column.name+" "+column.declaration); err != nil {
+			return fmt.Errorf("add %s: %w", column.name, err)
+		}
+	}
 	return nil
 }
 

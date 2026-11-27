@@ -35,9 +35,9 @@ import (
 	"crm.local/internal/service/deals"
 	"crm.local/internal/service/email"
 	"crm.local/internal/service/integrations"
-	"crm.local/internal/service/oauth"
 	"crm.local/internal/service/leads"
 	"crm.local/internal/service/mail"
+	"crm.local/internal/service/oauth"
 	"crm.local/internal/service/projects"
 	"crm.local/internal/service/search"
 	"crm.local/internal/service/tasks"
@@ -83,7 +83,7 @@ type App struct {
 	mcpServer          *mcp.Server
 	oauthSvc           *oauth.Service
 	oauthHandler       *httpserver.OAuthHandler
-	oauthRepo           *repository.OAuthRepository
+	oauthRepo          *repository.OAuthRepository
 	agentService       *agents.Service
 	metrics            *metrics.Registry
 	cancel             context.CancelFunc
@@ -215,6 +215,9 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		repository.NewContactRepository(database.SQL()),
 		repository.NewLeadRepository(database.SQL()),
 		mailCfg, log)
+	if smtpConfig == nil {
+		emailSvc.SetSMTPResolver(mailSvc.SMTPConfigForWorkspace)
+	}
 	mailSvc.Start(ctx)
 	emailSvc.SetTracker(mailSvc)
 	app.mailSvc = mailSvc

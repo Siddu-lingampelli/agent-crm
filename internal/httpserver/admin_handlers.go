@@ -2,6 +2,7 @@
 package httpserver
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"io"
@@ -23,6 +24,22 @@ import (
 
 	_ "modernc.org/sqlite"
 )
+
+// Only CRM records are restored from an uploaded backup. Account credentials,
+// sessions, workspaces, mailboxes, integrations, and app configuration belong
+// to the destination account and must remain untouched.
+var dataOnlyRestoreTables = []string{
+	"pipelines",
+	"pipeline_stages",
+	"companies",
+	"contacts",
+	"leads",
+	"deals",
+	"projects",
+	"tasks",
+	"notes",
+	"activities",
+}
 
 // AdminHandler wraps admin endpoints.
 type AdminHandler struct {
@@ -547,9 +564,8 @@ func (h *AdminHandler) BackupDownload(w http.ResponseWriter, r *http.Request) {
 	_, _ = io.Copy(w, f)
 }
 
-// BackupImport replaces the current database with an uploaded SQLite file.
-// This is a destructive operation: the existing database is backed up first,
-// then atomically swapped. Requires a human user session and explicit confirmation.
+// BackupImport restores CRM records from an uploaded SQLite backup into the
+// signed-in user's workspace. Account, mail, and application settings are kept.
 func (h *AdminHandler) BackupImport(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		jsonutil.Error(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
@@ -625,63 +641,111 @@ func (h *AdminHandler) BackupImport(w http.ResponseWriter, r *http.Request) {
 		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "cannot close validation handle")
 		return
 	}
-	// ATTACH the uploaded DB and copy all data into the current DB.
-	// This uses a single transaction so it's atomic and doesn't require
-	// closing/reopening handles — all existing service DB references stay valid.
+	// Attach the uploaded DB and copy only CRM records in a single transaction.
 	mainDB := h.db.SQL()
-	tx, err := mainDB.BeginTx(r.Context(), nil)
+	conn, err := mainDB.Conn(r.Context())
+	if err != nil {
+		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "cannot get database connection")
+		return
+	}
+	defer conn.Close()
+	// Attach the uploaded database
+	if _, err := conn.ExecContext(r.Context(), "ATTACH DATABASE ? AS import_db", tmpPath); err != nil {
+		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", fmt.Sprintf("cannot attach uploaded database: %v", err))
+		return
+	}
+	defer func() { _, _ = conn.ExecContext(context.Background(), "DETACH DATABASE import_db") }()
+	tx, err := conn.BeginTx(r.Context(), nil)
 	if err != nil {
 		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "cannot begin transaction")
 		return
 	}
-	// Attach the uploaded database
-	if _, err := tx.Exec("ATTACH DATABASE ? AS import_db", tmpPath); err != nil {
+	// The restore replaces related tables as a set. Defer foreign-key checks
+	// until commit so parent rows can be cleared and reinserted regardless of
+	// table order; SQLite validates the final restored database atomically.
+	if _, err := tx.Exec("PRAGMA defer_foreign_keys = ON"); err != nil {
 		_ = tx.Rollback()
-		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "cannot attach uploaded database")
+		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "cannot defer foreign-key checks")
 		return
 	}
-	defer func() { _, _ = tx.Exec("DETACH DATABASE import_db") }()
-	// Get list of user tables (excluding sqlite_* and goose_db_version)
-	rows, err := tx.Query(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != 'goose_db_version' ORDER BY name`)
-	if err != nil {
-		_ = tx.Rollback()
-		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "cannot list tables")
-		return
-	}
-	var tables []string
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
-			rows.Close()
+	// Restore only CRM entities into the signed-in user's workspace. The uploaded
+	// backup may have a different schema version, so columns are matched by name.
+	importedTables := 0
+	for _, t := range dataOnlyRestoreTables {
+		if !sqliteTableExists(tx, "main", t) || !sqliteTableExists(tx, "import_db", t) {
+			continue
+		}
+		if t == "pipeline_stages" {
+			if _, err := tx.Exec(`DELETE FROM pipeline_stages WHERE pipeline_id IN (SELECT id FROM pipelines WHERE workspace_id=?)`, actor.WorkspaceID); err != nil {
+				_ = tx.Rollback()
+				jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "cannot clear table pipeline_stages")
+				return
+			}
+		} else {
+			if _, err := tx.Exec(fmt.Sprintf("DELETE FROM %s WHERE workspace_id=?", quoteSQLiteIdentifier(t)), actor.WorkspaceID); err != nil {
+				_ = tx.Rollback()
+				jsonutil.Error(w, http.StatusInternalServerError, "internal_error", fmt.Sprintf("cannot clear table %s", t))
+				return
+			}
+		}
+		targetColumns, err := sqliteTableColumns(tx, "main", t)
+		if err != nil {
 			_ = tx.Rollback()
-			jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "cannot scan table name")
+			jsonutil.Error(w, http.StatusInternalServerError, "internal_error", fmt.Sprintf("cannot inspect current table %s: %v", t, err))
 			return
 		}
-		tables = append(tables, name)
-	}
-	if err := rows.Err(); err != nil {
-		_ = tx.Rollback()
-		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "error iterating tables")
-		return
-	}
-	rows.Close()
-	// For each table: DELETE all rows, then INSERT from import_db
-	for _, t := range tables {
-		if _, err := tx.Exec(fmt.Sprintf("DELETE FROM %s", t)); err != nil {
+		sourceColumns, err := sqliteTableColumns(tx, "import_db", t)
+		if err != nil {
 			_ = tx.Rollback()
-			jsonutil.Error(w, http.StatusInternalServerError, "internal_error", fmt.Sprintf("cannot clear table %s", t))
+			jsonutil.Error(w, http.StatusInternalServerError, "internal_error", fmt.Sprintf("cannot inspect uploaded table %s: %v", t, err))
 			return
 		}
-		if _, err := tx.Exec(fmt.Sprintf("INSERT INTO %s SELECT * FROM import_db.%s", t, t)); err != nil {
+		sourceByName := make(map[string]string, len(sourceColumns))
+		for _, column := range sourceColumns {
+			sourceByName[strings.ToLower(column)] = column
+		}
+		var destNames, sourceExprs []string
+		var queryArgs []any
+		for _, column := range targetColumns {
+			if sourceName, exists := sourceByName[strings.ToLower(column)]; exists {
+				destNames = append(destNames, quoteSQLiteIdentifier(column))
+				switch strings.ToLower(column) {
+				case "workspace_id":
+					sourceExprs = append(sourceExprs, "?")
+					queryArgs = append(queryArgs, actor.WorkspaceID)
+				case "owner_id", "assignee_id", "created_by", "updated_by", "author_id", "actor_id":
+					// Source-account user IDs are never imported. Attribute records
+					// to the destination actor instead of retaining foreign identities.
+					sourceExprs = append(sourceExprs, "?")
+					queryArgs = append(queryArgs, actor.ActorID)
+				default:
+					sourceExprs = append(sourceExprs, quoteSQLiteIdentifier(sourceName))
+				}
+			}
+		}
+		if len(destNames) == 0 {
+			continue
+		}
+		// Only import rows that belong to the actor's own workspace in the
+		// uploaded backup. A backup file can contain other workspaces; their
+		// rows must never be copied into the destination workspace.
+		where := ` WHERE workspace_id = (SELECT id FROM import_db.workspaces WHERE id = ?)`
+		whereArgs := []any{actor.WorkspaceID}
+		if t == "pipeline_stages" {
+			where = ` WHERE pipeline_id IN (SELECT id FROM import_db.pipelines WHERE workspace_id = (SELECT id FROM import_db.workspaces WHERE id = ?))`
+		}
+		statement := fmt.Sprintf("INSERT INTO %s (%s) SELECT %s FROM import_db.%s%s", quoteSQLiteIdentifier(t), strings.Join(destNames, ", "), strings.Join(sourceExprs, ", "), quoteSQLiteIdentifier(t), where)
+		if _, err := tx.Exec(statement, append(queryArgs, whereArgs...)...); err != nil {
 			_ = tx.Rollback()
 			jsonutil.Error(w, http.StatusInternalServerError, "internal_error", fmt.Sprintf("cannot import data into table %s: %v", t, err))
 			return
 		}
+		importedTables++
 	}
 	// Commit the whole import
 	if err := tx.Commit(); err != nil {
 		_ = tx.Rollback()
-		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", "import transaction failed")
+		jsonutil.Error(w, http.StatusInternalServerError, "internal_error", fmt.Sprintf("import transaction failed: %v", err))
 		return
 	}
 	// Checkpoint WAL to make it durable and clean
@@ -690,7 +754,36 @@ func (h *AdminHandler) BackupImport(w http.ResponseWriter, r *http.Request) {
 	}
 	jsonutil.Write(w, http.StatusOK, map[string]any{
 		"ok":          true,
-		"tables":      len(tables),
+		"tables":      importedTables,
 		"imported_at": time.Now().UTC().Format(time.RFC3339),
 	})
+}
+
+func sqliteTableExists(tx *sql.Tx, schema, table string) bool {
+	var exists int
+	err := tx.QueryRow(`SELECT 1 FROM pragma_table_list WHERE schema=? AND type='table' AND name=?`, schema, table).Scan(&exists)
+	return err == nil
+}
+
+func sqliteTableColumns(tx *sql.Tx, schema, table string) ([]string, error) {
+	rows, err := tx.Query(fmt.Sprintf("PRAGMA %s.table_info(%s)", quoteSQLiteIdentifier(schema), quoteSQLiteIdentifier(table)))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var columns []string
+	for rows.Next() {
+		var cid, notNull, primaryKey int
+		var name, columnType string
+		var defaultValue sql.NullString
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			return nil, err
+		}
+		columns = append(columns, name)
+	}
+	return columns, rows.Err()
+}
+
+func quoteSQLiteIdentifier(identifier string) string {
+	return `"` + strings.ReplaceAll(identifier, `"`, `""`) + `"`
 }

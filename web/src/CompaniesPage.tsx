@@ -225,10 +225,7 @@ export function CompaniesPage() {
   return (
     <div className="crm-area crm-companies">
       <CrmHeader title="Companies" recordCount={total} description="Every account, with the context to grow it." onCreate={handleCreate} busy={loading || !!loadError} onExport={() => exportCrmPage('companies', companies, [{ key: 'name', label: 'name' }, { key: 'domain', label: 'domain' }, { key: 'industry', label: 'industry' }, { key: 'status', label: 'status' }, { key: 'is_client', label: 'is client' }, { key: 'email', label: 'email' }])} onImport={async (file) => {
-        const fd = new FormData();
-        fd.append('file', file);
-        const res = await fetch('/api/v1/companies/import', { method: 'POST', body: fd });
-        if (!res.ok) { const j = await res.json().catch(() => null); throw new Error(j?.error?.message || 'Import failed'); }
+        await api.upload('/companies/import', file);
         await fetchCompanies();
       }} />
       <CrmViewTabs label="Company views" current={statusFilter} onChange={value => { setStatusFilter(value); setPage(1); }} items={[{ value: '', label: 'All companies' }, ...statusOptions.map(option => ({ value: option.value, label: option.label }))]} />

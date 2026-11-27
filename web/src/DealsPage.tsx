@@ -285,10 +285,7 @@ const [formData, setFormData] = useState<DealFormData>({
   return (
     <div className="crm-area crm-deals">
       <CrmHeader title="Deals" recordCount={total} description="A clearer view of every opportunity in motion." onCreate={handleCreate} busy={loading || !!loadError} onExport={() => exportCrmPage('deals', deals, [{ key: 'name', label: 'name' }, { key: 'amount', label: 'amount' }, { key: 'currency', label: 'currency' }, { key: 'probability', label: 'probability' }, { key: 'stage_id', label: 'stage id' }, { key: 'expected_close', label: 'expected close' }])} onImport={async (file) => {
-        const fd = new FormData();
-        fd.append('file', file);
-        const res = await fetch('/api/v1/deals/import', { method: 'POST', body: fd });
-        if (!res.ok) { const j = await res.json().catch(() => null); throw new Error(j?.error?.message || 'Import failed'); }
+        await api.upload('/deals/import', file);
         await fetchDeals();
       }} />
       <CrmViewTabs label="Deal views" current={categoryFilter} onChange={value => { setCategoryFilter(value); setStageFilter(''); setPage(1); }} items={[{ value: '', label: 'All deals' }, { value: 'open', label: 'Open deals' }, { value: 'won', label: 'Won deals' }, { value: 'lost', label: 'Lost deals' }]} />

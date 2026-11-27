@@ -301,10 +301,7 @@ export function LeadsPage() {
   return (
     <div className="crm-area crm-leads">
       <CrmHeader title="Leads" recordCount={total} description="Turn the next conversation into a lasting relationship." onCreate={handleCreate} busy={loading || !!loadError} onExport={() => exportCrmPage('leads', leads, [{ key: 'display_name', label: 'display name' }, { key: 'email', label: 'email' }, { key: 'company_name', label: 'company name' }, { key: 'status', label: 'status' }, { key: 'source', label: 'source' }, { key: 'priority', label: 'priority' }, { key: 'estimated_value', label: 'estimated value' }, { key: 'currency', label: 'currency' }])} onImport={async (file) => {
-        const fd = new FormData();
-        fd.append('file', file);
-        const res = await fetch('/api/v1/leads/import', { method: 'POST', body: fd });
-        if (!res.ok) { const j = await res.json().catch(() => null); throw new Error(j?.error?.message || 'Import failed'); }
+        await api.upload('/leads/import', file);
         await fetchLeads();
       }} />
       <CrmViewTabs label="Lead views" current={statusFilter} onChange={value => { setStatusFilter(value); setPage(1); }} items={[{ value: '', label: 'All leads' }, ...statusOptions.map(option => ({ value: option.value, label: option.label }))]} />

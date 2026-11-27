@@ -52,7 +52,7 @@ export function SettingsPage() {
       });
       const body = await res.json().catch(()=>({}));
       if (!res.ok) throw new Error(body?.error?.message || 'Import failed');
-      setBackupMsg('Database restored — reload the page to see your imported data.');
+      setBackupMsg('CRM records restored — reload the page to see the imported data.');
       setPendingImport(null);
       setTimeout(()=>window.location.reload(), 1500);
     } catch(e) { setBackupError(e instanceof Error ? e.message : 'Could not import backup.'); }
@@ -79,7 +79,7 @@ export function SettingsPage() {
       <div className="ad-form-footer"><button type="button" className="ad-show-password" aria-pressed={show} onClick={()=>setShow(!show)}>{show?<EyeOff size={14} />:<Eye size={14} />}{show?'Hide passwords':'Show passwords'}</button><button type="submit" className="ad-button ad-button-primary" disabled={saving}>{saving?<Loader2 size={14} className="loading-spinner" />:<KeyRound size={14} />}{saving?'Updating...':'Update password'}</button></div>
     </form></AdminPanel>
     <AdminPanel title="Connected tools" description="Configure the services and credentials used by your workspace"><div className="ad-settings-links">{[{href:'/integrations',title:'Integrations',text:'Connected providers and service configuration.',icon:Plug},{href:'/webhooks',title:'Webhooks',text:'Event destinations and delivery configuration.',icon:Webhook},{href:'/agents',title:'Agents & API keys',text:'Automation access, scopes, and credentials.',icon:KeyRound}].map(item=><Link key={item.href} to={item.href}><span><item.icon size={17} /></span><div><strong>{item.title}</strong><p>{item.text}</p></div><ArrowUpRight size={14} /></Link>)}</div></AdminPanel>
-      <AdminPanel title="Backup & restore" description="Download the full SQLite database or restore from a previously downloaded .db file. This replaces all workspace data.">
+      <AdminPanel title="Backup & restore" description="Download a full database backup, or restore CRM records from a .db file into this workspace.">
         <div className="ad-backup-section">
           <div className="ad-backup-row">
             <div>
@@ -95,7 +95,7 @@ export function SettingsPage() {
           <div className="ad-backup-row">
             <div>
               <h4><Upload size={18} /> Restore from backup</h4>
-              <p><AlertTriangle size={14} className="ad-warning-icon" /> This <strong>replaces all current data</strong> with the contents of the uploaded .db file. A safety backup of the current database is kept automatically.</p>
+              <p><AlertTriangle size={14} className="ad-warning-icon" /> This replaces companies, contacts, leads, deals, tasks, projects, pipelines, notes, and activity history in this workspace. Your account, password, mailboxes, and settings stay unchanged.</p>
             </div>
             <div className="ad-import-controls">
               <label className="ad-file-input">

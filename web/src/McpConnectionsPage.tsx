@@ -101,6 +101,9 @@ export function McpConnectionsPage() {
     navigator.clipboard.writeText(text);
   };
 
+  // Absolute MCP URL clients can paste directly (e.g. into an MCP client config).
+  const mcpUrl = `${window.location.origin}/api/v1/mcp`;
+
   const formatDuration = (us: number) => {
     if (us < 1000) return `${us} µs`;
     if (us < 1_000_000) return `${(us / 1000).toFixed(1)} ms`;
@@ -169,8 +172,8 @@ export function McpConnectionsPage() {
 
       <section className={styles.connectionSummary} aria-label="MCP connection details">
         <div className={styles.endpointBlock}>
-          <span>Workspace endpoint</span>
-          <div><code>/api/v1/mcp</code><button className="ad-icon-button" onClick={() => copyToClipboard('/api/v1/mcp')} aria-label="Copy MCP endpoint" title="Copy endpoint"><Copy size={14} /></button></div>
+          <span>MCP server URL</span>
+          <div><code title={mcpUrl}>{mcpUrl}</code><button className="ad-icon-button" onClick={() => copyToClipboard(mcpUrl)} aria-label="Copy MCP server URL" title="Copy MCP URL"><Copy size={14} /></button></div>
         </div>
         <dl className={styles.connectionFacts}>
           <div><dt>Transport</dt><dd><i /> Stateless HTTP</dd></div>

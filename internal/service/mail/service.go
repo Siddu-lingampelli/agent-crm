@@ -7,12 +7,13 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"io"
 	"log/slog"
-	netmail "net/mail"
 	"net/http"
+	netmail "net/mail"
 	"net/url"
 	"os"
 	"strings"
@@ -28,6 +29,7 @@ import (
 	"crm.local/internal/permissions"
 	"crm.local/internal/repository"
 	"crm.local/internal/security"
+	"crm.local/internal/service/email"
 	"crm.local/internal/uuid"
 )
 
@@ -53,11 +55,11 @@ type Config struct {
 
 // Service provides mail connection, inbox and tracking logic.
 type Service struct {
-	repo  *repository.MailRepository
+	repo     *repository.MailRepository
 	contacts *repository.ContactRepository
-	leads *repository.LeadRepository
-	log   *slog.Logger
-	cfg   Config
+	leads    *repository.LeadRepository
+	log      *slog.Logger
+	cfg      Config
 
 	mu      sync.Mutex
 	started bool
@@ -125,15 +127,15 @@ func (s *Service) pollLoop(ctx context.Context) {
 
 // CreateConnectionInput is the input for a new mail connection.
 type CreateConnectionInput struct {
-	Name         string `json:"name"`
-	EmailAddress string `json:"email_address"`
-	IMAPHost     string `json:"imap_host"`
-	IMAPPort     int    `json:"imap_port"`
-	UseTLS       bool   `json:"use_tls"`
-	Username     string `json:"username"`
-	Password     string `json:"password"` // plaintext, sealed before storage
-	Mailbox      string `json:"mailbox"`
-	PollIntervalSecs int `json:"poll_interval_seconds"`
+	Name             string `json:"name"`
+	EmailAddress     string `json:"email_address"`
+	IMAPHost         string `json:"imap_host"`
+	IMAPPort         int    `json:"imap_port"`
+	UseTLS           bool   `json:"use_tls"`
+	Username         string `json:"username"`
+	Password         string `json:"password"` // plaintext, sealed before storage
+	Mailbox          string `json:"mailbox"`
+	PollIntervalSecs int    `json:"poll_interval_seconds"`
 }
 
 // CreateConnection validates, seals credentials and stores a connection.
@@ -194,6 +196,7 @@ func (s *Service) CreateConnection(ctx context.Context, actor permissions.AuthCo
 		UseTLS:           in.UseTLS || in.IMAPPort == 993,
 		Username:         in.Username,
 		PasswordSealed:   sealed,
+		AuthMode:         "password",
 		Mailbox:          in.Mailbox,
 		Enabled:          true,
 		PollIntervalSecs: in.PollIntervalSecs,
@@ -241,16 +244,16 @@ func (s *Service) GetConnection(ctx context.Context, actor permissions.AuthConte
 
 // UpdateConnectionInput updates mutable fields; empty Password keeps the stored one.
 type UpdateConnectionInput struct {
-	Name         string `json:"name"`
-	EmailAddress string `json:"email_address"`
-	IMAPHost     string `json:"imap_host"`
-	IMAPPort     int    `json:"imap_port"`
-	UseTLS       bool   `json:"use_tls"`
-	Username     string `json:"username"`
-	Password     string `json:"password"`
-	Mailbox      string `json:"mailbox"`
-	Enabled      *bool  `json:"enabled"`
-	PollIntervalSecs *int `json:"poll_interval_seconds"`
+	Name             string `json:"name"`
+	EmailAddress     string `json:"email_address"`
+	IMAPHost         string `json:"imap_host"`
+	IMAPPort         int    `json:"imap_port"`
+	UseTLS           bool   `json:"use_tls"`
+	Username         string `json:"username"`
+	Password         string `json:"password"`
+	Mailbox          string `json:"mailbox"`
+	Enabled          *bool  `json:"enabled"`
+	PollIntervalSecs *int   `json:"poll_interval_seconds"`
 }
 
 // UpdateConnection modifies a connection owned by the actor's workspace.
@@ -288,7 +291,15 @@ func (s *Service) UpdateConnection(ctx context.Context, actor permissions.AuthCo
 		}
 		c.IMAPPort = in.IMAPPort
 	}
-	c.UseTLS = in.UseTLS || c.IMAPPort == 993
+	// Keep the stored implicit-TLS setting unless the port change forces it:
+	// flipping UseTLS to false on a non-993 port would make every poll fail
+	// with a STARTTLS error on servers that only offer implicit TLS.
+	// Port 993 always implies implicit TLS.
+	if c.IMAPPort == 993 {
+		c.UseTLS = true
+	} else if in.UseTLS {
+		c.UseTLS = true
+	}
 	if in.Username != "" {
 		c.Username = in.Username
 	}
@@ -341,19 +352,27 @@ func (s *Service) TestConnection(ctx context.Context, actor permissions.AuthCont
 		return fmt.Errorf("not found")
 	}
 	if c.AuthMode == "oauth" {
-		return s.withOAuthClient(ctx, c, func(cl *client.Client, mbox string) error {
+		err = s.withOAuthClient(ctx, c, func(cl *client.Client, mbox string) error {
 			_, err := cl.Select(mbox, true)
 			return err
 		})
+	} else {
+		var password string
+		password, err = s.unseal(c)
+		if err == nil {
+			err = s.withClient(ctx, c, password, func(cl *client.Client, mbox string) error {
+				_, err := cl.Select(mbox, true)
+				return err
+			})
+		}
 	}
-	password, err := s.unseal(c)
 	if err != nil {
 		return err
 	}
-	return withClient(ctx, c, password, func(cl *client.Client, mbox string) error {
-		_, err := cl.Select(mbox, true)
-		return err
-	})
+	if err := s.repo.ClearConnectionError(ctx, id); err != nil {
+		s.log.Warn("clear stale mail connection error after successful test", "connection_id", id, "error", err)
+	}
+	return nil
 }
 
 // ---------- inbox ----------
@@ -469,7 +488,7 @@ func (s *Service) PollConnection(ctx context.Context, c *model.MailConnection) (
 		if err != nil {
 			return err
 		}
-		return withClient(ctx, c, password, fn)
+		return s.withClient(ctx, c, password, fn)
 	}
 	err := dialFn(func(cl *client.Client, mbox string) error {
 		m, err := cl.Select(mbox, true)
@@ -536,28 +555,118 @@ func (s *Service) unseal(c *model.MailConnection) (string, error) {
 	return pw, nil
 }
 
-// withClient dials, authenticates (password or OAuth bearer), selects the mailbox and runs fn.
-func withClient(ctx context.Context, c *model.MailConnection, password string, fn func(*client.Client, string) error) error {
-	addr := fmt.Sprintf("%s:%d", c.IMAPHost, c.IMAPPort)
-	var cl *client.Client
-	var err error
-	if c.UseTLS {
-		cl, err = client.DialTLS(addr, nil)
-	} else {
-		cl, err = client.Dial(addr)
-	}
+// SMTPConfigForWorkspace reuses supported connected mailbox credentials for
+// outbound mail when the deployment has no explicit SMTP configuration.
+func (s *Service) SMTPConfigForWorkspace(ctx context.Context, workspaceID string) (*email.SMTPConfig, error) {
+	connections, err := s.repo.ListConnections(ctx, workspaceID)
 	if err != nil {
-		return fmt.Errorf("dial %s: %w", addr, err)
+		return nil, fmt.Errorf("load connected inbox for outgoing mail: %w", err)
+	}
+	for i := range connections {
+		c := &connections[i]
+		if !c.Enabled {
+			continue
+		}
+		host := strings.ToLower(strings.TrimSpace(c.IMAPHost))
+		smtpHost := ""
+		switch host {
+		case "imap.gmail.com":
+			smtpHost = "smtp.gmail.com"
+		case "outlook.office365.com", "imap-mail.outlook.com":
+			smtpHost = "smtp.office365.com"
+		case "imap.mail.yahoo.com":
+			smtpHost = "smtp.mail.yahoo.com"
+		default:
+			continue
+		}
+		if c.AuthMode == "oauth" {
+			return nil, fmt.Errorf("outgoing mail for %s needs SMTP OAuth support; configure CRM_SMTP_* to send", c.EmailAddress)
+		}
+		password, err := s.unseal(c)
+		if err != nil {
+			return nil, fmt.Errorf("cannot use connected inbox for outgoing mail: %w", err)
+		}
+		port := 587
+		implicitTLS := false
+		if smtpHost == "smtp.mail.yahoo.com" {
+			port = 465
+			implicitTLS = true
+		}
+		username := c.Username
+		if username == "" {
+			username = c.EmailAddress
+		}
+		return &email.SMTPConfig{Host: smtpHost, Port: port, Username: username, Password: password, From: c.EmailAddress, UseTLS: implicitTLS}, nil
+	}
+	return nil, nil
+}
+
+// withClient dials, authenticates (password or OAuth bearer), selects the mailbox and runs fn.
+func (s *Service) withClient(ctx context.Context, c *model.MailConnection, password string, fn func(*client.Client, string) error) error {
+	return s.withIMAPClient(ctx, c, func(cl *client.Client, mailbox string) error {
+		if c.AuthMode == "oauth" {
+			return fmt.Errorf("oauth connections must use withOAuthClient")
+		}
+		if err := cl.Login(c.Username, password); err != nil {
+			return fmt.Errorf("imap login: %w", err)
+		}
+		return fn(cl, mailbox)
+	})
+}
+
+// withIMAPClient applies SSRF checks at connection time, pins the resolved IP,
+// requires TLS before any mailbox credentials or OAuth tokens are sent, and
+// closes the connection when the request or polling context is canceled.
+func (s *Service) withIMAPClient(ctx context.Context, c *model.MailConnection, fn func(*client.Client, string) error) error {
+	if c == nil {
+		return fmt.Errorf("mail connection required")
+	}
+	blockPrivate := s.cfg.BlockPrivateHosts == nil || *s.cfg.BlockPrivateHosts
+	conn, err := security.DialOutboundContext(ctx, "tcp", c.IMAPHost, c.IMAPPort, blockPrivate, s.cfg.AllowedCIDRs, 10*time.Second)
+	if err != nil {
+		return fmt.Errorf("dial imap host: %w", err)
+	}
+	closeConn := func() { _ = conn.Close() }
+	stopCancel := context.AfterFunc(ctx, closeConn)
+	defer stopCancel()
+	deadline := time.Now().Add(30 * time.Second)
+	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(deadline) {
+		deadline = ctxDeadline
+	}
+	if err := conn.SetDeadline(deadline); err != nil {
+		closeConn()
+		return fmt.Errorf("set imap deadline: %w", err)
+	}
+	if c.UseTLS {
+		tlsConn := tls.Client(conn, &tls.Config{ServerName: c.IMAPHost, MinVersion: tls.VersionTLS12})
+		if err := tlsConn.HandshakeContext(ctx); err != nil {
+			closeConn()
+			return fmt.Errorf("imap tls handshake: %w", err)
+		}
+		conn = tlsConn
+	}
+	cl, err := client.New(conn)
+	if err != nil {
+		closeConn()
+		return fmt.Errorf("imap greeting: %w", err)
 	}
 	defer cl.Logout()
+	if !c.UseTLS {
+		supported, err := cl.SupportStartTLS()
+		if err != nil {
+			return fmt.Errorf("check imap starttls: %w", err)
+		}
+		if !supported {
+			return fmt.Errorf("imap server must support STARTTLS when implicit TLS is disabled")
+		}
+		if err := cl.StartTLS(&tls.Config{ServerName: c.IMAPHost, MinVersion: tls.VersionTLS12}); err != nil {
+			return fmt.Errorf("imap starttls: %w", err)
+		}
+	}
+	if err := conn.SetDeadline(time.Time{}); err != nil {
+		return fmt.Errorf("clear imap handshake deadline: %w", err)
+	}
 	cl.Timeout = 30 * time.Second
-	if c.AuthMode == "oauth" {
-		// handled by caller via withOAuthClient
-		return fmt.Errorf("oauth connections must use withOAuthClient")
-	}
-	if err := cl.Login(c.Username, password); err != nil {
-		return fmt.Errorf("imap login: %w", err)
-	}
 	return fn(cl, c.Mailbox)
 }
 
@@ -567,35 +676,31 @@ func (s *Service) withOAuthClient(ctx context.Context, c *model.MailConnection, 
 	if err != nil {
 		return err
 	}
-	addr := fmt.Sprintf("%s:%d", c.IMAPHost, c.IMAPPort)
-	cl, err := client.DialTLS(addr, nil)
-	if err != nil {
-		return fmt.Errorf("dial %s: %w", addr, err)
-	}
-	defer cl.Logout()
-	cl.Timeout = 30 * time.Second
-	saslClient := sasl.NewOAuthBearerClient(&sasl.OAuthBearerOptions{
-		Username: c.Username,
-		Token:    tok,
-		Host:     c.IMAPHost,
-		Port:     c.IMAPPort,
+	return s.withIMAPClient(ctx, c, func(cl *client.Client, mailbox string) error {
+		saslClient := sasl.NewOAuthBearerClient(&sasl.OAuthBearerOptions{
+			Username: c.Username,
+			Token:    tok,
+			Host:     c.IMAPHost,
+			Port:     c.IMAPPort,
+		})
+		if err := cl.Authenticate(saslClient); err != nil {
+			return fmt.Errorf("imap oauthbearer auth: %w", err)
+		}
+		return fn(cl, mailbox)
 	})
-	if err := cl.Authenticate(saslClient); err != nil {
-		return fmt.Errorf("imap oauthbearer auth: %w", err)
-	}
-	return fn(cl, c.Mailbox)
 }
 
 // parseIMAPMessage converts an IMAP message into an InboundMessage.
 func parseIMAPMessage(msg *imap.Message) (*model.InboundMessage, error) {
+	const maxMessageBytes = 4 << 20
 	now := time.Now().UTC()
 	in := &model.InboundMessage{
-		ID:        uuid.New(),
-		MessageID: "",
-		UID:       int(msg.Uid),
+		ID:         uuid.New(),
+		MessageID:  "",
+		UID:        int(msg.Uid),
 		ReceivedAt: now,
-		CreatedAt: now,
-		UpdatedAt: now,
+		CreatedAt:  now,
+		UpdatedAt:  now,
 	}
 	if !msg.InternalDate.IsZero() {
 		in.ReceivedAt = msg.InternalDate.UTC()
@@ -626,9 +731,18 @@ func parseIMAPMessage(msg *imap.Message) (*model.InboundMessage, error) {
 		if section == nil {
 			continue
 		}
-		b, rerr := io.ReadAll(section)
+		remaining := maxMessageBytes - len(raw)
+		if remaining <= 0 {
+			break
+		}
+		b, rerr := io.ReadAll(io.LimitReader(section, int64(remaining)+1))
 		if rerr != nil {
 			continue
+		}
+		if len(b) > remaining {
+			b = b[:remaining]
+			raw = append(raw, b...)
+			break
 		}
 		raw = append(raw, b...)
 	}
@@ -637,9 +751,6 @@ func parseIMAPMessage(msg *imap.Message) (*model.InboundMessage, error) {
 		if perr == nil {
 			collectParts(ent, in)
 		}
-	}
-	if in.BodyText == "" && in.BodyHTML != "" {
-		in.BodyText = stripHTML(in.BodyHTML)
 	}
 	if in.BodyText == "" && in.BodyHTML != "" {
 		in.BodyText = stripHTML(in.BodyHTML)
@@ -854,4 +965,3 @@ func newToken() (string, error) {
 	}
 	return base64.RawURLEncoding.EncodeToString(buf), nil
 }
-

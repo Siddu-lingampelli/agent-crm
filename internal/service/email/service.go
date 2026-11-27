@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"log/slog"
 	"mime"
-	"net"
 	"net/mail"
 	"net/smtp"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -18,6 +18,7 @@ import (
 	"crm.local/internal/model"
 	"crm.local/internal/permissions"
 	"crm.local/internal/repository"
+	"crm.local/internal/security"
 	"crm.local/internal/uuid"
 )
 
@@ -41,13 +42,14 @@ type Tracker interface {
 
 // Service provides email business logic.
 type Service struct {
-	repo        *repository.EmailRepository
-	log         *slog.Logger
-	smtpConfig  *SMTPConfig
-	approvalReq bool
-	mu          sync.RWMutex
-	jobPool     *jobs.Pool
-	tracker     Tracker
+	repo         *repository.EmailRepository
+	log          *slog.Logger
+	smtpConfig   *SMTPConfig
+	approvalReq  bool
+	mu           sync.RWMutex
+	jobPool      *jobs.Pool
+	tracker      Tracker
+	smtpResolver func(context.Context, string) (*SMTPConfig, error)
 }
 
 // New returns an email service.
@@ -64,6 +66,14 @@ func (s *Service) SetSMTPConfig(cfg SMTPConfig) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.smtpConfig = &cfg
+}
+
+// SetSMTPResolver configures a workspace-aware fallback when no server-wide
+// SMTP settings are present (for example, using a connected Gmail inbox).
+func (s *Service) SetSMTPResolver(resolve func(context.Context, string) (*SMTPConfig, error)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.smtpResolver = resolve
 }
 
 // GetSMTPConfig returns the current SMTP configuration (without password).
@@ -339,9 +349,16 @@ func (s *Service) Send(ctx context.Context, actor permissions.AuthContext, id st
 
 // sendEmail sends the email via SMTP.
 func (s *Service) sendEmail(ctx context.Context, email *model.Email) {
-
-	if s.smtpSnapshot() == nil {
-		s.markFailed(ctx, email, "SMTP not configured")
+	cfg, err := s.smtpConfigFor(ctx, email.WorkspaceID)
+	if err != nil {
+		// Resolver errors (e.g. "needs SMTP OAuth support") are permanent
+		// configuration problems, not transient send failures: record the
+		// error without burning a retry so the email stays requeueable.
+		s.markConfigFailed(ctx, email, err.Error())
+		return
+	}
+	if cfg == nil {
+		s.markConfigFailed(ctx, email, "SMTP not configured. Connect a supported inbox or configure CRM_SMTP_HOST.")
 		return
 	}
 
@@ -351,7 +368,7 @@ func (s *Service) sendEmail(ctx context.Context, email *model.Email) {
 	}
 	email.Status = "sending"
 
-	if err := s.doSend(ctx, email); err != nil {
+	if err := s.doSend(ctx, email, cfg); err != nil {
 		s.markFailed(ctx, email, err.Error())
 		return
 	}
@@ -359,6 +376,8 @@ func (s *Service) sendEmail(ctx context.Context, email *model.Email) {
 	now := time.Now().UTC()
 	email.Status = "sent"
 	email.SentAt = &now
+	email.FailedAt = nil
+	email.ErrorMessage = ""
 	email.UpdatedAt = now
 	if err := s.repo.Update(ctx, email); err != nil {
 		s.log.Error("failed to update email status to sent", "error", err)
@@ -368,8 +387,7 @@ func (s *Service) sendEmail(ctx context.Context, email *model.Email) {
 }
 
 // doSend performs the actual SMTP send.
-func (s *Service) doSend(ctx context.Context, email *model.Email) error {
-	cfg := s.smtpSnapshot()
+func (s *Service) doSend(ctx context.Context, email *model.Email, cfg *SMTPConfig) error {
 	if cfg == nil {
 		return fmt.Errorf("SMTP not configured")
 	}
@@ -384,9 +402,11 @@ func (s *Service) doSend(ctx context.Context, email *model.Email) error {
 	cc := parseAddresses(email.CC)
 	bcc := parseAddresses(email.BCC)
 	recipients := append(append(to, cc...), bcc...)
-	addr := net.JoinHostPort(cfg.Host, fmt.Sprint(cfg.Port))
-	dialer := &net.Dialer{Timeout: 10 * time.Second}
-	conn, err := dialer.DialContext(ctx, "tcp", addr)
+	// SSRF guard: resolve+validate once and dial the validated address, the
+	// same policy as the IMAP path. Without this, a configured SMTP host that
+	// resolves to a private/loopback address (or rebinds after validation)
+	// would receive the mailbox credentials over PLAIN auth.
+	conn, err := security.DialOutboundContext(ctx, "tcp", cfg.Host, cfg.Port, s.blockPrivateSMTP(), s.smtpAllowedCIDRs(), 10*time.Second)
 	if err != nil {
 		return err
 	}
@@ -467,15 +487,50 @@ func (s *Service) doSend(ctx context.Context, email *model.Email) error {
 // markFailed marks an email as failed with retry logic.
 func (s *Service) markFailed(ctx context.Context, email *model.Email, errMsg string) {
 	email.RetryCount++
-	email.ErrorMessage = errMsg
-	email.FailedAt = ptrTime(time.Now().UTC())
-	email.UpdatedAt = time.Now().UTC()
-
-	email.Status = "failed"
-
+	markFailedStatus(email, errMsg)
 	if err := s.repo.Update(ctx, email); err != nil {
 		s.log.Error("failed to update email status to failed", "error", err)
 	}
+}
+
+// markConfigFailed records a permanent configuration error (no SMTP config,
+// unsupported OAuth-only inbox) without incrementing RetryCount, so the
+// email remains eligible for RetryFailed once the configuration is fixed.
+func (s *Service) markConfigFailed(ctx context.Context, email *model.Email, errMsg string) {
+	markFailedStatus(email, errMsg)
+	if err := s.repo.Update(ctx, email); err != nil {
+		s.log.Error("failed to update email status to failed", "error", err)
+	}
+}
+
+func markFailedStatus(email *model.Email, errMsg string) {
+	email.ErrorMessage = errMsg
+	email.FailedAt = ptrTime(time.Now().UTC())
+	email.UpdatedAt = time.Now().UTC()
+	email.Status = "failed"
+}
+
+// blockPrivateSMTP reports whether SMTP dials must reject private/loopback
+// hosts. Mirrors the mail service's CRM_MAIL_ALLOW_PRIVATE_HOSTS opt-out so
+// local development against a stub SMTP server keeps working.
+func (s *Service) blockPrivateSMTP() bool {
+	return os.Getenv("CRM_MAIL_ALLOW_PRIVATE_HOSTS") != "1"
+}
+
+// smtpAllowedCIDRs returns the SSRF allowlist for SMTP dials, shared with the
+// HTTP/IMAP policy via CRM_SECURITY_SSRF_ALLOWED_CIDRS.
+func (s *Service) smtpAllowedCIDRs() []string {
+	raw := strings.TrimSpace(os.Getenv("CRM_SECURITY_SSRF_ALLOWED_CIDRS"))
+	if raw == "" {
+		return nil
+	}
+	var out []string
+	for part := range strings.SplitSeq(raw, ",") {
+		if cidr := strings.TrimSpace(part); cidr != "" {
+			out = append(out, cidr)
+		}
+	}
+	return out
 }
 
 // RetryFailed retries failed emails.
@@ -761,6 +816,20 @@ func (s *Service) smtpSnapshot() *SMTPConfig {
 	copy := *s.smtpConfig
 	return &copy
 }
+
+func (s *Service) smtpConfigFor(ctx context.Context, workspaceID string) (*SMTPConfig, error) {
+	if cfg := s.smtpSnapshot(); cfg != nil {
+		return cfg, nil
+	}
+	s.mu.RLock()
+	resolve := s.smtpResolver
+	s.mu.RUnlock()
+	if resolve == nil {
+		return nil, nil
+	}
+	return resolve(ctx, workspaceID)
+}
+
 func (s *Service) enqueueEmail(ctx context.Context, email *model.Email) error {
 	if s.jobPool == nil {
 		return fmt.Errorf("email worker pool unavailable")

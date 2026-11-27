@@ -20,7 +20,7 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS', 'TRACE']);
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const relativePath = path.startsWith(API_BASE + '/') ? path.slice(API_BASE.length) : path;
   const headers = new Headers(options.headers);
-  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  if (!headers.has('Content-Type') && !(options.body instanceof FormData)) headers.set('Content-Type', 'application/json');
   const method = (options.method ?? 'GET').toUpperCase();
   if (!SAFE_METHODS.has(method)) {
     const csrf = readCookie('csrf_token');
@@ -58,6 +58,11 @@ export const api = {
     return request<T>(`${path}${query ? `?${query}` : ''}`);
   },
   post: <T>(path: string, data?: any) => request<T>(path, { method: 'POST', body: JSON.stringify(data) }),
+  upload: <T>(path: string, file: File, field = 'file') => {
+    const body = new FormData();
+    body.append(field, file);
+    return request<T>(path, { method: 'POST', body });
+  },
   patch: <T>(path: string, data?: any) => request<T>(path, { method: 'PATCH', body: JSON.stringify(data) }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
   // API Keys

@@ -25,10 +25,7 @@ export function TasksPage(){
  const due=(task:Task)=><span className={`wm-task-due${isOverdue(task.due_date,task.status,today)?' is-overdue':''}`}><CalendarDays size={12}/>{task.due_date?workDate(task.due_date):'No due date'}{isOverdue(task.due_date,task.status,today)&&<small>Overdue</small>}</span>;
  const columns=[...Object.entries(taskStatuses),...[...new Set(items.map(item=>item.status))].filter(value=>!(value in taskStatuses)).map(value=>[value,value])];
  return <div className="automation-area work-area"><WorkHeader title="Tasks" description="Assign work, track priorities, and manage due dates." recordCount={resource.data?.total} onExport={() => exportCrmPage('tasks', items, [{ key: 'title', label: 'title' }, { key: 'description', label: 'description' }, { key: 'status', label: 'status' }, { key: 'priority', label: 'priority' }, { key: 'due_date', label: 'due date' }, { key: 'project_id', label: 'project id' }])} onImport={async (file) => {
-        const fd = new FormData();
-        fd.append('file', file);
-        const res = await fetch('/api/v1/tasks/import', { method: 'POST', body: fd });
-        if (!res.ok) { const j = await res.json().catch(() => null); throw new Error(j?.error?.message || 'Import failed'); }
+        await api.upload('/tasks/import', file);
         resource.refresh();
       }}><RefreshButton loading={resource.loading} onClick={resource.refresh}/><Button primary onClick={()=>setEditor({record:null})}><Plus size={16}/>New task</Button></WorkHeader>{notice&&<Message message={notice} onClose={()=>setNotice('')}/>}{error&&<Message message={error} error onClose={()=>setError('')}/>}
  <WorkViewTabs label="Task status views" current={status} onChange={value=>{setStatus(value);resetPage();}} items={[{value:'',label:'All tasks'},...Object.entries(taskStatuses).map(([value,label])=>({value,label}))]}/>

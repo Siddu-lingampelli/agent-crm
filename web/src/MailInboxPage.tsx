@@ -7,6 +7,7 @@ import { FormField, Input } from './components';
 import { AutomationButton as Button, AutomationDialog as Dialog, AutomationMessage as Message, AutomationLoading as Loading, AutomationSearch as Search, AutomationPagination as Pagination, RefreshButton } from './AutomationUI';
 import { errorMessage, useDebouncedSearch, automationDate } from './automation-data';
 import { CommunicationsHeader, CommunicationsEmpty } from './CommunicationsUI';
+import { sandboxEmailHTML } from './communications-data';
 
 type EditorState = { connection?: MailConnection } | null;
 type OAuthProvider = { id: string; name: string; configured: boolean };
@@ -114,7 +115,7 @@ function InboundReader({ message, onBack, onChanged }: { message: InboundMessage
       </div>
       {message.related_id && <dl className="cm-recipient-details"><div><dt>Linked</dt><dd>{message.related_type} / {message.related_id}</dd></div></dl>}
     </div>
-    <div className="cm-message-body">{message.body_html ? <iframe title="Message HTML preview" sandbox="" referrerPolicy="no-referrer" srcDoc={message.body_html} /> : <p>{message.body_text || 'This message has no readable body.'}</p>}</div>
+    <div className="cm-message-body">{message.body_html ? <iframe title="Message HTML preview" sandbox="" referrerPolicy="no-referrer" srcDoc={sandboxEmailHTML(message.body_html)} /> : <p>{message.body_text || 'This message has no readable body.'}</p>}</div>
     <div className="cm-message-footer"><Inbox size={13} /><span>Inbound message via {message.connection_id.slice(0, 8)}…</span></div>
   </section>;
 }
@@ -129,6 +130,7 @@ export function MailInboxPage() {
   const [editor, setEditor] = useState<EditorState>(null);
   const oauth = useOAuthConnect();
   const [deleting, setDeleting] = useState<MailConnection | null>(null);
+  const [showConnections, setShowConnections] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -151,7 +153,7 @@ export function MailInboxPage() {
   const items = messages.data?.items ?? [];
   const conns = connections.data?.items ?? [];
   const oauthProviders = oauth.providers ?? [];
-  const selected = items.find(m => m.id === selectedId) ?? items[0];
+  const selected = items.find(m => m.id === selectedId);
 
   async function syncNow() {
     if (busy) return;
@@ -178,10 +180,11 @@ export function MailInboxPage() {
     catch (err) { setError(errorMessage(err)); } finally { setBusy(false); }
   }
 
-  return <div className="automation-area communications-area">
-    <CommunicationsHeader title="Inbox" description="Connected mailboxes, inbound messages, and sender replies linked to your CRM records.">
+  return <div className="automation-area communications-area mail-client mail-client-inbox">
+    <CommunicationsHeader title="Inbox" description="Email conversations from your connected accounts.">
       <RefreshButton loading={messages.loading || connections.loading} onClick={() => { messages.refresh(); connections.refresh(); }} />
       <Button onClick={syncNow} disabled={busy}><RefreshCw size={15} className={busy ? 'au-spin' : ''} />Sync now</Button>
+      {conns.length > 0 && <Button onClick={() => setShowConnections(value => !value)}><Server size={15} />{showConnections ? 'Hide mailboxes' : 'Mailboxes'}</Button>}
       {conns.length > 0 && oauthProviders.map(p => (
         <Button key={p.id} onClick={() => oauth.connect(p.id)} disabled={!p.configured || !!oauth.busyProvider}
           title={p.configured ? `Connect ${p.name} — you'll authorize on their site` : 'Not configured on this server (set CRM_MAIL_OAUTH_*_CLIENT_ID/SECRET)'}
@@ -194,7 +197,7 @@ export function MailInboxPage() {
     {notice && <Message message={notice} onClose={() => setNotice('')} />}
     {(error || oauth.error) && <Message message={error || oauth.error} error onClose={() => { setError(''); oauth.clearError(); }} />}
 
-    {conns.length > 0 && <section className="au-panel cm-connections-panel" aria-label="Connected inboxes">
+    {conns.length > 0 && showConnections && <section className="au-panel cm-connections-panel" aria-label="Connected inboxes">
       <header className="cm-connections-header"><div><h2>Connected inboxes</h2><p>Accounts that sync inbound mail into your workspace.</p></div><span>{conns.length} {conns.length === 1 ? 'mailbox' : 'mailboxes'}</span></header>
       <div className="cm-mail-connections">
         {conns.map(c => <div className="cm-connection-row" key={c.id}>
@@ -230,7 +233,7 @@ export function MailInboxPage() {
           {query && <button className="au-text-button" onClick={() => { setQuery(''); setPage(1); }}>Clear</button>}
         </div>
         {messages.error && <Message message={messages.error} error onRetry={messages.refresh} />}
-        {messages.loading && !messages.data ? <Loading /> : messages.error && !messages.data ? null : !items.length ? (
+        {messages.loading && !messages.data ? <Loading /> : messages.error && !messages.data ? null : selected ? <InboundReader key={selected.id} message={selected} onBack={() => setSelectedId('')} onChanged={() => { messages.refresh(); }} /> : !items.length ? (
           <CommunicationsEmpty icon={<Inbox size={29} />} title={query ? 'No matching messages' : conns.length ? 'No messages yet' : 'Connect your inbox to receive mail'} description={query ? 'Try another search or clear your filters.' : conns.length ? 'Run "Sync now" to fetch recent messages from your connected mailboxes.' : oauthProviders.some(provider => provider.configured) ? 'Choose an email provider below, or connect a mailbox manually.' : 'OAuth sign-in is not configured on this server. Connect an inbox manually with IMAP, or ask an administrator to configure Google or Microsoft OAuth.'}>
             {!conns.length && oauthProviders.length > 0 && <div className="cm-oauth-providers">
               {oauthProviders.map(p => (
@@ -241,19 +244,16 @@ export function MailInboxPage() {
               ))}
             </div>}
           </CommunicationsEmpty>
-        ) : <div className="cm-mail-columns">
-          <div className="cm-message-list" role="region" aria-label="Inbound messages">
+        ) : <div className="cm-message-list" role="region" aria-label="Inbound messages">
             <div className="cm-message-list-heading"><span>{folder === 'all' ? 'All messages' : folder === 'unread' ? 'Unread' : 'Archived'}</span><small>{messages.data?.total} messages</small></div>
-            {items.map(m => <button className={`cm-message-item${selected?.id === m.id ? ' is-selected' : ''}${m.is_read ? '' : ' is-unread'}`} aria-pressed={selected?.id === m.id} key={m.id} onClick={() => setSelectedId(m.id)}>
+            {items.map(m => <button className={`cm-message-item${m.is_read ? '' : ' is-unread'}`} aria-pressed={false} key={m.id} onClick={() => setSelectedId(m.id)}>
+              <span className="cm-list-avatar" aria-hidden="true">{(m.from_name || m.from_addr).slice(0, 1).toUpperCase()}</span>
               <span className="cm-message-item-to">{m.from_name || m.from_addr}</span>
-              <strong>{m.subject || '(no subject)'}</strong>
-              <span className="cm-message-snippet">{m.snippet || 'No preview'}</span>
-              <span className="cm-message-item-meta">{!m.is_read && <StatusDot />}<time>{automationDate(m.received_at)}</time>{m.related_id && <span className="cm-linked"><MousePointerClick size={11} />{m.related_type}</span>}</span>
+              <span className="cm-message-summary"><strong>{m.subject || '(no subject)'}</strong><span className="cm-message-snippet">{m.snippet || 'No preview'}</span></span>
+              <span className="cm-message-item-meta">{!m.is_read && <StatusDot />}{m.related_id && <span className="cm-linked"><MousePointerClick size={11} />{m.related_type}</span>}<time>{automationDate(m.received_at)}</time></span>
             </button>)}
-          </div>
-          {selected && <InboundReader key={selected.id} message={selected} onBack={() => setSelectedId('')} onChanged={() => { messages.refresh(); }} />}
-        </div>}
-        {!!messages.data?.total && <Pagination page={page} size={size} total={messages.data.total} onPage={v => { setPage(v); setSelectedId(''); }} onSize={v => { setSize(v); setPage(1); setSelectedId(''); }} />}
+          </div>}
+        {!selected && !!messages.data?.total && <Pagination page={page} size={size} total={messages.data.total} onPage={v => { setPage(v); setSelectedId(''); }} onSize={v => { setSize(v); setPage(1); setSelectedId(''); }} />}
       </div>
     </section>
 
